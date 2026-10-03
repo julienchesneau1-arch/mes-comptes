@@ -1,0 +1,19 @@
+{
+  "name": "Mes Comptes",
+  "short_name": "Comptes",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4f2ee",
+  "theme_color": "#0e9f6e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [{ "name": "Saisir une dépense", "short_name": "Dépense", "url": "./?saisie", "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }] }],
+  "share_target": {
+    "action": "./?partage",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": { "files": [{ "name": "fichiers", "accept": ["application/pdf", ".pdf", "text/csv", ".csv", "text/plain", ".txt", ".ofx", "application/json", ".json"] }] }
+  }
+}
