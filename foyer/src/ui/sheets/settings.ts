@@ -9,6 +9,7 @@ import { openSheet, sheetHead, closeSheet, esc, toast, saveFile } from '../dom.t
 import { orderedAisles } from '../../core/shopping.ts';
 import { available as relayAvailable, enabled as autoOn, syncNow, sync as autoSync, statusLabel, joinWithCode, forgetRelay } from '../autosync.ts';
 import { CLICK, CHANGE, SUBMIT, num } from '../registry.ts';
+import { type Env, diagnose, diagText, iosVersion } from '../../core/diag.ts';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const PRES: Record<Presence, string> = { maison: 'Maison', boite: 'Boîte', dehors: 'Dehors' };
@@ -249,6 +250,38 @@ CLICK['aisleSave'] = () => { closeSheet(); dispatch([{ t: 'settings.set', p: { a
 /* ---------- Installer sur l'écran d'accueil (iPhone) ---------- */
 export const needsInstall = (): boolean => isIOS() && !standalone() && !A.device.installHint;
 CLICK['installDone'] = () => { setDevice({ installHint: true }); A.render(); };
+
+/* ---------- Diagnostic du téléphone ---------- */
+async function env(): Promise<Env> {
+  const n = navigator as Navigator & { wakeLock?: unknown };
+  let persisted: boolean | null = null;
+  try { persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : null; } catch { persisted = null; }
+  return {
+    standalone: standalone(), ios: iosVersion(navigator.userAgent),
+    crypto: !!globalThis.crypto?.subtle, compression: typeof CompressionStream === 'function', dialog: typeof HTMLDialogElement === 'function',
+    serviceWorker: !!navigator.serviceWorker?.controller, wakeLock: !!n.wakeLock, push: 'PushManager' in window && 'serviceWorker' in navigator,
+    notifications: typeof Notification === 'function' ? Notification.permission : 'absent', persisted,
+  };
+}
+let lastDiag = '';
+CLICK['diag'] = async () => {
+  const e = await env();
+  const checks = diagnose(e);
+  lastDiag = diagText(checks);
+  openSheet({ id: 'diag', render: () => `${sheetHead('Diagnostic de ce téléphone', 'Ce que Foyer peut utiliser ici, et ce que chaque manque change.')}
+    <ul class="list">${checks.map(c => `<li><div class="item"><span class="chip ${c.ok === true ? 's-pret' : c.ok === false ? 'attention' : 'info'}" aria-hidden="true">${c.ok === true ? '✓' : c.ok === false ? '✗' : '–'}</span>
+      <span class="grow"><span class="title">${esc(c.label)}</span><br><span class="sub">${esc(`${c.ok === true ? 'Oui' : c.ok === false ? 'Non' : 'Inconnu'} · ${c.detail}`)}</span></span></div></li>`).join('')}</ul>
+    ${e.persisted === false ? '<button class="btn soft block" data-a="persistAsk">Demander au navigateur de garder les données</button>' : ''}
+    <button class="btn ghost block" data-a="diagCopy">Copier le diagnostic</button>
+    <p class="small muted">À coller dans un message si quelque chose ne marche pas. Il ne contient aucune donnée du foyer.</p>` });
+};
+CLICK['diagCopy'] = async () => { try { await navigator.clipboard.writeText(lastDiag); toast('Diagnostic copié'); } catch { toast('Copie impossible'); } };
+CLICK['persistAsk'] = async () => {
+  let ok = false;
+  try { ok = !!(await navigator.storage?.persist?.()); } catch { ok = false; }
+  toast(ok ? 'Le navigateur gardera les données de Foyer' : 'Refusé par le navigateur : installez Foyer et gardez la synchro active');
+  void CLICK['diag']?.({}, document.body);
+};
 
 /* ---------- Divers ---------- */
 CHANGE['theme'] = (_d, el) => { const t = (el as HTMLSelectElement).value as 'auto' | 'light' | 'dark'; setDevice({ theme: t }); applyTheme(); };

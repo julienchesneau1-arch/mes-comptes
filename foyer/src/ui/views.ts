@@ -267,6 +267,7 @@ function settingsView(): string {
       <li>Ne confirme jamais un repas parce que l'heure est passée.</li>
       <li>Données sur vos téléphones uniquement ; la synchro est chiffrée de bout en bout.</li></ul>
       <p class="small muted">Version ${VERSION} · <a href="${DGCCRF_URL}" target="_blank" rel="noopener">DLC et DDM (DGCCRF)</a></p>
+      <button class="btn ghost" data-a="diag">Diagnostic de ce téléphone</button>
       <button class="btn danger" data-a="wipe">Effacer Foyer sur ce téléphone</button></section>`;
 }
 

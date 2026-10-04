@@ -130,6 +130,14 @@ await step('mode découverte', async () => {
   await page.getByRole('link', { name: 'Maison', exact: true }).click();
   await page.getByRole('button', { name: 'Réglages' }).click();
   await shot('12-reglages'); await axe('reglages');
+  await page.getByRole('button', { name: 'Diagnostic de ce téléphone' }).click();
+  const diag = page.locator('dialog[open]');
+  await diag.getByText('Chiffrement').waitFor();
+  const n = await diag.locator('li').count();
+  if (n !== 9) throw new Error(`${n} contrôles au lieu de 9`);
+  console.log('   diagnostic :', (await diag.locator('ul').innerText()).replace(/\s+/g, ' ').slice(0, 220));
+  await axe('diagnostic'); await shot('12b-diagnostic');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: /Mode découverte/ }).click();
   await page.waitForTimeout(200);
   await shot('13-demo-aujourdhui'); await axe('demo');

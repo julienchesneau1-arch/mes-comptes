@@ -63,6 +63,21 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 3. Téléphone 1 : créer le foyer. Le code du foyer s'affiche sur Aujourd'hui.
 4. Téléphone 2 : ouvrir Foyer depuis l'écran d'accueil → « L'autre téléphone a déjà Foyer » → taper le code. Ensuite tout se synchronise seul (au démarrage, au retour dans l'app, toutes les 20 s).
 
+**Vérification iPhone (10 minutes, une fois, sur les deux téléphones)** — Foyer n'a été testé que dans Chromium. Noter ✓ ou ✗ ; en cas de ✗, envoyer le texte de Maison › Réglages › « Diagnostic de ce téléphone » › Copier.
+
+| # | Geste | Attendu |
+|---|---|---|
+| 1 | Ouvrir Foyer depuis l'icône de l'écran d'accueil | Plein écran, sans barre Safari ; Diagnostic : ✓ Installée, iOS ≥ 16.4 |
+| 2 | Couper le réseau (mode avion), rouvrir Foyer | L'app s'ouvre et affiche la semaine |
+| 3 | Téléphone 2 : rejoindre avec le code | La même semaine apparaît en moins de 20 s |
+| 4 | Téléphone 1 : déclarer une absence ; téléphone 2 : revenir dans l'app | Portions et courses recalculées des deux côtés |
+| 5 | Courses → Mode magasin, attendre 2 min sans toucher | L'écran reste allumé |
+| 6 | Courses → « Commander chez Auchan » → « Chercher chez Auchan » | La recherche Auchan s'ouvre (noter : dans Safari ou dans l'app Auchan) ; retour dans Foyer sur le même article |
+| 7 | Copier l'adresse d'une page produit Auchan, la coller dans « Retenir le produit », contenance « 300 g » | « À mettre au panier : N × 300 g » |
+| 8 | Semaine → Agenda (.ics) → ouvrir le fichier | iOS propose d'ajouter les rappels au Calendrier |
+| 9 | Maison → Coller une recette (texte de Notes) | Ingrédients et étapes reconnus, relecture avant enregistrement |
+| 10 | VoiceOver (triple clic sur le bouton latéral si activé) : parcourir Aujourd'hui | Chaque bouton est annoncé avec un nom clair |
+
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
 - Étiqueter « rapide », « week-end », « plat entier » : c'est ce qui rend les propositions justes.
@@ -107,4 +122,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Vérification | 44 tests ; 3 scénarios navigateur (relais muet ou simulé), 0 erreur, axe 0 défaut | livré | iPhone et VoiceOver non testés |
 | 2026-10-04 | Comparatif | Critère « commander au drive » ajouté : Foyer 4,6 → 4,25 (puis 4,3 avec le panier assisté) | livré | Notes attribuées par l'auteur |
 | 2026-10-04 | V2.3 | Drive Auchan assisté : produit retenu, paquets calculés, commande guidée | livré | Liens auchan.fr vers l'app Auchan sur iPhone non vérifiés ; pas de prix |
+| 2026-10-04 | Fiabilité | Relais relu depuis le début quand la version de l'app lit d'autres types d'événements (test : l'événement écarté par l'ancienne version revient) | livré | — |
+| 2026-10-04 | iPhone | Écran « Diagnostic de ce téléphone » (9 contrôles, texte à copier) + liste de vérification en 10 gestes | livré | Vérification réelle à faire par vous |
 | 2026-10-04 | Test | Scénario navigateur corrigé : une coche de test cochait toutes les lignes (`.first()` re-résolu) ; défaut du test, pas de l'app (vérifié sur le cœur) | livré | — |

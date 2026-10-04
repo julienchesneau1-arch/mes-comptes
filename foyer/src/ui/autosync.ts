@@ -1,15 +1,21 @@
 // Synchro automatique : relève au démarrage, au retour dans l'app, toutes les 20 s quand l'app est visible ; dépose après chaque changement.
 // Hors ligne ou relais indisponible : rien n'est perdu, l'app continue en local et le lien chiffré reste disponible.
-import { type RelayKeys, relayKeys, push, pull, RelayError, type Fetch } from '../core/relay.ts';
+import { type RelayKeys, relayKeys, push, pull, resumeFrom, RelayError, type Fetch } from '../core/relay.ts';
 import { merge, SyncError } from '../core/sync.ts';
+import { SCHEMA } from '../core/model.ts';
 import { openConflicts } from '../core/reduce.ts';
 import { RELAY } from './config.ts';
 import { A, S, setLog, persist, setDevice } from './state.ts';
 import { toast } from './dom.ts';
 
 const KEY = 'foyer:relais';
-interface Mem { cursor: number; known: string[] }
-const load = (): Mem => { try { const m = JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<Mem>; return { cursor: Number(m.cursor) || 0, known: Array.isArray(m.known) ? m.known.filter(x => typeof x === 'string') : [] }; } catch { return { cursor: 0, known: [] }; } };
+interface Mem { cursor: number; known: string[]; schema?: string } // schema : types d'événements lisibles par la version qui a relevé
+const load = (): Mem => {
+  try {
+    const m = JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<Mem>;
+    return { cursor: Number(m.cursor) || 0, known: Array.isArray(m.known) ? m.known.filter(x => typeof x === 'string') : [], ...(typeof m.schema === 'string' ? { schema: m.schema } : {}) };
+  } catch { return { cursor: 0, known: [] }; }
+};
 const save = (m: Mem): void => { try { localStorage.setItem(KEY, JSON.stringify(m)); } catch { /* rien */ } };
 export const forgetRelay = (): void => { try { localStorage.removeItem(KEY); } catch { /* rien */ } };
 
@@ -44,7 +50,7 @@ export async function syncNow(): Promise<void> {
     try {
       const k = await keysFor(A.device.code as string);
       const mem = load();
-      const got = await pull(conf, k, mem.cursor, f);
+      const got = await pull(conf, k, resumeFrom(mem.cursor, mem.schema, SCHEMA), f);
       const known = new Set(mem.known);
       for (const e of got.events) known.add(e.id);
       if (got.events.length) {
@@ -58,7 +64,7 @@ export async function syncNow(): Promise<void> {
       }
       const fresh = A.log.filter(e => !known.has(e.id));
       if (fresh.length) { await push(conf, k, A.device.dev, fresh, f); for (const e of fresh) known.add(e.id); setDevice({ lastSentLc: A.r.maxLc, lastSentAt: A.now().toISOString() }); }
-      save({ cursor: got.cursor, known: [...known] });
+      save({ cursor: got.cursor, known: [...known], schema: SCHEMA });
       sync.status = 'ok'; sync.at = A.now().toISOString(); sync.error = '';
     } catch (e) {
       sync.status = e instanceof RelayError ? 'error' : 'offline';
@@ -84,7 +90,7 @@ export async function joinWithCode(code: string): Promise<'ok' | 'introuvable' |
     const m = merge([], null, { app: 'foyer', v: 1, hid: init.p.hid, from: 'relais', sent: '', events: got.events });
     setLog(m.log); persist();
     setDevice({ code, auto: true, lastRecvAt: A.now().toISOString() });
-    save({ cursor: got.cursor, known: got.events.map(e => e.id) });
+    save({ cursor: got.cursor, known: got.events.map(e => e.id), schema: SCHEMA });
     sync.status = 'ok'; sync.at = A.now().toISOString();
     return 'ok';
   } catch { return 'hors-ligne'; }

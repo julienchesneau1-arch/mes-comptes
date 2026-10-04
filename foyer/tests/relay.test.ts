@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { household, CURRY, MON } from './helpers.ts';
-import { relayKeys, push, pull, type Fetch } from '../src/core/relay.ts';
+import { relayKeys, push, pull, resumeFrom, type Fetch } from '../src/core/relay.ts';
+import { SCHEMA } from '../src/core/model.ts';
 import { merge, newCode } from '../src/core/sync.ts';
 import { replay } from '../src/core/reduce.ts';
 import { deriveShopping } from '../src/core/shopping.ts';
@@ -85,4 +86,25 @@ test('relais : un autre code ne voit rien ; un dépôt sous une autre étiquette
   assert.equal(mine.unreadable, 1);
   assert.equal(mine.events.length, a.log.length);
   await assert.rejects(pull({ ...conf, key: 'mauvaise' }, k1, 0, f), /lecture refusée \(401\)/);
+});
+
+test('relais : après une mise à jour, un téléphone relit tout et récupère ce que l\'ancienne version avait écarté', async () => {
+  const code = newCode(), k = await relayKeys(code);
+  const { a, b } = household();
+  await push(conf, k, 'deva0001', a.log, f);
+  a.emit({ t: 'product.set', p: { key: 'poulet', url: 'https://www.auchan.fr/le-gaulois-filet-de-poulet-blanc/pr-C1158275', label: 'Poulet', size: '300', unit: 'g' } });
+  await push(conf, k, 'deva0001', a.log.slice(-1), f);
+  // Ancienne version de B : ne connaît pas « product.set », l'écarte, mais avance son curseur.
+  const old = await pull(conf, k, 0, f);
+  const logB = merge(b.log, 'foyer0001', { app: 'foyer', v: 1, hid: 'foyer0001', from: 'relais', sent: '', events: old.events.filter(e => e.t !== 'product.set') }).log;
+  const mem = { cursor: old.cursor, schema: 'ancienne liste de types' };
+  assert.equal(replay(logB).state.products['poulet'], undefined);
+  // B mis à jour : autre liste de types → relecture depuis le début ; même liste → reprise au curseur.
+  assert.equal(resumeFrom(mem.cursor, SCHEMA, SCHEMA), mem.cursor);
+  const from = resumeFrom(mem.cursor, mem.schema, SCHEMA);
+  assert.equal(from, 0);
+  const again = await pull(conf, k, from, f);
+  const healed = merge(logB, 'foyer0001', { app: 'foyer', v: 1, hid: 'foyer0001', from: 'relais', sent: '', events: again.events });
+  assert.equal(healed.added, 1); // seul l'événement manquant s'ajoute
+  assert.equal(snap(healed.log), snap(a.log));
 });
