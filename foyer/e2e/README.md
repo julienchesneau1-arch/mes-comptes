@@ -16,4 +16,6 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/synchro-auto.mjs   # sert lui-même
 
 - `synchro-auto.mjs` : synchro automatique sur une copie de l'app pointée vers un relais simulé (API REST + RLS + fonction d'import) : le second téléphone rejoint avec le seul code, import d'une adresse web, mêmes courses, coche propagée, aucun texte en clair dans le relais.
 
+Le relais réel étant configuré dans l'app, `parcours.mjs` et `deux-telephones.mjs` le remplacent par un relais muet propre à chaque téléphone (aucun appel sortant ; la synchro par lien est éprouvée seule).
+
 Les captures vont dans `captures/` (non versionné). Résultat attendu : toutes les étapes ✓ et « erreurs : aucune ».

@@ -8,6 +8,12 @@ import AxeBuilder from '@axe-core/playwright';
 const URL = process.env.FOYER_URL ?? 'http://127.0.0.1:8765/';
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium' });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+// Relais réel configuré dans l'app : remplacé ici par un relais muet (aucun appel réseau sortant pendant le scénario).
+await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
+  const m = route.request().method();
+  return route.fulfill(m === 'OPTIONS' ? { status: 204, headers: cors } : m === 'POST' ? { status: 201, headers: cors } : { status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: '[]' });
+});
 const page = await ctx.newPage();
 page.setDefaultTimeout(6000);
 const errors = [];

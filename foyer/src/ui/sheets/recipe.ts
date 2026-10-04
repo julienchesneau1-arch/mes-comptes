@@ -4,6 +4,7 @@ import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredien
 import { parseRecipeText, lineText, fromWeb, type ParsedRecipe } from '../../core/recipe-text.ts';
 import type { WebRecipe } from '../../core/recipe-web.ts';
 import { RELAY } from '../config.ts';
+import { relayHeaders } from '../../core/relay.ts';
 import { TAGS } from '../../core/propose.ts';
 import { newId } from '../../core/reduce.ts';
 import { portions } from '../../core/plan.ts';
@@ -121,7 +122,7 @@ SUBMIT['webImport'] = async data => {
   if (!RELAY || !/^https?:\/\/\S+\.\S+/.test(url)) { toast('Adresse à vérifier (elle commence par https://)'); return; }
   toast('Lecture de la page…');
   try {
-    const r = await fetch(`${RELAY.url}/functions/v1/foyer-import`, { method: 'POST', headers: { apikey: RELAY.key, Authorization: `Bearer ${RELAY.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+    const r = await fetch(`${RELAY.url}/functions/v1/foyer-import`, { method: 'POST', headers: relayHeaders(RELAY), body: JSON.stringify({ url }) });
     const body = (await r.json()) as WebRecipe & { error?: string };
     if (!r.ok || body.error) { toast(body.error ?? `Import impossible (${r.status})`); return; }
     webUrl = '';

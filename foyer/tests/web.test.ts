@@ -47,6 +47,17 @@ test('repli microdonnées ; page sans recette → rien', () => {
   assert.equal(decode('&#x2F;&frac12;&inconnu;'), '/½&inconnu;');
 });
 
+test('pages réelles : entités encodées deux fois (750g), titre de référencement (Marmiton)', () => {
+  const r = extractRecipe(page(JSON.stringify({ '@type': 'Recipe', name: 'Poulet au curry lait de coco et noix de cajou : la meilleure recette', recipeYield: '3 personnes',
+    recipeIngredient: ['3 filets de poulet ou dinde', '1 cuillère à café de curry', '3 cuillères à soupe d\'huile', 'sel'],
+    recipeInstructions: [{ '@type': 'HowToStep', text: 'Pr&amp;eacute;parez&amp;nbsp;le plat &amp;agrave; gratin.' }] })))!;
+  assert.deepEqual(r.steps, ['Préparez le plat à gratin.']);
+  const p = fromWeb(r);
+  assert.equal(p.name, 'Poulet au curry lait de coco et noix de cajou');
+  assert.equal(fromWeb({ ...r, name: 'Recette Gratin dauphinois, la VRAIE recette' }).name, 'Gratin dauphinois, la VRAIE recette');
+  assert.deepEqual(p.ingredients.map(i => [i.line.name, i.line.qty, i.line.unit]), [['Poulet ou dinde', '3', 'filet'], ['Curry', '1', 'cc'], ['Huile', '3', 'cs'], ['Sel', null, null]]);
+});
+
 test('la fonction serveur embarque exactement le même extracteur', () => {
   const a = readFileSync(new URL('../src/core/recipe-web.ts', import.meta.url), 'utf8');
   const b = readFileSync(new URL('../supabase/functions/foyer-import/recipe-web.ts', import.meta.url), 'utf8');

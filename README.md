@@ -17,5 +17,5 @@ Tests de la logique : `node test.js`
 
 ## Foyer (dans `foyer/`)
 
-Deuxième app du foyer, même philosophie (100 % local, sans serveur, synchro chiffrée par lien) : les repas de la semaine, les courses calculées, les restes et les boîtes du midi. Voir [foyer/README.md](foyer/README.md). Publiée à côté de Mes Comptes, dans `…/mes-comptes/foyer/` ; stockage et caches séparés.
+Deuxième app du foyer, même philosophie (données sur vos téléphones, synchro chiffrée de bout en bout : automatique via un relais qui ne voit que des blocs illisibles, ou par lien) : les repas de la semaine, les courses calculées, les restes et les boîtes du midi. Voir [foyer/README.md](foyer/README.md). Publiée à côté de Mes Comptes, dans `…/mes-comptes/foyer/` ; stockage et caches séparés.
 

@@ -5,8 +5,15 @@ const SHOTS = process.env.SHOTS ?? 'captures';
 mkdirSync(SHOTS, { recursive: true });
 const URL = process.env.FOYER_URL ?? 'http://127.0.0.1:8765/';
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium' });
+// Le relais réel est configuré dans l'app : chaque téléphone a ici son propre relais muet, pour éprouver la synchro par lien seule.
+const mute = route => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
+  const m = route.request().method();
+  return route.fulfill(m === 'OPTIONS' ? { status: 204, headers: cors } : m === 'POST' ? { status: 201, headers: cors } : { status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: '[]' });
+};
 const mk = async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', permissions: ['clipboard-read', 'clipboard-write'] });
+  await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, mute);
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
   page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
@@ -16,6 +23,15 @@ const errors = [];
 const step = async (label, fn) => { try { await fn(); console.log('✓', label); } catch (e) { console.log('✗', label, e.message.split('\n').slice(0, 6).join(' | ')); errors.push(`${label}: ${e.message.split('\n')[0]}`); for (const [n, p] of [['A', A], ['B', B]]) await p.screenshot({ path: `${SHOTS}/fail-${label.slice(0, 12).replace(/\W/g, '_')}-${n}.png` }).catch(() => {}); } };
 const A = await mk(), B = await mk();
 const linkOf = async p => p.evaluate(() => navigator.clipboard.readText());
+// Synchro automatique active : l'envoi d'un lien se fait depuis la feuille Synchro.
+const sendLink = async p => {
+  await p.getByRole('link', { name: "Aujourd'hui", exact: true }).click();
+  await p.getByRole('button', { name: /^Synchro/ }).click();
+  await p.locator('dialog[open]').getByRole('button', { name: /^Envoyer un lien/ }).click();
+  await p.waitForTimeout(1500);
+  await p.keyboard.press('Escape'); // referme la feuille Synchro
+  await p.locator('dialog[open]').waitFor({ state: 'detached' });
+};
 
 await step('A crée le foyer avec un plat complet', async () => {
   await A.goto(URL);
@@ -38,9 +54,7 @@ await step('A crée le foyer avec un plat complet', async () => {
 });
 let code = '';
 await step('A envoie un lien chiffré (presse-papiers)', async () => {
-  await A.getByRole('link', { name: "Aujourd'hui", exact: true }).click();
-  await A.getByRole('button', { name: 'Envoyer le lien' }).click();
-  await A.waitForTimeout(1500);
+  await sendLink(A);
   const t = await linkOf(A);
   if (!/#s=F1\./.test(t)) throw new Error('pas de lien : ' + t.slice(0, 80));
   if (/Curry|poulet/.test(t.split('#s=')[1])) throw new Error('contenu en clair dans le lien');
@@ -71,9 +85,7 @@ await step('B déclare une absence, renvoie ; A reçoit, portions recalculées',
   await B.locator('dialog[open]').getByRole('radio', { name: 'Dehors' }).nth(1).check();
   await B.waitForTimeout(300);
   await B.keyboard.press('Escape');
-  await B.getByRole('link', { name: "Aujourd'hui", exact: true }).click();
-  await B.getByRole('button', { name: 'Envoyer', exact: true }).click();
-  await B.waitForTimeout(1500);
+  await sendLink(B);
   const link = (await linkOf(B)).match(/https?:\S+/)[0];
   await A.goto(link);
   await A.getByText(/Synchronisé/).waitFor();

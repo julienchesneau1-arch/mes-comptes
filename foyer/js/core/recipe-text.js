@@ -62,5 +62,7 @@ export function lineText(l) {
 export function fromWeb(r) {
     const y = /(\d{1,2})/.exec(r.yieldText);
     const n = y ? Number(y[1]) : null;
-    return { name: r.name || 'Recette importée', yield: n && n > 0 && n <= 50 ? n : null, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
+    // Titres « référencement » des sites : « … : la meilleure recette », « Recette … ».
+    const name = r.name.replace(/\s*[:|–-]\s*(?:la\s+)?(?:meilleure\s+|vraie\s+)?recette\b.*$/i, '').replace(/^recette\s+(?:de\s+|du\s+|des\s+)?/i, '').trim();
+    return { name: (name.length >= 3 ? name.charAt(0).toUpperCase() + name.slice(1) : r.name) || 'Recette importée', yield: n && n > 0 && n <= 50 ? n : null, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
 }

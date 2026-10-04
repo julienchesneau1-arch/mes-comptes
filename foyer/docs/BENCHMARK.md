@@ -8,14 +8,14 @@
 |---|---|---|---|---|---|---|
 | Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC |
 | Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée |
-| Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout *(relais à activer)* |
-| Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) *(relais à activer)* ou texte |
+| Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout |
+| Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) ou texte |
 | Restes, boîtes, portions réelles (×3) | 1 — notes | 1 | 1 — notes | 1 | **5** | **5** — préparé 4 → 2 ce soir, 1 boîte, 1 libre ; rendement réel ; jamais négatif |
 | Préparer à l'avance (×2) | 4 — vue cuisine, mise à l'échelle | 4 | 4 — mode cuisine | 4 | 4 — tâches de la veille, mode cuisine | **5** — + écran allumé, rappels dans l'agenda |
 | Imprévus (×2) | 4 — glisser-déposer | 3 | 4 — glisser-déposer | 3 | 4 — aperçu des conséquences | **5** — glisser-déposer + aperçu (portions, courses, repas dépendants) |
 | Finition native (×1) | **5** — Apple Watch, widgets | 4 | 3 — web | 4 | 2 — app web | **3** — rappels agenda ; pas de notification ni widget sur iPhone |
 | Coût, vie privée, pérennité (×1) | 3 — 14,99 $/an foyer | 3 — payant | 4 — à héberger soi-même | 3 — financé par les enseignes | **5** — gratuit, local, export | **5** |
-| **Moyenne pondérée** | **3,6** | **3,4** | **3,6** | **3,5** *(sans le critère non vérifié)* | **3,6** | **4,6** *(4,1 sans relais)* |
+| **Moyenne pondérée** | **3,6** | **3,4** | **3,6** | **3,5** *(sans le critère non vérifié)* | **3,6** | **4,6** |
 
 ## Lecture
 
@@ -31,7 +31,7 @@
 
 ## Ce qui ferait passer Foyer devant partout
 
-1. **Activer le relais** (projet Supabase gratuit dédié, votre accord requis) : synchro automatique et import web passent de « prêts » à « en service ».
+1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.
 2. **Deux semaines d'usage réel** à deux sur iPhone, et corriger ce qui gêne (`PLAN.md`, étape C).
 3. Puis, selon ce que l'usage montre : notifications Web Push, photos des plats, synchro instantanée.
 

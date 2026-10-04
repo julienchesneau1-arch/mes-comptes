@@ -39,8 +39,8 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 
 | Fonction | Statut | Preuve |
 |---|---|---|
-| Synchro automatique chiffrée, rejoindre par le code | **prêt, non activé** | Protocole testé contre un serveur local qui reproduit l'API Supabase et la RLS (`relay.test.ts`) ; parcours complet à deux téléphones sur relais simulé (`e2e/synchro-auto.mjs`) : rejoindre par code, mêmes courses, coche propagée, rien en clair. **Non testé contre le vrai Supabase** : le projet n'existe pas encore |
-| Import d'une adresse web | **prêt, non activé** | Extracteur testé sur 5 variantes schema.org (`web.test.ts`) ; parcours d'import dans l'app sur fonction simulée. **Non testé sur les vrais sites** : accès réseau bloqué depuis cet environnement |
+| Synchro automatique chiffrée, rejoindre par le code | **en service** | Projet Supabase dédié `foyer` (Paris, eu-west-3). Vérifié sur le vrai relais : dépôt accepté (201) ; la bonne étiquette relit son bloc ; autre étiquette ou aucune → liste vide ; lecture de la colonne étiquette, suppression, appel sans clé → refusés (401) ; conseiller de sécurité Supabase : 0 alerte. Protocole aussi testé contre un serveur local qui reproduit l'API et la RLS (`relay.test.ts`) et parcours à deux téléphones sur relais simulé (`e2e/synchro-auto.mjs`) : rejoindre par code, mêmes courses, coche propagée, rien en clair |
+| Import d'une adresse web | **en service** | Fonction `foyer-import` déployée. Vraies pages : Marmiton (nom, 3 personnes, 9 ingrédients, 5 étapes) et 750g ; le test réel a révélé un défaut (accents encodés deux fois sur 750g : « &amp;eacute; »), corrigé avec test de régression. Clé absente ou fausse → 401 ; adresse IP (métadonnées cloud) → 400. Extracteur testé sur 5 variantes schema.org (`web.test.ts`) |
 | Glisser-déposer + aperçu | **livré** | Navigateur : fantôme, cible, aperçu « ce midi : rien → curry » |
 | Varier / réutiliser dans les propositions | **livré** | Test : pas de poulet deux jours de suite ; le gratin remonte car il reprend la crème de la tarte |
 | Qui cuisine, ordre des rayons, mode magasin, agenda .ics, saisie assistée, conseil d'installation iPhone | **livré** | Tests unitaires (ics, rayons, cuisinier) + navigateur (fichier .ics téléchargé, rayons réordonnés, mode magasin) ; axe : 0 défaut |
@@ -52,8 +52,8 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 **Étape A — Mise en service (Julien, ~10 min)**
 1. Fusionner la branche dans `main` : GitHub Pages publie `https://julienchesneau1-arch.github.io/mes-comptes/foyer/`.
 2. Sur chaque iPhone : ouvrir l'adresse dans Safari → Partager → « Sur l'écran d'accueil ». iOS 16.4 minimum (compression des liens).
-3. Téléphone 1 : créer le foyer. Puis Aujourd'hui → « Envoyer le lien ».
-4. Téléphone 2 : copier le lien reçu → ouvrir Foyer depuis l'écran d'accueil → « L'autre téléphone a déjà Foyer » → Coller → taper le code (Maison › Réglages › Synchro sur le téléphone 1).
+3. Téléphone 1 : créer le foyer. Le code du foyer s'affiche sur Aujourd'hui.
+4. Téléphone 2 : ouvrir Foyer depuis l'écran d'accueil → « L'autre téléphone a déjà Foyer » → taper le code. Ensuite tout se synchronise seul (au démarrage, au retour dans l'app, toutes les 20 s).
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -68,17 +68,16 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 **Étape D — Décisions conditionnelles**
 | Décision | Déclencheur mesuré | Contenu |
 |---|---|---|
-| Activer le relais (synchro auto + import web) | **Construit (V2.2)** ; activation dès votre accord | Projet Supabase gratuit dédié « foyer » (2ᵉ projet gratuit de votre organisation, Assemblages non touché) : migration `supabase/migrations/`, fonction `foyer-import`, adresse dans `src/ui/config.ts` et `index.html` |
+| Activer le relais (synchro auto + import web) | **Fait le 4 octobre 2026** | Projet Supabase gratuit dédié « foyer » (2ᵉ projet gratuit de l'organisation, Assemblages non touché) : table et RLS appliquées, fonction `foyer-import` déployée, adresse dans `src/ui/config.ts` et `index.html` |
 | V1B OCR des dates | Plus de 5 produits surveillés par semaine **et** saisie de date ressentie comme un frein | Audit Savore (accès au dépôt requis), corpus réel, confirmation champ par champ |
 | Rappels hors de l'app | Tâches « la veille » oubliées malgré Aujourd'hui | Fichier agenda (.ics) des tâches de la semaine, comme Mes Comptes ; notifications iOS impossibles sans serveur |
 
 ## 4. Limites connues (assumées, documentées)
 
-- Tant que le relais n'est pas activé : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle). Relais activé : automatique toutes les 20 s, pas instantané.
+- Synchro automatique toutes les 20 s, pas instantanée. Sans réseau, relais en pause ou synchro auto désactivée : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle).
 - Projet Supabase gratuit : mis en pause après une semaine sans aucune activité ; Foyer continue alors en local et par lien.
 - Le lien contient tout le journal (≈ 1 Ko au départ, quelques dizaines de Ko après des mois) ; compactage non fait.
 - Un seul navigateur testé (Chromium). Safari iOS et VoiceOver restent à vérifier sur les téléphones.
-- Glisser-déposer non implémenté (le bouton « Déplacer » est l'interface obligatoire du PRD).
 - Rayon « Tomates » en boîte classé « Fruits & légumes » par défaut : un geste pour le changer, mémorisé.
 
 ## 5. Journal de session
@@ -94,4 +93,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Isolation | Service worker de Mes Comptes limité à ses caches | livré | — |
 | 2026-10-04 | Comparatif | AnyList, Paprika, Mealie, Jow, Mealime vérifiés en ligne ; notes pondérées | livré | Notes attribuées par l'auteur |
 | 2026-10-04 | V2.2 | Glisser-déposer, variété/réutilisation, qui cuisine, rayons, mode magasin, agenda | livré | iPhone non testé |
-| 2026-10-04 | V2.2 | Relais chiffré + import web (code, migration, fonction, tests simulés) | prêt, non activé | Supabase réel non testé |
+| 2026-10-04 | V2.2 | Relais chiffré + import web (code, migration, fonction, tests simulés) | livré | — |
+| 2026-10-04 | Mise en service | Projet Supabase « foyer » créé (eu-west-3) ; schéma appliqué instruction par instruction (l'outil de migration expirait) ; fonction d'import déployée | livré | Projet gratuit : pause après 7 jours sans activité |
+| 2026-10-04 | Vérification réelle | RLS du relais éprouvée sur le vrai serveur ; import testé sur Marmiton et 750g, défaut d'encodage trouvé et corrigé | livré | Autres sites non testés |
+| 2026-10-04 | Vérification | 44 tests ; 3 scénarios navigateur (relais muet ou simulé), 0 erreur, axe 0 défaut | livré | iPhone et VoiceOver non testés |

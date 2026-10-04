@@ -3,6 +3,7 @@ import { current } from '../../core/model.js';
 import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredients.js';
 import { parseRecipeText, lineText, fromWeb } from '../../core/recipe-text.js';
 import { RELAY } from '../config.js';
+import { relayHeaders } from '../../core/relay.js';
 import { TAGS } from '../../core/propose.js';
 import { newId } from '../../core/reduce.js';
 import { portions } from '../../core/plan.js';
@@ -137,7 +138,7 @@ SUBMIT['webImport'] = async (data) => {
     }
     toast('Lecture de la page…');
     try {
-        const r = await fetch(`${RELAY.url}/functions/v1/foyer-import`, { method: 'POST', headers: { apikey: RELAY.key, Authorization: `Bearer ${RELAY.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+        const r = await fetch(`${RELAY.url}/functions/v1/foyer-import`, { method: 'POST', headers: relayHeaders(RELAY), body: JSON.stringify({ url }) });
         const body = (await r.json());
         if (!r.ok || body.error) {
             toast(body.error ?? `Import impossible (${r.status})`);

@@ -29,11 +29,11 @@ Pas d'inventaire du frigo, pas d'IA, pas de prix, pas de durée de conservation 
 ```
 cd foyer
 npm ci
-npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 43 tests
+npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 44 tests
 ```
 
 Sources dans `src/`, JavaScript publié dans `js/` (à recompiler et versionner après chaque modification ; la CI le vérifie). La liste hors ligne de `sw.js` est régénérée à chaque compilation.
 
 Documents : [PRD V2.1/V2.2](docs/PRD_V2.1.md) · [Comparatif](docs/BENCHMARK.md) · [Plan et état](docs/PLAN.md) · [Architecture](docs/ARCHITECTURE.md)
 
-Synchro automatique et import web : nécessitent le relais (`supabase/`, projet dédié) et son adresse dans `src/ui/config.ts` + `connect-src` d'`index.html`. Sans relais, tout fonctionne en local avec la synchro par lien.
+Synchro automatique et import web : relais Supabase dédié (`supabase/`), adresse dans `src/ui/config.ts` + `connect-src` d'`index.html` (un test vérifie qu'ils concordent). Relais indisponible : tout continue en local, avec la synchro par lien.

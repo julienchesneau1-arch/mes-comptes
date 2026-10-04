@@ -46,7 +46,9 @@ export async function openEvents(k: RelayKeys, blob: string): Promise<AnyEv[] | 
   } catch { return null; } // bloc illisible (autre code, altéré) : ignoré
 }
 
-const headers = (c: RelayConf, tag: string): Record<string, string> => ({ apikey: c.key, Authorization: `Bearer ${c.key}`, 'x-foyer': tag, 'Content-Type': 'application/json' });
+// Clé publique Supabase : la nouvelle clé « sb_publishable_ » va seule dans « apikey » ; une ancienne clé (jeton) va aussi dans Authorization.
+export const relayHeaders = (c: RelayConf): Record<string, string> => ({ apikey: c.key, ...(c.key.split('.').length === 3 ? { Authorization: `Bearer ${c.key}` } : {}), 'Content-Type': 'application/json' });
+const headers = (c: RelayConf, tag: string): Record<string, string> => ({ ...relayHeaders(c), 'x-foyer': tag });
 export class RelayError extends Error { readonly status: number; constructor(status: number, m: string) { super(m); this.status = status; } }
 
 // Dépose les événements par paquets (un bloc chiffré par paquet). Idempotent côté téléphones : un événement reçu deux fois ne compte qu'une fois.

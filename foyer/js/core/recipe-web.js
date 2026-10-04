@@ -7,17 +7,26 @@ const NAMED = {
     ccedil: 'ç', ocirc: 'ô', ucirc: 'û', ugrave: 'ù', icirc: 'î', iuml: 'ï', oelig: 'œ', OElig: 'Œ', Eacute: 'É', Egrave: 'È', Agrave: 'À',
     deg: '°', frac12: '½', frac14: '¼', frac34: '¾', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', laquo: '«', raquo: '»', hellip: '…', ndash: '–', mdash: '—',
 };
+const decodeOnce = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+\d*);/gi, (m, e) => {
+    if (e[0] === '#') {
+        const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
+    }
+    return NAMED[e] ?? m;
+});
+// Certains sites encodent deux fois (« &amp;eacute; ») : on décode jusqu'à stabilité (3 passes au plus).
 export function decode(s) {
-    return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+\d*);/gi, (m, e) => {
-        if (e[0] === '#') {
-            const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-            return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
-        }
-        return NAMED[e] ?? m;
-    });
+    let out = s;
+    for (let i = 0; i < 3; i++) {
+        const next = decodeOnce(out);
+        if (next === out)
+            break;
+        out = next;
+    }
+    return out;
 }
 const clean = (s) => typeof s === 'string' || typeof s === 'number'
-    ? decode(String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, ' ')).replace(/[ \t ]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim()
+    ? decode(String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, ' ')).replace(/[ \t\u00a0]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim()
     : '';
 const isRecipe = (o) => {
     const t = o['@type'];
