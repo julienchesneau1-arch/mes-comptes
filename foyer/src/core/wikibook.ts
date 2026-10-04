@@ -2,7 +2,8 @@
 // Une recette n'entre au catalogue que si elle est exploitable telle quelle : nombre de personnes, au moins 3 ingrédients
 // dont la moitié chiffrés, des étapes, et un plat de repas (ni dessert, ni boisson, ni cuisine historique).
 import { parseIngredient } from './ingredients.ts';
-import { matchUnit } from './units.ts';
+import { UNIT, matchUnit, toBase } from './units.ts';
+import { qFrom } from './rational.ts';
 import { decode } from './recipe-web.ts';
 
 export interface WikiPage { pageid: number; title: string; revid: number; content: string; categories: readonly string[] }
@@ -70,6 +71,17 @@ const UTENSIL = /^(?:\d+\s+|une?\s+)?(?:grande?s?\s+|petite?s?\s+)?(?:sauteuse|c
 const MAIN_CATS = new Set(['Plat principal', 'Recettes de tous les jours', 'Pâtes alimentaires', 'Recettes de pizzas', 'Soupes', 'Salades', 'Viande', 'Recettes de ragoût', 'Fondues', 'Galettes', 'Recettes de tartes']);
 const EXCLUDE = /dessert|gâteau|sucrerie|confiserie|boisson|cocktail|confiture|historique|médiév|viennoiserie|biscuit|glace|sorbet|petits?-déjeuner/i;
 const SIDE = /entrée|amuse|pâtés|accompagnement|sauce|condiment|marinade|apéritif|tapas|pains|bases/i; // ni plat ni repas à eux seuls
+// Desserts et préparations de base que Wikilivres ne range pas toujours en catégorie : reconnus au titre ou au sucre (≥ 50 g),
+// et seulement pour une recette sans viande, poisson ni volaille (« Porc au caramel » reste un plat).
+const DESSERT_TITLE = /g[âa]teau|fondant|\bcake\b|cookie|biscuit|brioche|panettone|confiture|compote|clafoutis|crumble|\bflan\b|beignet|madeleine|muffin|pain d'[ée]pices|sorbet|\bglace\b|mousse au|cr[èe]me (br[ûu]l[ée]e|caramel|anglaise|p[âa]tissi)|caramel|chocolat|tiramisu|charlotte|meringue|macarons?\b|cr[êe]pes? sucr|gaufre|financier|far breton|kouign|strudel|brownie|cheesecake|churro|donut|[ée]clair|canel[ée]|tarte (aux|au) (pomme|fraise|citron|poire|abricot|prune|myrtille|chocolat|framboise|cerise|rhubarbe|sucre)|sabl[ée]s?\b|galette des rois|nougat|praline|sirop|liqueur|milk-shake|smoothie/i;
+const BASE_TITLE = /^(bouillon|fond |fumet|p[âa]te (bris[ée]e|feuillet[ée]e|sabl[ée]e|[àa] )|sauce (aux|au|à la|blanche|tomate|b[ée]chamel)|vinaigrette|marinade|mayonnaise|pesto|a[ïi]oli|beurre |pain\b|chapelure|court-bouillon|nappage)/i;
+function sweet(lines: readonly string[]): boolean {
+  return lines.some(l => {
+    if (!/sucre/i.test(l)) return false;
+    const p = parseIngredient(l).line, u = p.unit ? UNIT[p.unit] : undefined, q = p.qty ? qFrom(p.qty) : null;
+    return !!u && !!q && u.dim === 'masse' && toBase(q, u).n >= 50 * toBase(q, u).d;
+  });
+}
 const FAMILY: [CatalogRecipe['main'], RegExp][] = [
   ['poisson', /poisson|saumon|cabillaud|thon|colin|merlu|sardine|maquereau|truite|crevette|moule|fruits de mer|calmar|lieu|dorade|bar\b|morue/i],
   ['volaille', /poulet|dinde|canard|lapin|pintade|volaille|caille/i],
@@ -118,7 +130,8 @@ export function parseWikiRecipe(p: WikiPage): ParseResult {
   // Étapes : la première section de préparation APRÈS les ingrédients (« Recette du hachis » au-dessus n'en est pas une).
   const prepIdx = secs.findIndex((x, i) => i > ingIdx && /^(preparation|recette|etapes?|instructions|realisation|methode|deroulement)/.test(x.head));
   const before = secs.slice(0, prepIdx < 0 ? secs.length : prepIdx).map(x => x.body).join('\n');
-  const yieldN = [...before.matchAll(/pour\s*:?\s*(\d{1,2}|[a-z]+)\s*(?:(?:à|a|-)\s*\d{1,2}\s*)?(?:personnes?|pers\.?|portions?|parts?|couverts?)/gi)]
+  const inTitle = /\bpour\s+(\d{1,2})(?:\s*personnes?)?\s*$/i.exec(p.title); // « Choucroute pour 4 »
+  const yieldN = inTitle ? Number(inTitle[1]) : [...before.matchAll(/pour\s*:?\s*(\d{1,2}|[a-z]+)\s*(?:(?:à|a|-)\s*\d{1,2}\s*)?(?:personnes?|pers\.?|portions?|parts?|couverts?)/gi)]
     .map(m => n(m[1] ?? '')).find((x): x is number => x !== null) ?? null;
   if (yieldN !== null && (yieldN < 1 || yieldN > 20)) return { ok: false, why: 'nombre de personnes invraisemblable' };
 
@@ -142,6 +155,7 @@ export function parseWikiRecipe(p: WikiPage): ParseResult {
   const tags = [...(minutes !== null && minutes <= 30 ? ['rapide'] : []), ...(veg ? ['végétarien'] : []),
     ...TYPE_TAGS.filter(([c]) => cats.includes(c)).map(([, t]) => t)];
   const title = (p.title.split('/').pop() ?? p.title).trim().slice(0, 80);
+  if (!main && (DESSERT_TITLE.test(title) || BASE_TITLE.test(title) || sweet(ingredients))) return { ok: false, why: 'dessert ou préparation de base' };
   return { ok: true, recipe: { id: `wb${p.pageid}`, title, yield: yieldN && yieldN >= 1 ? yieldN : null, minutes, ingredients, steps: steps.slice(0, 20), tags, main: veg ? null : main,
     url: `https://fr.wikibooks.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_')).replace(/%2F/g, '/')}`, rev: p.revid } };
 }
