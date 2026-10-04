@@ -46,9 +46,11 @@ test('le service worker met hors ligne tous les fichiers de l\'app', () => {
   assert.match(sw, /k\.startsWith\('foyer-'\)/); // ne supprime jamais les caches de Mes Comptes
 });
 
-test('page : aucune connexion sortante, aucun script en ligne', () => {
+test('page : aucune connexion sortante hors relais configuré, aucun script en ligne', async () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /connect-src 'self'/);
+  const { RELAY } = await import('../src/ui/config.ts');
+  const connect = /connect-src ([^;]+);/.exec(html)?.[1]?.trim();
+  assert.equal(connect, RELAY ? `'self' ${new URL(RELAY.url).origin}` : "'self'");
   assert.match(html, /script-src 'self';/);
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/);
   assert.doesNotMatch(html, /style="/);

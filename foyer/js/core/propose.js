@@ -5,6 +5,7 @@ import { slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder,
 import { current } from './model.js';
 import { eaters, servings, portions, presence as presenceOf } from './plan.js';
 import { nameKey } from './text.js';
+import { aisleOf } from './ingredients.js';
 import { newId } from './reduce.js';
 import { wholeExtra } from './commands.js';
 import { prepTitle } from './status.js';
@@ -19,6 +20,36 @@ export function lastPlanned(s) {
     }
     return m;
 }
+// Produits frais d'un plat (ceux qu'on achète pour lui et qui ne se gardent pas au placard).
+const FRESH = new Set(['fruits-legumes', 'cremerie', 'frais', 'boucherie', 'boulangerie']);
+function fresh(s, recipe) {
+    const r = s.recipes[recipe];
+    const m = new Map();
+    if (r)
+        for (const l of current(r).ingredients)
+            if (FRESH.has(aisleOf(l.name, l.form, s.aisles)))
+                m.set(nameKey(l.name), l.name.toLowerCase());
+    return m;
+}
+// Ingrédient principal : la première viande, le premier poisson ou la première charcuterie de la recette.
+function mainOf(s, recipe) {
+    const r = s.recipes[recipe];
+    if (!r)
+        return null;
+    const l = current(r).ingredients.find(x => { const a = aisleOf(x.name, x.form, s.aisles); return a === 'boucherie' || a === 'frais'; });
+    return l ? nameKey(l.name).split(' ')[0] ?? null : null;
+}
+function around(s, day, extra) {
+    const m = new Map();
+    for (const p of Object.values(s.preps)) {
+        const d = p.slot ? parseSlot(p.slot)?.date : undefined;
+        if (d && Math.abs(daysBetween(day, d)) <= 6)
+            m.set(d, [...(m.get(d) ?? []), p.recipe]);
+    }
+    for (const [d, rs] of extra)
+        m.set(d, [...(m.get(d) ?? []), ...rs]);
+    return m;
+}
 // Produits surveillés fermés dont la DLC tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en avant.
 function expiring(s, day) {
     const m = new Map();
@@ -31,10 +62,18 @@ function expiring(s, day) {
     }
     return m;
 }
-export function rank(s, slot, today, exclude = new Set()) {
+export function rank(s, slot, today, exclude = new Set(), extra = new Map()) {
     const p = parseSlot(slot);
     if (!p)
         return [];
+    const near = around(s, p.date, extra);
+    const neighbours = [-1, 0, 1].flatMap(dd => near.get(addDays(p.date, dd)) ?? []);
+    const neighbourMains = new Set(neighbours.map(r => mainOf(s, r)).filter((x) => !!x));
+    const weekFresh = new Map();
+    for (const rs of near.values())
+        for (const r of rs)
+            for (const [k, v] of fresh(s, r))
+                weekFresh.set(k, v);
     const last = lastPlanned(s);
     const weekend = weekday(p.date) >= 5, evening = p.slot === 'soir';
     const exp = expiring(s, p.date);
@@ -65,6 +104,16 @@ export function rank(s, slot, today, exclude = new Set()) {
             score += 8;
             why.push('favori');
         }
+        // Réutiliser un produit frais déjà acheté pour un autre plat de la semaine : moins de restes de crème ou de coriandre.
+        const shared = [...fresh(s, r.id)].filter(([k]) => weekFresh.has(k)).map(([, v]) => v);
+        if (shared.length) {
+            score += Math.min(12, 4 * shared.length);
+            why.push(`réutilise ${shared.slice(0, 2).join(', ')}`);
+        }
+        // Varier : pas la même viande ou le même poisson deux jours de suite.
+        const main = mainOf(s, r.id);
+        if (main && neighbourMains.has(main))
+            score -= 15;
         if (since !== null && Math.abs(since) < 4)
             score -= 30; // pas deux fois en quelques jours
         why.push(since === null ? 'pas encore prévu' : since < 0 ? `déjà prévu ${fmtDayShort(seen)}` : since === 0 ? 'prévu aujourd\'hui' : `pas au menu depuis ${since} j`);
@@ -88,6 +137,7 @@ export function proposeWeek(s, week, today, hour) {
     const out = [];
     const used = new Set();
     const cooks = new Map(); // créneau → préparation existante (null si seulement proposée)
+    const proposed = new Map();
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
             const k = slotKey(addDays(week, i), sl);
@@ -111,11 +161,12 @@ export function proposeWeek(s, week, today, hour) {
                     out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'boîte : restes du dîner de la veille', presence: {}, guests: 0 });
                 continue;
             }
-            const best = rank(s, k, today, used)[0];
+            const best = rank(s, k, today, used, proposed)[0];
             if (!best)
                 continue;
             used.add(best.recipe);
             cooks.set(k, null);
+            proposed.set(addDays(week, i), [...(proposed.get(addDays(week, i)) ?? []), best.recipe]);
             out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason: best.reason, presence: {}, guests: 0 });
         }
     return out;

@@ -68,6 +68,51 @@ export function toast(text, undo, ms = 6000) {
     toastTimer = window.setTimeout(() => { t = $('#toast'); if (t)
         t.hidden = true; }, ms);
 }
+/* ---------- Fichier à garder (sauvegarde, agenda) : feuille de partage si possible, sinon téléchargement ---------- */
+export async function saveFile(name, type, content) {
+    const file = new File([content], name, { type });
+    try {
+        if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file], title: name });
+            return 'partage';
+        }
+    }
+    catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError')
+            return 'annule';
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    return 'telechargement';
+}
+/* ---------- Écran allumé (mode cuisine, mode magasin) : repris au retour dans l'app ---------- */
+let lock = null;
+let wanted = false;
+export async function keepAwake(on) {
+    wanted = on;
+    const wl = navigator.wakeLock;
+    if (!on) {
+        await lock?.release().catch(() => undefined);
+        lock = null;
+        return false;
+    }
+    if (!wl)
+        return false;
+    try {
+        lock = await wl.request('screen');
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && wanted)
+    void keepAwake(true); });
 /* ---------- Icônes (traits simples, aria-hidden : le texte porte toujours le sens) ---------- */
 const svg = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 export const ICON = {

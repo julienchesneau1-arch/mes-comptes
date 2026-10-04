@@ -13,6 +13,8 @@ export interface Device {
   lastSentAt: string | null;
   lastRecvAt: string | null;
   theme: 'auto' | 'light' | 'dark';
+  installHint: boolean;      // conseil d'installation iPhone déjà vu
+  auto: boolean;             // synchro automatique par le relais (si disponible)
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -45,13 +47,15 @@ export function loadDevice(newId: () => string): Device {
     lastSentAt: typeof d.lastSentAt === 'string' ? d.lastSentAt : null,
     lastRecvAt: typeof d.lastRecvAt === 'string' ? d.lastRecvAt : null,
     theme: d.theme === 'light' || d.theme === 'dark' ? d.theme : 'auto',
+    installHint: d.installHint === true,
+    auto: d.auto !== false,
   };
   saveDevice(dev);
   return dev;
 }
 export function saveDevice(d: Device): void { try { localStorage.setItem(DEVICE, JSON.stringify(d)); } catch { /* sans effet en navigation privée */ } }
 
-export function wipe(): void { for (const k of [LOG, DEVICE]) try { localStorage.removeItem(k); } catch { /* rien */ } }
+export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais']) try { localStorage.removeItem(k); } catch { /* rien */ } }
 
 /* ---------- Copies de secours (IndexedDB) ---------- */
 interface Snap { id: number; reason: string; n: number; log: string }

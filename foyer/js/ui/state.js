@@ -10,8 +10,9 @@ export const A = {
     device: null,
     demo: false,
     saveError: null,
-    ui: { tab: 'aujourdhui', week: null, day: -1, weekList: false, shopWeek: null, home: 'plats', q: '', showDone: false },
+    ui: { tab: 'aujourdhui', week: null, day: -1, weekList: false, shopWeek: null, home: 'plats', q: '', showDone: false, store: false },
     render: () => undefined,
+    onChange: () => undefined, // après chaque changement local (synchro automatique)
     now: () => new Date(),
 };
 export const S = () => A.r.state;
@@ -58,6 +59,7 @@ export function dispatch(drafts, opts = {}) {
     persist();
     A.render();
     refreshSheet();
+    A.onChange();
     const rejected = events.map(e => A.r.rejected.get(e.id)).find(x => x?.severity === 'conflict');
     if (rejected)
         toast(`Non enregistré : ${rejected.reason}`);

@@ -197,3 +197,50 @@ test('« plat entier » : on prépare toute la recette, le surplus est compté e
   const p2 = Object.values(b.s.preps)[0]!;
   assert.deepEqual([portions(b.s, p2).serve, portions(b.s, p2).linked, p2.extra], [2, 1, 3]);
 });
+
+import { weekIcs, weekItems } from '../src/core/ics.ts';
+import { aisleRank } from '../src/core/shopping.ts';
+test('propositions : varier la viande d\'un jour à l\'autre, réutiliser les produits frais déjà achetés', () => {
+  const { a } = household();
+  a.emit({ t: 'recipe.save', p: { recipe: 'curry001', content: CURRY } },
+    { t: 'recipe.save', p: { recipe: 'poulet02', content: content('Poulet rôti', 4, ['1 poulet', '1 kg de pommes de terre']) } },
+    { t: 'recipe.save', p: { recipe: 'tarte001', content: content('Tarte poireaux', 4, ['3 poireaux', '20 cl de crème fraîche']) } },
+    { t: 'recipe.save', p: { recipe: 'gratin01', content: content('Gratin', 4, ['1 kg de pommes de terre', '20 cl de crème fraîche']) } });
+  a.emit(...setDish(a.s, MON_SOIR, 'curry001'));
+  // Mardi soir : pas de poulet deux jours de suite.
+  const tue = rank(a.s, '2026-10-06|soir', '2026-10-04');
+  assert.notEqual(tue[0]?.recipe, 'poulet02');
+  assert.ok(tue.findIndex(x => x.recipe === 'poulet02') > tue.findIndex(x => x.recipe === 'gratin01'));
+  // Mercredi : la tarte prévue utilise de la crème ; le gratin, qui en reprend, remonte avec la raison.
+  a.emit(...setDish(a.s, '2026-10-07|soir', 'tarte001'));
+  const thu = rank(a.s, '2026-10-08|soir', '2026-10-04');
+  assert.equal(thu[0]?.recipe, 'gratin01');
+  assert.match(thu[0]!.reason, /réutilise crème fraîche/);
+});
+
+test('qui cuisine, ordre des rayons du magasin, rappels agenda (.ics)', () => {
+  const { a } = household();
+  a.emit({ t: 'recipe.save', p: { recipe: 'curry001', content: { ...CURRY, ahead: [{ label: 'Sortir le poulet du congélateur', when: 'veille' }] } } },
+    { t: 'slot.presence', p: { slot: TUE_MIDI, member: 'm1', presence: 'boite' } },
+    { t: 'slot.cook', p: { slot: MON_SOIR, prep: 'prep0001', recipe: 'curry001', extra: 0 } },
+    { t: 'slot.from', p: { slot: TUE_MIDI, prep: 'prep0001' } },
+    { t: 'slot.chef', p: { slot: MON_SOIR, member: 'm2' } },
+    { t: 'settings.set', p: { aisleOrder: ['epicerie', 'boucherie'] } });
+  assert.equal(a.s.slots[MON_SOIR]!.chef, 'm2');
+  const [bad] = a.emit({ t: 'slot.chef', p: { slot: MON_SOIR, member: 'inconnu' } });
+  assert.match(a.r.rejected.get(bad!.id)!.reason, /membre inconnu/);
+  assert.deepEqual(deriveShopping(a.s, MON).lines.map(l => l.aisle), ['epicerie', 'epicerie', 'boucherie']);
+  assert.equal(aisleRank(a.s).get('fruits-legumes'), 2);
+  const items = weekItems(a.s, MON, true);
+  assert.deepEqual(items.map(x => [x.day, x.time, x.title]), [
+    ['2026-10-04', '1900', '⏰ Sortir le poulet du congélateur'],
+    ['2026-10-05', '1930', '🍽️ Curry'],
+    ['2026-10-05', '2100', '🥡 Boîte de Alex'],
+    ['2026-10-06', '1230', '🍽️ Restes : Curry']]);
+  const ics = weekIcs(a.s, MON, false, new Date('2026-10-04T10:00:00Z'), 'https://exemple/foyer/');
+  assert.match(ics, /DTSTART:20261004T190000\r\n/);
+  assert.match(ics, /UID:foyer-tache-prep0001-0@foyer/);
+  assert.match(ics, /BEGIN:VALARM/);
+  assert.doesNotMatch(ics, /Restes : Curry/); // rappels seulement
+  assert.ok(ics.split('\r\n').every(l => l.length < 300));
+});

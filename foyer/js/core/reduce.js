@@ -15,7 +15,7 @@ export function sortLog(events) {
             byId.set(e.id, e);
     return [...byId.values()].sort(order);
 }
-const slotOf = (s, k) => (s.slots[k] ??= { presence: {}, guests: 0, dish: null, eaten: null });
+const slotOf = (s, k) => (s.slots[k] ??= { presence: {}, guests: 0, dish: null, eaten: null, chef: null });
 const weekShop = (s, w) => (s.shop[w] ??= { checked: {}, pantry: {}, items: {} });
 const prepOf = (s, id) => s.preps[id] ?? conflict('plat introuvable (retiré entre-temps)');
 const recipeName = (s, id) => { const r = s.recipes[id]; return r ? current(r).name : 'ce plat'; };
@@ -31,7 +31,7 @@ const dishName = (s, k) => {
 // Un créneau devenu vide sans réglage particulier disparaît : l'état reste compact.
 const tidy = (s, k) => {
     const x = s.slots[k];
-    if (x && !x.dish && !x.eaten && !x.guests && !Object.keys(x.presence).length)
+    if (x && !x.dish && !x.eaten && !x.guests && !x.chef && !Object.keys(x.presence).length)
         delete s.slots[k];
 };
 function removeDish(s, k) {
@@ -78,6 +78,8 @@ function apply(s, e) {
                 s.settings.rhythm = structuredClone(e.p.rhythm);
             if (e.p.boxesFromDinner !== undefined)
                 s.settings.boxesFromDinner = e.p.boxesFromDinner;
+            if (e.p.aisleOrder !== undefined)
+                s.settings.aisleOrder = [...e.p.aisleOrder];
             return;
         }
         case 'recipe.save': {
@@ -112,6 +114,13 @@ function apply(s, e) {
         }
         case 'slot.guests': {
             slotOf(s, e.p.slot).guests = e.p.guests;
+            tidy(s, e.p.slot);
+            return;
+        }
+        case 'slot.chef': {
+            if (e.p.member !== null && !s.members.some(m => m.id === e.p.member))
+                conflict('membre inconnu');
+            slotOf(s, e.p.slot).chef = e.p.member;
             tidy(s, e.p.slot);
             return;
         }

@@ -20,6 +20,6 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Le JavaScript publié correspond au TypeScript
-        run: git diff --exit-code -- js
+        run: git diff --exit-code -- js sw.js
       - run: npm run typecheck
       - run: npm test

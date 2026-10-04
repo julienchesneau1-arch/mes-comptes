@@ -94,7 +94,7 @@ export function deriveShopping(s, week) {
         }
         line.done = !!(allHave || line.check?.done || (line.toBuy && isZero(line.toBuy) && !line.unknown.length));
     }
-    const order = new Map(AISLES.map((a, i) => [a.id, i]));
+    const order = aisleRank(s);
     const sorted = [...lines.values()].sort((a, b) => (order.get(a.aisle) ?? 99) - (order.get(b.aisle) ?? 99) || a.name.localeCompare(b.name, 'fr'));
     const manual = Object.entries(shop?.items ?? {}).map(([id, x]) => ({ id, name: x.name, qty: x.qty, aisle: x.aisle, checked: x.checked }))
         .sort((a, b) => (order.get(a.aisle) ?? 99) - (order.get(b.aisle) ?? 99) || a.name.localeCompare(b.name, 'fr'));
@@ -108,6 +108,13 @@ export function deriveShopping(s, week) {
             pantry: null, have: ZERO, toBuy: null, check: null, done: false };
     }
 }
+// Ordre des rayons : celui du magasin du foyer s'il est réglé, sinon l'ordre par défaut ; les rayons non classés à la fin.
+export function aisleRank(s) {
+    const own = s.settings.aisleOrder ?? [];
+    const ids = [...own, ...AISLES.map(a => a.id).filter(id => !own.includes(id))];
+    return new Map(ids.map((id, i) => [id, i]));
+}
+export const orderedAisles = (s) => [...aisleRank(s).keys()].map(id => AISLES.find(a => a.id === id)).filter((a) => !!a);
 function push(m, k, v) { const l = m.get(k); if (l)
     l.push(v);
 else
@@ -137,9 +144,9 @@ export function explain(l) {
 // Signature à enregistrer quand on coche « pris » : ce qui restait à acheter à ce moment-là.
 export const checkSig = (l) => sig(l.toBuy, l.unknown.length);
 // Liste en texte, à partager par message ou à coller dans des notes.
-export function shoppingText(list, title) {
+export function shoppingText(list, title, s) {
     const out = [title];
-    for (const a of AISLES) {
+    for (const a of s ? orderedAisles(s) : AISLES) {
         const ls = list.lines.filter(l => l.aisle === a.id && !l.done);
         const ms = list.manual.filter(m => m.aisle === a.id && !m.checked);
         if (!ls.length && !ms.length)

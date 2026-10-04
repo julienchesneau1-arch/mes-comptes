@@ -53,6 +53,8 @@ export function loadDevice(newId) {
         lastSentAt: typeof d.lastSentAt === 'string' ? d.lastSentAt : null,
         lastRecvAt: typeof d.lastRecvAt === 'string' ? d.lastRecvAt : null,
         theme: d.theme === 'light' || d.theme === 'dark' ? d.theme : 'auto',
+        installHint: d.installHint === true,
+        auto: d.auto !== false,
     };
     saveDevice(dev);
     return dev;
@@ -61,7 +63,7 @@ export function saveDevice(d) { try {
     localStorage.setItem(DEVICE, JSON.stringify(d));
 }
 catch { /* sans effet en navigation privée */ } }
-export function wipe() { for (const k of [LOG, DEVICE])
+export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais'])
     try {
         localStorage.removeItem(k);
     }

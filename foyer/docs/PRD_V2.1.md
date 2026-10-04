@@ -114,4 +114,22 @@ Retours métier explicites : chaque événement impossible est écarté avec sa 
 - **V1B (OCR)** : **bloquée** (Savore inaccessible) et **non recommandée** avant d'avoir mesuré que la saisie manuelle des dates est un vrai frein. La saisie actuelle prend une date en un geste (« demain », « +3 j ») ; un OCR à confirmer champ par champ ne ferait gagner du temps qu'avec beaucoup de produits suivis — ce que la V2 elle-même déconseille.
 - **V1C (proposée)** : synchro automatique via un relais qui ne voit que des données chiffrées (voir `PLAN.md`), sur décision du foyer.
 
-Fin du PRD V2.1.
+---
+
+## 8. V2.2 — rattraper les meilleures apps là où Foyer était derrière (4 octobre 2026)
+
+Bilan comparatif dans `BENCHMARK.md`. Décisions :
+
+| Écart constaté | Décision V2.2 | Garde-fou |
+|---|---|---|
+| Partage à deux par lien manuel (AnyList, Mealie : temps réel) | **Synchro automatique par relais** : chaque téléphone dépose ses événements **chiffrés de bout en bout** et relève ceux de l'autre (au démarrage, au retour dans l'app, toutes les 20 s, après chaque changement). **Rejoindre le foyer = taper le code**, sans lien à copier | Le relais (table Supabase dédiée) ne voit qu'une étiquette et des blocs illisibles ; règle RLS par en-tête ; le lien chiffré reste disponible en secours ; désactivable |
+| Saisie des recettes (Paprika, Mealie : import d'une adresse) | **Import d'une adresse web** : une fonction serveur lit les données schema.org « Recipe » de la page ; Foyer les analyse comme une saisie | Sans IA ; relecture obligatoire avant enregistrement ; source notée dans la recette |
+| Planning figé (AnyList, Mealie : glisser-déposer) | **Glisser-déposer** (souris, ou appui long au doigt) | Ouvre toujours l'aperçu des conséquences ; le bouton « Déplacer » reste |
+| Propositions sans contexte | **Varier** (pas la même viande deux jours de suite) et **réutiliser** les produits frais déjà prévus (la crème de la tarte sert au gratin) | Règle déterministe, raison affichée |
+| Rappels hors de l'app | **Agenda (.ics)** : tâches de la veille à 19 h, du matin à 8 h, boîtes à 21 h, repas en option | Identifiants stables ; rien dans le passé |
+| Courses en magasin | **Ordre des rayons de votre magasin**, **mode magasin** (écran allumé, seulement ce qui reste), saisie assistée | — |
+| Répartition des tâches à deux | **Qui cuisine** par repas, visible partout | Aucun score ni comparaison entre les membres |
+
+[ANOMALIE_LOGIQUE 10 — résolue] La V2.1 justifiait la synchro manuelle par l'absence de serveur. Or la synchro manuelle est la principale source de friction restante, et un relais qui ne voit que des données chiffrées respecte le même contrat de vérité et de vie privée. Le relais est donc adopté, à condition d'être **chiffré de bout en bout, désactivable et non indispensable**.
+
+Fin du PRD V2.1 (révision V2.2 incluse).

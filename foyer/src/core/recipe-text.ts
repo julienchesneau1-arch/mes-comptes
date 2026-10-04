@@ -3,6 +3,7 @@
 import { type IngredientLine, type ParsedIngredient, parseIngredient } from './ingredients.ts';
 import { UNIT } from './units.ts';
 import { qFrom, formatQ } from './rational.ts';
+import type { WebRecipe } from './recipe-web.ts';
 
 export interface ParsedRecipe { name: string; yield: number | null; ingredients: ParsedIngredient[]; steps: string[] }
 
@@ -41,4 +42,11 @@ export function lineText(l: IngredientLine): string {
   const qty = q && f ? (f.exact ? f.text : l.qty ?? '') : '';
   const unit = l.unit && l.unit !== 'piece' ? UNIT[l.unit]?.one ?? '' : '';
   return [qty, unit, l.name, l.form ?? '', l.note ? `(${l.note})` : ''].filter(Boolean).join(' ');
+}
+
+// Recette lue sur une page web : mêmes règles de lecture que la saisie, et même relecture avant enregistrement.
+export function fromWeb(r: WebRecipe): ParsedRecipe {
+  const y = /(\d{1,2})/.exec(r.yieldText);
+  const n = y ? Number(y[1]) : null;
+  return { name: r.name || 'Recette importée', yield: n && n > 0 && n <= 50 ? n : null, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
 }
