@@ -6,7 +6,7 @@
 
 | Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.3** |
 |---|---|---|---|---|---|---|
-| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC |
+| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC, jusqu'à 3 découvertes Wikilivres par semaine |
 | Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée |
 | Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout |
 | Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) ou texte |
@@ -25,7 +25,7 @@
 **Où Foyer est devant.** Personne ne gère les portions réelles : cuisiner 4, en manger 2, réserver une boîte, savoir qu'il en reste une, et voir ce qui casse si on déplace le dîner. C'est exactement là que naît la charge mentale à deux ; c'est le cœur de Foyer, prouvé par les tests EX-01 à EX-05. L'aperçu des conséquences avant un déplacement, les propositions expliquées tirées de vos plats, les quantités exactes et le chiffrement de bout en bout sont aussi absents des pages concurrentes consultées.
 
 **Où Foyer reste derrière, et pourquoi.**
-- **Pas de catalogue** (Jow : 5 000 recettes). Assumé : le PRD interdit des recettes « validées » inventées. Compensé par l'import d'une adresse web, qui reprend les recettes des sites que vous utilisez déjà.
+- **Petit catalogue** : 423 recettes du Livre de cuisine de Wikilivres (139 proposables d'office), de qualité inégale, contre plus de 5 000 recettes testées chez Jow. Aspirer Marmiton est interdit (CGU, droit des bases de données) et inventer des recettes est exclu. Compensé par l'import d'une adresse web, qui reprend les recettes des sites que vous utilisez déjà.
 - **Pas de notification ni de widget sur iPhone.** Une app web ne peut pas recevoir de notification sur iPhone sans serveur d'envoi. Compensé par les rappels dans l'agenda (.ics). Une étape suivante possible : notifications Web Push via le relais.
 - **Pas de recul d'usage.** AnyList existe depuis 2012. Foyer n'a jamais été utilisé sur vos téléphones : c'est le seul vrai juge (`PLAN.md`, étape C).
 - **Pas de panier rempli en un clic.** Jow le fait grâce à des partenariats commerciaux avec les enseignes (page « Auchan x Jow » sur auchan.fr), y compris pour vos propres recettes. Aucune API publique de panier Auchan trouvée, et les CGU d'auchan.fr (12/06/2026) interdisent les robots d'extraction sauf licence écrite. Foyer ouvre donc la page du bon produit et calcule le nombre de paquets ; l'ajout au panier reste un geste sur Auchan. Jow reste la meilleure option si le clic unique prime sur le reste.

@@ -145,4 +145,19 @@ Demande : « un système à la Jow », chaque recette mise automatiquement dans 
 | Coche = décision humaine | « Ajouté au panier » coche l'article ; rien n'est coché parce qu'une page a été ouverte |
 | Pas de prix ni de promotion | Ils restent sur Auchan |
 
-Fin du PRD V2.1 (révisions V2.2 et V2.3 incluses).
+## 10. V2.4 — proposer des plats nouveaux, à la Jow (4 octobre 2026)
+
+Demande : « nous n'avons pas encore de recettes ; sois fort de proposition, scrape comme pour Assemblages et fais-nous des propositions comme Jow ».
+
+[ANOMALIE_LOGIQUE 12 — arbitrée] Aspirer Marmiton ou un site équivalent n'est pas permis : les CGU de Marmiton déclarent les recettes intégrées à une base de données dont la reproduction est interdite, et le droit des producteurs de bases de données (CPI, art. L341-1 et suivants) protège contre l'extraction d'une partie substantielle. Inventer des recettes est exclu par la règle anti-hallucination. Source retenue : le **Livre de cuisine de Wikilivres**, sous licence libre CC BY-SA 4.0, lu par son **API officielle** (pas de page aspirée), avec attribution.
+
+| Règle | Contenu |
+|---|---|
+| Catalogue | Généré en CI (`scripts/catalogue.mjs`) ; une recette n'entre que si elle est un plat de repas (ni dessert, ni boisson, ni base, ni accompagnement), avec au moins 3 ingrédients dont la moitié chiffrés et 2 étapes |
+| Propositions | Vos plats d'abord ; une découverte quand il n'en reste plus, et au moins une par semaine ; 3 au plus (au-delà, trop d'achats inhabituels) ; classiques français et recettes courtes préférés ; familles variées d'un jour à l'autre |
+| Jamais d'office | Une recette sans nombre de personnes (les quantités ne se calculeraient pas) ; un plat déjà dans « Nos plats » |
+| Accord | Accepter une découverte l'ajoute à « Nos plats » avec sa source et sa licence ; « Découvrir des recettes » passe par la relecture habituelle |
+
+Limites assumées : catalogue modeste et inégal (contributions bénévoles, certaines recettes exotiques ou approximatives) ; pas de photos ; durée connue pour peu de recettes.
+
+Fin du PRD V2.1 (révisions V2.2, V2.3 et V2.4 incluses).
