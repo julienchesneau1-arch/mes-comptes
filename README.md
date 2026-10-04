@@ -14,3 +14,8 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Tester ses vrais relevés en local** : les déposer dans `releves/` (jamais publié) puis `node verifier-releves.mjs` (`--brut` pour voir le texte lu dans un PDF).
 
 Tests de la logique : `node test.js`
+
+## Foyer (dans `foyer/`)
+
+Deuxième app du foyer, même philosophie (100 % local, sans serveur, synchro chiffrée par lien) : les repas de la semaine, les courses calculées, les restes et les boîtes du midi. Voir [foyer/README.md](foyer/README.md). Publiée à côté de Mes Comptes, dans `…/mes-comptes/foyer/` ; stockage et caches séparés.
+

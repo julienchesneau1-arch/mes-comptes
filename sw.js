@@ -2,7 +2,8 @@
 // Android : reçoit aussi les fichiers « partagés » vers l'app (relevés depuis l'app de la banque, journal…).
 const C = 'mescomptes-v40', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'core.js', 'manifest.json', 'icon.svg', 'icon.png', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs', 'vendor/pdfjs/polyfill-safari.mjs', 'vendor/pdfjs/worker-safari.mjs']))); });
-self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && k !== SHARE && k !== ETAT).map(k => caches.delete(k)))).then(() => self.clients.claim())));
+// Seulement nos propres caches : Foyer (dans foyer/) partage le même site et garde les siens.
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('mescomptes') && k !== C && k !== SHARE && k !== ETAT).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method === 'POST' && url.searchParams.has('partage')) {
