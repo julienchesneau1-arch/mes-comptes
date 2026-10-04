@@ -47,7 +47,9 @@ export async function openEvents(k, blob) {
         return null;
     } // bloc illisible (autre code, altéré) : ignoré
 }
-const headers = (c, tag) => ({ apikey: c.key, Authorization: `Bearer ${c.key}`, 'x-foyer': tag, 'Content-Type': 'application/json' });
+// Clé publique Supabase : la nouvelle clé « sb_publishable_ » va seule dans « apikey » ; une ancienne clé (jeton) va aussi dans Authorization.
+export const relayHeaders = (c) => ({ apikey: c.key, ...(c.key.split('.').length === 3 ? { Authorization: `Bearer ${c.key}` } : {}), 'Content-Type': 'application/json' });
+const headers = (c, tag) => ({ ...relayHeaders(c), 'x-foyer': tag });
 export class RelayError extends Error {
     status;
     constructor(status, m) { super(m); this.status = status; }

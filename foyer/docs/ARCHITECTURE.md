@@ -14,9 +14,9 @@
 
 **ADR-6 — Dates de calendrier.** Une date est une chaîne `AAAA-MM-JJ` en heure de Paris (Intl, fuseau explicite) ; l'arithmétique se fait en jours entiers ; les instants (ISO) ne servent qu'à l'affichage. Testé autour de minuit et des changements d'heure.
 
-**ADR-8 — Relais chiffré (synchro automatique).** Table Supabase `foyer_relais` (migration `supabase/migrations/`) : chaque ligne = une étiquette de foyer, un appareil, un bloc chiffré. Étiquette et clé AES-GCM sont tirées du code du foyer par PBKDF2 (210 000 itérations) avec deux sels distincts : l'étiquette ne permet pas de déchiffrer. La règle RLS n'autorise lecture et ajout qu'avec l'étiquette dans l'en-tête `x-foyer` ; aucune modification ni suppression. Les téléphones déposent les événements que le relais ne connaît pas encore et relèvent depuis leur dernier numéro ; la fusion reste l'union idempotente + rejeu (ADR-2). Sans relais configuré (`src/ui/config.ts`), l'app fonctionne exactement comme avant.
+**ADR-8 — Relais chiffré (synchro automatique).** Table Supabase `foyer_relais` (migration `supabase/migrations/`) : chaque ligne = une étiquette de foyer, un appareil, un bloc chiffré. Étiquette et clé AES-GCM sont tirées du code du foyer par PBKDF2 (210 000 itérations) avec deux sels distincts : l'étiquette ne permet pas de déchiffrer. La règle RLS n'autorise lecture et ajout qu'avec l'étiquette dans l'en-tête `x-foyer` ; aucune modification ni suppression. Les téléphones déposent les événements que le relais ne connaît pas encore et relèvent depuis leur dernier numéro ; la fusion reste l'union idempotente + rejeu (ADR-2). Sans relais configuré (`src/ui/config.ts`), l'app fonctionne exactement comme avant. En service sur un projet Supabase dédié (`foyer`, eu-west-3) ; la clé de l'app est la clé publique « publishable » (pas un JWT : l'en-tête `Authorization` n'est ajouté que pour une ancienne clé JWT).
 
-**ADR-9 — Import web côté serveur, analyse côté téléphone.** Un navigateur ne peut pas lire la page d'un autre site (CORS). La fonction `supabase/functions/foyer-import` télécharge la page (8 s, 3 Mo maximum, ni adresse IP ni nom local) et n'en renvoie que les données schema.org extraites par `recipe-web.ts`, fichier identique à celui de l'app (un test le vérifie). Le téléphone analyse ensuite les lignes avec le même lecteur que la saisie.
+**ADR-9 — Import web côté serveur, analyse côté téléphone.** Un navigateur ne peut pas lire la page d'un autre site (CORS). La fonction `supabase/functions/foyer-import` télécharge la page (8 s, 3 Mo maximum, ni adresse IP ni nom local) et n'en renvoie que les données schema.org extraites par `recipe-web.ts`, fichier identique à celui de l'app (un test le vérifie). Le téléphone analyse ensuite les lignes avec le même lecteur que la saisie. Déployée sans vérification JWT par la plateforme (la clé publishable n'est pas un JWT) : la fonction refuse elle-même tout appel sans la clé publique du projet ; CORS limité à l'adresse GitHub Pages.
 
 **ADR-7 — Rien de magique.** Pas d'IA, pas de champ `safe=true`, pas de stock déduit du calendrier, pas de durée de conservation. Les seuls textes sanitaires sont des libellés factuels issus de la fiche DGCCRF citée.
 
@@ -46,7 +46,7 @@ src/core/            logique pure, sans DOM, testée sous Node
   recipe-web.ts      lecture schema.org d'une page de recette (partagé avec la fonction serveur)
   ics.ts             rappels de la semaine pour l'agenda
 src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique)
-supabase/            migration du relais et fonction d'import web (déployées seulement avec votre accord)
+supabase/            migration du relais et fonction d'import web (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```
 

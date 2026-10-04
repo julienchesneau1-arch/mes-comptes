@@ -4,6 +4,8 @@
 import { extractRecipe } from './recipe-web.ts';
 
 const ORIGINS = ['https://julienchesneau1-arch.github.io', 'http://127.0.0.1:8765', 'http://localhost:8765'];
+// Clé publique du projet (la même que dans l'app, publique par nature) : la fonction refuse les appels qui ne la présentent pas.
+const PUBLISHABLE = 'sb_publishable_tS8ihMgW6X1y4H6EkD-cuA_4hWlw7Fu';
 const MAX = 3_000_000;
 
 function cors(req: Request): Record<string, string> {
@@ -19,6 +21,7 @@ const forbidden = (h: string): boolean => h === 'localhost' || h.endsWith('.loca
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors(req) });
   if (req.method !== 'POST') return json(req, { error: 'Méthode non autorisée' }, 405);
+  if (req.headers.get('apikey') !== PUBLISHABLE) return json(req, { error: 'Clé absente' }, 401);
   let url: URL;
   try { url = new URL(String((await req.json()).url ?? '')); } catch { return json(req, { error: 'Adresse invalide' }, 400); }
   if (!/^https?:$/.test(url.protocol) || forbidden(url.hostname.toLowerCase())) return json(req, { error: 'Adresse non autorisée' }, 400);
