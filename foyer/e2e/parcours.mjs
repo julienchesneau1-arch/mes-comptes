@@ -76,9 +76,34 @@ await step('courses', async () => {
 await step('ajout manuel + coche', async () => {
   await page.getByPlaceholder(/Ajouter : café/).fill('2 paquets de café');
   await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
-  const first = page.locator('input[data-c="shopCheck"]').first();
-  if (await first.count()) await first.check({ force: true });
+  // Ligne visée par sa clé : « .first() » se re-résoudrait après le rendu et cocherait les lignes suivantes.
+  const key = await page.locator('input[data-c="shopCheck"]').first().getAttribute('data-key');
+  if (key) await page.locator(`input[data-c="shopCheck"][data-key="${key}"]`).check({ force: true });
+  const left = await page.locator('main section input[data-c="shopCheck"]:not(:checked)').count();
+  if (left < 3) throw new Error(`une seule coche attendue, il reste ${left} lignes`);
   await shot('09-courses-coche');
+});
+await step('drive Auchan assisté (aucune page Auchan ouverte pendant le test)', async () => {
+  await page.getByRole('button', { name: 'Commander chez Auchan' }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText(/Article 1 sur/).waitFor();
+  const first = (await dlg.locator('h3').first().innerText()).trim();
+  const href = await dlg.getByRole('link', { name: /chez Auchan/ }).first().getAttribute('href');
+  if (!href?.startsWith('https://www.auchan.fr/recherche?text=')) throw new Error('lien de recherche attendu : ' + href);
+  await dlg.locator('summary', { hasText: 'Retenir le produit choisi' }).click();
+  await dlg.getByLabel('Lien du produit chez Auchan').fill('Copié : https://www.auchan.fr/le-gaulois-filet-de-poulet-blanc/pr-C1158275?utm=x');
+  await dlg.getByLabel(/Contenance d'un paquet/).fill('300 g');
+  await axe('drive');
+  await dlg.getByRole('button', { name: 'Retenir ce produit' }).click();
+  await page.getByText(/Produit retenu pour/).waitFor();
+  const href2 = await dlg.getByRole('link', { name: /chez Auchan/ }).first().getAttribute('href');
+  if (href2 !== 'https://www.auchan.fr/le-gaulois-filet-de-poulet-blanc/pr-C1158275') throw new Error('lien produit attendu : ' + href2);
+  console.log('   ', first, '→', (await dlg.locator('section').first().innerText()).replace(/\s+/g, ' ').slice(0, 160));
+  await shot('09b-drive');
+  await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  await dlg.getByText(/Article 2 sur 5/).waitFor();
+  if ((await dlg.locator('h3').first().innerText()).trim() === first) throw new Error('l\'article n\'a pas avancé');
+  await page.keyboard.press('Escape');
 });
 await step('aujourd\'hui', async () => {
   await page.getByRole('link', { name: "Aujourd'hui" }).click();

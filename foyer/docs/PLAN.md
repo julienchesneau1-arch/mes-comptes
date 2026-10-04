@@ -45,6 +45,14 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | Varier / réutiliser dans les propositions | **livré** | Test : pas de poulet deux jours de suite ; le gratin remonte car il reprend la crème de la tarte |
 | Qui cuisine, ordre des rayons, mode magasin, agenda .ics, saisie assistée, conseil d'installation iPhone | **livré** | Tests unitaires (ics, rayons, cuisinier) + navigateur (fichier .ics téléchargé, rayons réordonnés, mode magasin) ; axe : 0 défaut |
 
+### V2.3 (commande au drive Auchan, sans faux-semblant)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Commander chez Auchan, article par article | **livré** | Courses → « Commander chez Auchan » : page du produit retenu (sinon recherche Auchan), « Ajouté au panier » coche l'article sur les deux téléphones. Navigateur : « Article 1 sur 5 · Poulet · 600 g · 2 × 300 g », passage à l'article 2 ; axe : 0 défaut. Aucune page Auchan ouverte pendant les tests |
+| Produit retenu + nombre de paquets | **livré** | 5 tests (`drive.test.ts`) : lien Auchan normalisé, tout autre site refusé ; contenance « 300 g », « 4 x 125 g », « 6 pièces » ; 450 g à acheter en paquets de 300 g → 2 ; besoin en grammes et contenance en pièces → pas de nombre inventé ; produit partagé entre les deux téléphones |
+| Panier rempli en un clic (comme Jow) | **non fait, volontairement** | Jow passe par des partenariats avec les enseignes ; aucune API publique de panier Auchan trouvée ; CGU d'auchan.fr : robots d'extraction interdits sauf licence écrite |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -97,3 +105,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Mise en service | Projet Supabase « foyer » créé (eu-west-3) ; schéma appliqué instruction par instruction (l'outil de migration expirait) ; fonction d'import déployée | livré | Projet gratuit : pause après 7 jours sans activité |
 | 2026-10-04 | Vérification réelle | RLS du relais éprouvée sur le vrai serveur ; import testé sur Marmiton et 750g, défaut d'encodage trouvé et corrigé | livré | Autres sites non testés |
 | 2026-10-04 | Vérification | 44 tests ; 3 scénarios navigateur (relais muet ou simulé), 0 erreur, axe 0 défaut | livré | iPhone et VoiceOver non testés |
+| 2026-10-04 | Comparatif | Critère « commander au drive » ajouté : Foyer 4,6 → 4,25 (puis 4,3 avec le panier assisté) | livré | Notes attribuées par l'auteur |
+| 2026-10-04 | V2.3 | Drive Auchan assisté : produit retenu, paquets calculés, commande guidée | livré | Liens auchan.fr vers l'app Auchan sur iPhone non vérifiés ; pas de prix |
+| 2026-10-04 | Test | Scénario navigateur corrigé : une coche de test cochait toutes les lignes (`.first()` re-résolu) ; défaut du test, pas de l'app (vérifié sur le cœur) | livré | — |

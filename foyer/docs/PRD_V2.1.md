@@ -132,4 +132,17 @@ Bilan comparatif dans `BENCHMARK.md`. Décisions :
 
 [ANOMALIE_LOGIQUE 10 — résolue] La V2.1 justifiait la synchro manuelle par l'absence de serveur. Or la synchro manuelle est la principale source de friction restante, et un relais qui ne voit que des données chiffrées respecte le même contrat de vérité et de vie privée. Le relais est donc adopté, à condition d'être **chiffré de bout en bout, désactivable et non indispensable**.
 
-Fin du PRD V2.1 (révision V2.2 incluse).
+## 9. V2.3 — commander au drive Auchan (4 octobre 2026)
+
+Demande : « un système à la Jow », chaque recette mise automatiquement dans le panier Auchan Drive.
+
+[ANOMALIE_LOGIQUE 11 — arbitrée] « Automatiquement » suppose un accès au panier Auchan. Jow l'a par contrat avec les enseignes (page « Auchan x Jow » sur auchan.fr) ; aucune API publique de panier Auchan n'a été trouvée, et les CGU d'auchan.fr (12/06/2026) interdisent les robots d'extraction sauf licence écrite. Un remplissage automatique serait donc soit un faux-semblant, soit un script non officiel, fragile et risqué pour le compte. Choix du foyer : **panier assisté**.
+
+| Règle | Contenu |
+|---|---|
+| Rien n'est lu sur auchan.fr | Foyer ne garde que ce que le foyer saisit : le lien de la page produit et la contenance d'un paquet |
+| Nombre de paquets exact ou absent | Arrondi au paquet supérieur, conversion seulement dans la même dimension ; besoin en grammes et contenance en pièces → « à juger », jamais deviné |
+| Coche = décision humaine | « Ajouté au panier » coche l'article ; rien n'est coché parce qu'une page a été ouverte |
+| Pas de prix ni de promotion | Ils restent sur Auchan |
+
+Fin du PRD V2.1 (révisions V2.2 et V2.3 incluses).

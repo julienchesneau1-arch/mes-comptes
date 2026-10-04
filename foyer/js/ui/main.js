@@ -16,6 +16,7 @@ import './sheets/slot.js';
 import './sheets/recipe.js';
 import './sheets/plan.js';
 import './sheets/shop.js';
+import './sheets/drive.js';
 const TABS = ['aujourdhui', 'semaine', 'courses', 'maison'];
 // Identifie l'élément qui a le focus pour le retrouver après un nouveau rendu (clavier, lecteur d'écran).
 function focusKey() {

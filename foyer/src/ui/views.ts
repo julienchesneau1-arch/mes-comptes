@@ -15,6 +15,8 @@ import { enabled as autoOn, statusLabel, sync as autoSync } from './autosync.ts'
 import { fmtCode } from '../core/sync.ts';
 import { CLICK, INPUT } from './registry.ts';
 import { openLine } from './sheets/shop.ts';
+import { packsFor } from '../core/drive.ts';
+import { ingredientKey } from '../core/ingredients.ts';
 
 const VERSION = '1.0.0';
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n > 1 ? many : one}`;
@@ -146,6 +148,9 @@ function lineRow(l: ShopLine, week: LocalDate): string {
   if (l.check?.delta) sub.push(`+${showQty(l.check.delta, l.dim ?? 'piece')} depuis la coche`);
   if (l.check?.newUnknown) sub.push('nouveau plat sans quantité');
   if (l.unknown.length) sub.push(`quantité non renseignée (${[...new Set(l.unknown.map(x => x.recipeName))].join(', ')})`);
+  const prod = l.done ? undefined : S().products[ingredientKey(l.name, l.form)];
+  const packs = prod ? packsFor(l, prod) : null;
+  if (packs?.n) sub.push(`Auchan : ${packs.text}`);
   const label = `${l.name}${l.form ? ` (${l.form})` : ''}`;
   return `<li class="${l.done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="shopCheck" data-week="${week}" data-key="${esc(l.key)}" ${l.done ? 'checked' : ''} aria-label="${esc(label)} : pris"><span></span></label>
     <button class="item-btn grow" data-a="line" data-week="${week}" data-key="${esc(l.key)}"><span class="grow"><span class="title">${esc(label)}</span><br><span class="sub">${esc(sub.filter(Boolean).join(' · '))}</span></span>
@@ -180,6 +185,7 @@ export function shopView(): string {
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
     <p class="muted">${todo.length + mTodo.length ? `${plural(todo.length + mTodo.length, 'article', 'articles')} à acheter ou vérifier` : list.meals ? 'Tout est traité pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>
+    ${todo.length + mTodo.length && !A.ui.store ? `<div class="actions"><button class="btn soft" data-a="drive" data-week="${week}">Commander chez Auchan</button></div>` : ''}
     ${sections}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}</ul></details>` : ''}
     <div class="actions"><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>

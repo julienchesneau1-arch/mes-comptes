@@ -54,6 +54,9 @@ export interface WeekShop {
   items: Record<string, Mark & { name: string; qty: string; aisle: string; checked: boolean }>;
 }
 export interface Staple { name: string; qty: string; aisle: string }
+// Produit retenu au drive pour un ingrédient : lien et contenance saisis par le foyer (rien n'est lu sur le site du magasin).
+export interface Product { url: string; label: string; size: string | null; unit: string | null; by: MemberId | null; at: string }
+export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
 
 /* ---------- Événements ---------- */
 
@@ -84,6 +87,7 @@ export interface Payloads {
   'shop.item': { week: LocalDate; id: string; name: string; qty: string; aisle: string; checked: boolean; removed: boolean };
   'staple.set': { key: string; name: string; qty: string; aisle: string; removed: boolean };
   'aisle.set': { key: string; aisle: string };
+  'product.set': { key: string; url: string | null; label: string; size: string | null; unit: string | null };
   'watch.save': { id: string; name: string; qty: string; date: DateDecl | null; state: ItemState; slot: SlotKey | null };
   'watch.close': { id: string; outcome: 'utilise' | 'jete' };
   'conflict.ack': { event: string };
@@ -102,7 +106,7 @@ export interface Ev<T extends EventType = EventType> {
 export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-  'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'watch.save',
+  'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
   'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
 
 /* ---------- Validation stricte de tout ce qui vient d'ailleurs (lien de synchro, sauvegarde) ---------- */
@@ -194,6 +198,8 @@ const P: { [K in EventType]: (p: R) => boolean } = {
     && !!AISLE[p['aisle']] && bool(p['checked']) && bool(p['removed']),
   'staple.set': p => isKey(p['key']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']] && bool(p['removed']),
   'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
+  'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
+    && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])),
   'watch.save': p => isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && (p['date'] === null || validDateDecl(p['date']))
     && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
   'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
@@ -223,6 +229,7 @@ export interface State {
   shop: Record<LocalDate, WeekShop>;
   staples: Record<string, Staple>;
   aisles: Record<string, string>;
+  products: Record<string, Product>;
   watch: Record<string, WatchItem>;
   tasks: Record<string, Mark & { done: boolean }>;
   acked: Set<string>;
@@ -236,7 +243,7 @@ export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Pr
 
 export const emptyState = (): State => ({
   hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, watch: {}, tasks: {}, acked: new Set(),
+  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, watch: {}, tasks: {}, acked: new Set(),
 });
 
 export const current = (r: Recipe): RecipeContent => r.versions[r.versions.length - 1] as RecipeContent;
