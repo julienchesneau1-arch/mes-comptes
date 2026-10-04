@@ -1,6 +1,6 @@
 // Hors-ligne : réseau d'abord, sans cache HTTP intermédiaire (une mise à jour est vue tout de suite), cache si pas de connexion.
 // Android : reçoit aussi les fichiers « partagés » vers l'app (relevés depuis l'app de la banque, journal…).
-const C = 'mescomptes-v34', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
+const C = 'mescomptes-v35', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'core.js', 'manifest.json', 'icon.svg', 'icon.png', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs', 'vendor/pdfjs/polyfill-safari.mjs', 'vendor/pdfjs/worker-safari.mjs']))); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && k !== SHARE && k !== ETAT).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

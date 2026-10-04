@@ -232,9 +232,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=34"></script>
+<script src="core.js?v=35"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 34;
+const KEY = 'mescomptes-v1', VERSION = 35;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -315,8 +315,9 @@ function showLock(mode = lockMode()) {
   booted = false; VKEY = null; S = blank(); closeSheet();
   // iPhone : Safari et l'icône de l'écran d'accueil ont chacun leur mémoire. Rien ici : les données sont (ou seront) dans l'app
   // de l'icône. Proposer un code dans Safari fabriquerait une seconde app, vide, où l'on retaperait son code sans rien retrouver.
-  if (mode === 'here') mode = 'create';
-  else if (mode === 'create' && OS === 'ios' && !standalone()) mode = 'icon';
+  // Un lien de synchro tapé dans un message s'ouvre aussi dans Safari : on le fait copier pour l'app plutôt que de demander le code ici.
+  if (mode === 'here') mode = lockMode();
+  else if ((mode === 'create' || (mode === 'unlock' && /sync=/.test(location.hash))) && OS === 'ios' && !standalone()) mode = 'icon';
   document.body.classList.add('locked');
   const pin = (n, ph) => `<input class="f pin" name="${n}" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="12" placeholder="${ph}" aria-label="${ph}">`;
   const L = $('#lock'); L.hidden = false;
