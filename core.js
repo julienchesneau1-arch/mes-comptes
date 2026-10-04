@@ -872,7 +872,7 @@ function importParsed(state, parsed, owner = null) {
   const seen = new Set(state.tx.map(t => t.id)), created = [];
   const done = [];
   for (const p of parsed) {
-    const { account, rows, savings } = p;
+    const { rows, savings } = p, account = safeKey(p.account); // le même identifiant qu'à la relecture
     if (!state.accounts[account]) {
       state.accounts[account] = { name: p.name || (savings ? 'Livret ••' : 'Compte ••') + account.slice(-4), savings: !!savings,
         owner: p.owner !== undefined ? p.owner : owner, ...(p.hist ? { hist: true } : {}) };
@@ -1117,6 +1117,14 @@ function insights(state, acc = 'all') {
 // Chaque identifiant affiché dans l'app a un format sûr, chaque montant est un nombre, chaque famille existe :
 // un lien piégé ne peut ni injecter de code, ni faire planter un écran.
 const SAFE_ID = /^[\w.\- ]{1,60}$/, DATE = /^\d{4}-\d{2}-\d{2}$/, MONTH = /^\d{4}-\d{2}$/;
+// Identifiant de compte sûr, toujours le même pour le même nom : un CSV sans numéro de compte prend le nom du fichier
+// (« Relevé d'opérations (1) ») ; refusé tel quel à la relecture, il faisait disparaître le compte et toutes ses opérations.
+function safeKey(k) {
+  k = String(k == null ? '' : k);
+  if (SAFE_ID.test(k) && !/^(__proto__|constructor|prototype)$/.test(k)) return k;
+  let h = 5381; for (const ch of k) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0;
+  return (k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.\- ]/g, '_').slice(0, 50) || 'compte') + '-' + h.toString(36);
+}
 function sanitizeState(d) {
   const o = d && typeof d === 'object' ? d : {}, obj = x => (x && typeof x === 'object' && !Array.isArray(x) ? x : {}), arr = x => (Array.isArray(x) ? x : []);
   const str = (x, n = 300) => (typeof x === 'string' ? x : x == null ? '' : String(x)).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, n);
@@ -1129,25 +1137,27 @@ function sanitizeState(d) {
   const dmap = x => Object.fromEntries(Object.entries(obj(x)).filter(([k]) => DATE.test(k)).map(([k]) => [k, 1]));
   const byWho = (x, f) => Object.fromEntries(Object.entries(obj(x)).filter(([k]) => who.has(k)).map(([k, v]) => [k, f(v)]));
   const accounts = {};
-  for (const [k, a] of Object.entries(obj(o.accounts))) {
-    if (!SAFE_ID.test(k) || !a || typeof a !== 'object') continue;
+  for (const [k0, a] of Object.entries(obj(o.accounts))) {
+    const k = safeKey(k0);
+    if (!a || typeof a !== 'object') continue;
     const b = obj(a.balance), per = arr(a.periods).filter(x => x && date(x.from) && date(x.to));
-    accounts[k] = { ...(a.hist ? { hist: true } : {}), name: str(a.name, 60) || k, owner: owner(a.owner), savings: !!a.savings,
+    accounts[k] = { ...(a.hist ? { hist: true } : {}), name: str(a.name, 60) || str(k0, 60), owner: owner(a.owner), savings: !!a.savings,
       ...(date(b.date) ? { balance: { amount: num(b.amount), date: b.date } } : {}),
       ...(per.length ? { periods: per.map(x => ({ from: x.from, to: x.to, open: num(x.open), close: num(x.close) })) } : {}),
       ...(arr(a.gaps).length ? { gaps: arr(a.gaps).filter(g => g && date(g.from) && date(g.to)).map(g => ({ from: g.from, to: g.to })) } : {}),
       ...(a.check && typeof a.check === 'object' ? { check: { diff: num(a.check.diff), ...(date(a.check.to) ? { to: a.check.to } : {}) } } : {}) };
   }
   // Une opération dont la fiche de compte a été abîmée : on recrée la fiche plutôt que de perdre l'opération.
-  for (const t of arr(o.tx)) if (t && typeof t.acc === 'string' && SAFE_ID.test(t.acc) && !accounts[t.acc]) accounts[t.acc] = { name: 'Compte ••' + t.acc.slice(-4), owner: null, savings: false };
+  for (const t of arr(o.tx)) if (t && typeof t.acc === 'string' && !accounts[safeKey(t.acc)]) accounts[safeKey(t.acc)] = { name: str('Compte ••' + t.acc.slice(-4), 60), owner: null, savings: false };
   const tx = [];
   for (const t of arr(o.tx)) {
-    if (!t || typeof t !== 'object' || !accounts[t.acc] || !date(t.date) || typeof t.id !== 'string' || !t.id) continue;
-    const x = { id: str(t.id, 400), acc: t.acc, date: t.date, amount: round2(num(t.amount)), label: str(t.label, 200) || '—', detail: str(t.detail, 300), bpCat: str(t.bpCat, 60), cat: okCat(t.cat),
+    const acc = t && typeof t.acc === 'string' ? safeKey(t.acc) : '';
+    if (!t || typeof t !== 'object' || !accounts[acc] || !date(t.date) || typeof t.id !== 'string' || !t.id) continue;
+    const x = { id: str(t.id, 400), acc, date: t.date, amount: round2(num(t.amount)), label: str(t.label, 200) || '—', detail: str(t.detail, 300), bpCat: str(t.bpCat, 60), cat: okCat(t.cat),
       manual: !!t.manual, pair: null, conf: ['sure', 'likely', 'guess'].includes(t.conf) ? t.conf : 'guess' };
     for (const k of ['pending', 'auto', 'hh']) if (t[k]) x[k] = true;
     if (typeof t.trip === 'string') x.trip = t.trip.slice(0, 40);
-    if (typeof t.pair === 'string' && accounts[t.pair]) x.pair = t.pair;
+    if (typeof t.pair === 'string' && accounts[safeKey(t.pair)]) x.pair = safeKey(t.pair);
     if (typeof t.refundOf === 'string') { x.refundOf = t.refundOf.slice(0, 400); } if (t.refunded) x.refunded = round2(num(t.refunded));
     if (Array.isArray(t.splits) && t.splits.length) x.splits = t.splits.slice(0, 6).map(p => ({ cat: okCat(p && p.cat), amount: round2(num(p && p.amount)) }));
     tx.push(x);
@@ -1161,7 +1171,7 @@ function sanitizeState(d) {
     rules: Object.fromEntries(Object.entries(obj(o.rules)).map(([k, c]) => [str(k, 120), okCat(c)])),
     budgets: byWho(o.budgets, v => Object.fromEntries(Object.entries(obj(v)).filter(([c]) => CAT[c]).map(([c, x]) => [c, Math.max(0, num(x))]))),
     pots: things(o.pots, p => ({ owner: owner(p.owner) || 'foyer', name: str(p.name, 60) || 'Objectif', emoji: str(p.emoji, 8) || '🎯', target: Math.max(1, num(p.target)),
-      moves: arr(p.moves).filter(m => m && date(m.date)).map(m => ({ date: m.date, amount: round2(num(m.amount)), note: str(m.note, 40) })), ...(typeof p.acc === 'string' && accounts[p.acc] ? { acc: p.acc } : {}) })),
+      moves: arr(p.moves).filter(m => m && date(m.date)).map(m => ({ date: m.date, amount: round2(num(m.amount)), note: str(m.note, 40) })), ...(typeof p.acc === 'string' && accounts[safeKey(p.acc)] ? { acc: safeKey(p.acc) } : {}) })),
     loans: things(o.loans, l => ({ owner: owner(l.owner) || 'foyer', name: str(l.name, 60) || 'Prêt', remaining: num(l.remaining), date: date(l.date) || '2000-01-01' })),
     assets: things(o.assets, a => ({ owner: owner(a.owner) || 'foyer', name: str(a.name, 60) || 'Placement', value: num(a.value), date: date(a.date) || '2000-01-01' })),
     claimed: Object.fromEntries(Object.entries(obj(o.claimed)).map(([k, v]) => [str(k, 120), v === 'skip' ? 'skip' : str(v, 60)])),
@@ -1175,7 +1185,7 @@ function sanitizeState(d) {
       months: Object.fromEntries(Object.entries(obj(obj(b).months)).filter(([m]) => MONTH.test(m)).map(([m, v]) => [m, num(v)])) }])) : null,
     done: Object.fromEntries(Object.entries(obj(o.done)).map(([k, v]) => [str(k, 160), str(v, 10)])),
     snooze: Object.fromEntries(Object.entries(obj(o.snooze)).map(([k, v]) => [str(k, 160), str(v, 10)])),
-    quickAcc: byWho(o.quickAcc, v => (accounts[v] ? v : null)),
+    quickAcc: byWho(o.quickAcc, v => (typeof v === 'string' && accounts[safeKey(v)] ? safeKey(v) : null)),
     reconciled: arr(o.reconciled).filter(x => typeof x === 'string').map(x => x.slice(0, 400)).slice(-5000),
     checkins: byWho(o.checkins, dmap), noSpend: byWho(o.noSpend, dmap),
     rit: byWho(o.rit, r => Object.fromEntries(['day', 'week', 'month', 'ics'].filter(k => typeof obj(r)[k] === 'string' && /^\d{4}-\d{2}(-\d{2})?$/.test(r[k])).map(k => [k, r[k]]))),
@@ -1357,7 +1367,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 }
 
 if (typeof module !== 'undefined') module.exports = {
-  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
+  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
   CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

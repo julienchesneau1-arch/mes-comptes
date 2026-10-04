@@ -234,9 +234,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=38"></script>
+<script src="core.js?v=39"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 38;
+const KEY = 'mescomptes-v1', VERSION = 39;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -381,10 +381,12 @@ async function unlock(pin) {
   try { localStorage.removeItem(TRIES); } catch {}
   VKEY = key; VSALT = m.salt;
   jlog(`code OK · ouverture du coffre (${(m.data || '').startsWith('v2.') ? 'v2' : 'v1'}, ${Math.round((m.data || '').length / 1024)} Ko)`);
-  let data;
-  try { data = migrate(JSON.parse(json)); }
+  let data, rawN = 0;
+  try { const raw = JSON.parse(json); rawN = Array.isArray(raw && raw.tx) ? raw.tx.length : 0; data = migrate(raw); }
   catch (e) { try { if (!localStorage.getItem(VAULT + '-secours')) localStorage.setItem(VAULT + '-secours', localStorage.getItem(VAULT)); } catch {} data = Object.assign(blank(), sanitizeState(JSON.parse(json)), { rescued: String(e && e.message || e) }); }
-  vaultHasTx = data.tx.length > 0; jlog(`coffre lu · ${data.tx.length} op.`);
+  // Sécurité : si la relecture écarte des opérations, le coffre d'origine est gardé à part et rien ne l'écrase par du vide.
+  if (data.tx.length < rawN) { jlog(`ATTENTION : ${rawN - data.tx.length} op. écartées à la relecture, coffre d'origine gardé à part`); try { localStorage.setItem(VAULT + '-secours', localStorage.getItem(VAULT)); } catch {} }
+  vaultHasTx = rawN > 0 || data.tx.length > 0; jlog(`coffre lu · ${data.tx.length} op.`);
   boot(data);
 }
 async function createPin(pin, pin2, mode) {

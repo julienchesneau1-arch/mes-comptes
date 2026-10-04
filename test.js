@@ -484,14 +484,25 @@ console.log('OK — rituels (série, rappels agenda, fusion)');
     levers: { cat: { courses: evil }, merchant: { '(((': 'passer', carrefour: 'nego' } },
     rules: { X: evil }, checkins: { p1: { '2026-01-01': 1, [evil]: 1 } }, lastSync: evil,
   });
-  assert.deepStrictEqual(Object.keys(bad.accounts), ['A']);                              // compte au nom de code : écarté
-  assert.deepStrictEqual(bad.tx.map(t => [t.id, t.amount, t.cat, t.splits[0].cat, t.splits[0].amount]), [['a', -5, 'autres', 'autres', 0]]);
+  const ids = Object.keys(bad.accounts);                                                  // compte au nom de code : neutralisé, ses opérations gardées
+  assert.ok(ids.length === 2 && ids[0] === 'A' && /^[\w.\- ]{1,60}$/.test(ids[1]) && !/[<>"=()]/.test(ids[1]));
+  assert.deepStrictEqual(bad.tx.map(t => [t.id, t.acc]), [['a', 'A'], ['b', ids[1]]]);
+  assert.deepStrictEqual([bad.tx[0].amount, bad.tx[0].cat, bad.tx[0].splits[0].cat, bad.tx[0].splits[0].amount], [-5, 'autres', 'autres', 0]);
   assert.strictEqual(bad.tx[0].label, evil);                                              // le texte est gardé (il est échappé à l'affichage)
   assert.ok(/^x/.test(bad.pots[0].id) && bad.pots[0].target === 1 && bad.pots[0].moves.length === 1 && bad.pots[0].moves[0].amount === 10);
   assert.deepStrictEqual(bad.budgets, { p1: { courses: 200 } });
   assert.deepStrictEqual(bad.levers, { cat: { courses: 'essentiel' }, merchant: { carrefour: 'nego' } }); // « ((( » ferait planter une expression régulière
   assert.deepStrictEqual([bad.people.length, bad.rules.X, Object.keys(bad.checkins.p1), bad.lastSync], [1, 'autres', ['2026-01-01'], undefined]);
   assert.deepStrictEqual(C.sanitizeState('n\'importe quoi').tx, []);
+  // CSV sans numéro de compte : le compte prend le nom du fichier ; avec accents et apostrophe, tout doit revenir à la relecture
+  const csv = 'Date;Libellé;Montant\n01/10/2026;CB BOULANGERIE;-4,20\n02/10/2026;VIR SALAIRE;1500,00\n';
+  const Rs = { accounts: {}, tx: [], rules: {} };
+  C.importParsed(Rs, C.parseCSV(csv, "Relevé d'opérations (1).csv"));
+  const back = C.sanitizeState(JSON.parse(JSON.stringify(Rs)));
+  assert.deepStrictEqual([back.tx.length, Object.keys(back.accounts)], [2, Object.keys(Rs.accounts)]);   // même compte, rien perdu
+  assert.ok(/^[\w.\- ]{1,60}$/.test(Object.keys(Rs.accounts)[0]));
+  assert.strictEqual(C.safeKey("Relevé d'opérations (1)"), C.safeKey("Relevé d'opérations (1)"));      // toujours le même identifiant
+  assert.strictEqual(C.safeKey('__proto__') !== '__proto__', true);
   // fiche de compte abîmée : l'opération est gardée, la fiche recréée
   const lost = C.sanitizeState({ accounts: { B: null }, tx: [{ id: 'k', acc: 'B', date: '2026-01-05', amount: -3, label: 'X' }] });
   assert.deepStrictEqual([lost.tx.length, lost.accounts.B.name], [1, 'Compte ••B']);                       // pas un objet : état vide, pas d'erreur
