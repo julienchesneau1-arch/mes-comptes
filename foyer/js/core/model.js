@@ -3,9 +3,10 @@ import { AISLE } from './ingredients.js';
 import { UNIT } from './units.js';
 import { qFrom } from './rational.js';
 export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
+export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/;
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-    'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
+    'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
@@ -42,7 +43,7 @@ export function validRhythm(v) {
 }
 const validAisleOrder = (v) => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v) {
-    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder']));
+    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']));
 }
 export function validIngredient(v) {
     if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120))
@@ -83,7 +84,8 @@ const P = {
     'household.init': p => isId(p['hid']) && validMembers(p['members']) && validSettings(p['settings']),
     'members.set': p => validMembers(p['members']),
     'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
-        && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder'])),
+        && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
+        && (p['holidays'] === undefined || bool(p['holidays'])),
     'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
     'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
     'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -110,6 +112,11 @@ const P = {
     'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
     'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
         && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])),
+    'agenda.set': p => isId(p['cal']) && (p['member'] === null || isId(p['member'])) && str(p['label'], 40)
+        && (p['url'] === null || (typeof p['url'] === 'string' && AGENDA_URL_RE.test(p['url']))),
+    'agenda.rule': p => isKey(p['key']) && (p['effect'] === null || p['effect'] === 'auto' || p['effect'] === 'jamais'),
+    'agenda.mark': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence']))
+        && typeof p['src'] === 'string' && /^[0-9a-f]{16}$/.test(p['src']) && isId(p['cal']) && str(p['title'], 120),
     'watch.save': p => isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && (p['date'] === null || validDateDecl(p['date']))
         && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
     'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
@@ -132,6 +139,6 @@ export const defaultRhythm = (ids, midi, soir, weekendMidi = 'maison') => Array.
 }));
 export const emptyState = () => ({
     hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, watch: {}, tasks: {}, acked: new Set(),
+    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
 });
 export const current = (r) => r.versions[r.versions.length - 1];

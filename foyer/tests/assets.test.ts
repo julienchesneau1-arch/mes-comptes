@@ -81,3 +81,15 @@ test('catalogue publié : chaque recette lisible, attribuée à sa page Wikilivr
   assert.ok(cat.recipes.every(r => r.url.startsWith('https://fr.wikibooks.org/wiki/'))); // Livre de cuisine et livres liés, même licence
   assert.ok(cat.recipes.filter(r => r.yield !== null).length >= 100, 'moins de 100 plats proposables');
 });
+
+test('interface : chaque action (data-a, data-c, data-i, data-f) n\'a qu\'un seul gestionnaire', async () => {
+  const { readdirSync, readFileSync: read } = await import('node:fs');
+  const dir = new URL('../src/ui/', import.meta.url), seen = new Map<string, string>();
+  const files = [...readdirSync(dir).filter(f => f.endsWith('.ts')), ...readdirSync(new URL('sheets/', dir)).filter(f => f.endsWith('.ts')).map(f => `sheets/${f}`)];
+  for (const f of files) for (const m of read(new URL(f, dir), 'utf8').matchAll(/\b(CLICK|CHANGE|INPUT|SUBMIT)\['([A-Za-z]+)'\] =/g)) {
+    const key = `${m[1]}.${m[2]}`;
+    assert.equal(seen.get(key), undefined, `${key} défini dans ${seen.get(key)} et ${f}`);
+    seen.set(key, f);
+  }
+  assert.ok(seen.size > 100);
+});

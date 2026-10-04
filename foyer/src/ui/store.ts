@@ -59,7 +59,7 @@ export function loadDevice(newId: () => string): Device {
 }
 export function saveDevice(d: Device): void { try { localStorage.setItem(DEVICE, JSON.stringify(d)); } catch { /* sans effet en navigation privée */ } }
 
-export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais']) try { localStorage.removeItem(k); } catch { /* rien */ } }
+export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda']) try { localStorage.removeItem(k); } catch { /* rien */ } }
 
 /* ---------- Copies de secours (IndexedDB) ---------- */
 interface Snap { id: number; reason: string; n: number; log: string }

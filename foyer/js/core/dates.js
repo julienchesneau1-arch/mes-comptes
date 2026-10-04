@@ -1,5 +1,6 @@
 // Dates de calendrier en heure de Paris, calculées sans dépendre du fuseau de l'appareil.
 // Un jour = une chaîne « AAAA-MM-JJ » ; l'arithmétique se fait sur des jours entiers (pas de piège au changement d'heure).
+// Sans dépendance : copié tel quel dans la fonction serveur foyer-agenda (un test vérifie la copie).
 export const SLOTS = ['midi', 'soir'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const isDate = (s) => typeof s === 'string' && DATE_RE.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`))

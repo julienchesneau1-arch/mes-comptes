@@ -14,6 +14,20 @@ await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
   const m = route.request().method();
   return route.fulfill(m === 'OPTIONS' ? { status: 204, headers: cors } : m === 'POST' ? { status: 201, headers: cors } : { status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: '[]' });
 });
+// Agenda : la fonction foyer-agenda est simulée (événements de demain et après-demain, heures de Paris) ; on vérifie ce que l'app envoie.
+const { paris, parisToUtc, addDays } = await import('../js/core/dates.js');
+const today = paris(new Date()).date, d1 = addDays(today, 1), d2 = addDays(today, 2);
+const OCC = [
+  { id: '00000000000000f1', title: 'Foot', allDay: false, start: parisToUtc(d1, '1930').getTime(), end: parisToUtc(d1, '2130').getTime(), days: null, busy: true, recurring: true, tzGuess: false },
+  { id: '00000000000000f2', title: 'Déjeuner client', allDay: false, start: parisToUtc(d2, '1230').getTime(), end: parisToUtc(d2, '1400').getTime(), days: null, busy: true, recurring: false, tzGuess: false },
+];
+const agendaCalls = [];
+await ctx.route('**/functions/v1/foyer-agenda', route => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'POST,OPTIONS' };
+  if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+  agendaCalls.push(JSON.parse(route.request().postData() ?? '{}'));
+  return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify({ occurrences: OCC, events: 2, skipped: [] }) });
+});
 // Catalogue de découvertes : extrait fixe (3 vraies pages Wikilivres) pour des résultats reproductibles.
 const CATALOGUE = readFileSync(new globalThis.URL('./catalogue-essai.json', import.meta.url), 'utf8');
 await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: CATALOGUE }));
@@ -161,6 +175,32 @@ await step('persistance après rechargement', async () => {
   const after = await page.evaluate(() => localStorage.getItem('foyer:journal')?.length ?? 0);
   console.log('   journal octets', before, after);
   if (!before || before !== after) throw new Error('journal différent après rechargement');
+});
+await step('agenda : brancher, décider une fois, voir ce qui a été fait', async () => {
+  await page.getByRole('link', { name: 'Maison', exact: true }).click();
+  await page.getByRole('button', { name: 'Réglages' }).click();
+  await page.getByRole('button', { name: 'Brancher un agenda' }).click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.getByLabel(/Adresse de l'agenda/).fill('webcal://calendar.google.com/calendar/ical/essai%40gmail.com/private-0123456789abcdef/basic.ics');
+  await shot('18-agenda-brancher'); await axe('agenda-brancher');
+  await sheet.getByRole('button', { name: 'Lire et brancher' }).click();
+  await page.getByText(/Agenda de Alex branché : 2 événements sur 31 jours, 2 qui touchent des repas/).waitFor();
+  const call = agendaCalls.at(-1);
+  if (!call?.url?.startsWith('https://calendar.google.com/') || call.from !== today || !/^[a-z0-9]{10}$/.test(call.cal)) throw new Error(`appel agenda inattendu ${JSON.stringify(call)}`);
+  await sheet.getByRole('heading', { name: 'Ce que l\'agenda change' }).waitFor();
+  await shot('19-agenda-decider'); await axe('agenda-decider');
+  const foot = sheet.locator('article', { hasText: '« Foot »' });
+  console.log('   foot :', (await foot.innerText()).replace(/\s+/g, ' ').slice(0, 200));
+  await foot.getByRole('button', { name: 'Appliquer' }).click();
+  await sheet.locator('li', { hasText: '« Foot »' }).getByRole('button', { name: 'Annuler' }).waitFor(); // « Fait d'après l'agenda »
+  await sheet.getByText('« Foot » : appliqué tout seul').waitFor();                                    // décision retenue
+  await sheet.locator('article', { hasText: '« Déjeuner client »' }).getByRole('button', { name: 'Pas cette fois' }).click();
+  await sheet.getByText('Rien à décider').waitFor();
+  await shot('20-agenda-fait'); await axe('agenda-fait');
+  await page.keyboard.press('Escape');
+  await page.locator('dialog[open]').waitFor({ state: 'detached' });
+  await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
+  if (await page.getByText(/L'agenda change/).count()) throw new Error('bandeau agenda encore affiché');
 });
 await step('mode découverte', async () => {
   await page.getByRole('link', { name: 'Maison', exact: true }).click();

@@ -15,7 +15,8 @@ function dialog(): HTMLDialogElement {
     d = document.createElement('dialog');
     d.id = 'sheet'; d.className = 'sheet';
     d.setAttribute('aria-labelledby', 'sheet-title');
-    d.addEventListener('close', () => { const c = current; current = null; c?.onClose?.(); opener?.focus?.(); opener = null; });
+    // Fermeture signalée après coup : si une autre feuille a été ouverte entre-temps, elle reste suivie.
+    d.addEventListener('close', () => { if (d?.open) return; const c = current; current = null; c?.onClose?.(); opener?.focus?.(); opener = null; });
     d.addEventListener('click', e => { if (e.target === d) d?.close(); }); // toucher le fond ferme
     document.body.append(d);
   }
