@@ -76,6 +76,8 @@ export function discover(s: State, cat: Catalog, ctx: DiscoverContext): Discover
     if (r.yield === null || ctx.exclude.has(r.id) || owned.has(nameKey(r.title))) continue; // sans nombre de personnes, pas de courses justes : jamais proposé d'office
     let score = 20;
     const why: string[] = ['nouveau'];
+    if (r.tags.includes('classique')) { score += 8; why.push('classique'); }
+    score -= Math.max(0, r.ingredients.length - 10); // plus simple à acheter et à faire
     if (ctx.evening && !ctx.weekend) {
       if (r.tags.includes('rapide')) { score += 10; why.push(`rapide (${r.minutes} min)`); }
       else if (r.minutes !== null && r.minutes > 60) score -= 15;

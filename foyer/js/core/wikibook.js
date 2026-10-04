@@ -88,6 +88,8 @@ const FAMILY = [
 ];
 // Famille d'un ingrédient (« blanc de poulet » → volaille) : sert à varier les repas d'un jour à l'autre.
 export const familyOf = (name) => FAMILY.find(([, re]) => re.test(name))?.[0] ?? null;
+// Classiques du quotidien en France : préférés dans les propositions (moins d'achats inhabituels).
+const CLASSIC = /^(Recettes de tous les jours|Cuisine (française|provençale|alsacienne|lyonnaise|bretonne|normande|savoyarde|auvergnate|bourguignonne|basque|lorraine|comtoise|corse|niçoise|du Nord|picarde|landaise|périgourdine|gasconne|limousine|berrichonne|champenoise|ardennaise|occitane|languedocienne|charentaise|vendéenne|tourangelle|angevine|dauphinoise|ardéchoise|béarnaise|bordelaise|nantaise|parisienne|flamande|du Sud-Ouest))$/;
 const TYPE_TAGS = [['Soupes', 'soupe'], ['Salades', 'salade'], ['Pâtes alimentaires', 'pâtes'], ['Recettes de pizzas', 'pizza'], ['Recettes de tartes', 'tarte']];
 function sections(text) {
     const out = [{ head: '', body: '' }];
@@ -158,7 +160,7 @@ export function parseWikiRecipe(p) {
     if (steps.length < 2)
         return { ok: false, why: 'moins de 2 étapes' };
     const minutes = minutesOf(before);
-    const tags = [...(minutes !== null && minutes <= 30 ? ['rapide'] : []), ...(veg ? ['végétarien'] : []),
+    const tags = [...(minutes !== null && minutes <= 30 ? ['rapide'] : []), ...(veg ? ['végétarien'] : []), ...(cats.some(c => CLASSIC.test(c)) ? ['classique'] : []),
         ...TYPE_TAGS.filter(([c]) => cats.includes(c)).map(([, t]) => t)];
     const title = (p.title.split('/').pop() ?? p.title).trim().slice(0, 80);
     if ((!main || main === 'œufs') && (DESSERT_TITLE.test(title) || BASE_TITLE.test(title) || sweet(ingredients)))
