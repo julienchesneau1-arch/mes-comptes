@@ -7,6 +7,7 @@ import { A, dispatch, setDevice } from './state.ts';
 import { esc, toast } from './dom.ts';
 import { CLICK, INPUT, SUBMIT, CHANGE } from './registry.ts';
 import { receive } from './sheets/settings.ts';
+import { available as relayAvailable } from './autosync.ts';
 
 type Step = 'welcome' | 'names' | 'rhythm' | 'classics' | 'join';
 let step: Step = 'welcome';
@@ -55,6 +56,9 @@ export function onboardingView(): string {
       <form data-f="onbCustom" class="addbar"><label class="sr-only" for="onb-custom">Autre plat</label><input id="onb-custom" type="text" maxlength="80" placeholder="Autre plat…" value="${esc(custom)}" data-i="onbCustom"><button class="btn ghost">Ajouter</button></form>
       <div class="actions"><button class="btn ghost" data-a="onb" data-s="rhythm">Retour</button><button class="btn grow" data-a="onbDone">${picks.size ? `Créer le foyer avec ${picks.size} plat${picks.size > 1 ? 's' : ''}` : 'Créer le foyer (plats plus tard)'}</button></div></main>`;
     case 'join': return `<main id="main" class="onb" tabindex="-1"><h1>Rejoindre votre foyer</h1>
+      ${relayAvailable() ? `<form data-f="joinCode" class="card stack"><label class="field">Code du foyer<span class="hint">Affiché sur l'autre téléphone (Aujourd'hui, ou Maison › Réglages › Synchro).</span>
+        <input type="text" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" required></label><button class="btn">Rejoindre</button></form>
+        <p class="muted small">Pas de réseau, ou synchro automatique coupée ? Utilisez un lien :</p>` : ''}
       <ol><li>Sur l'autre téléphone : Maison › Réglages › Synchro › <strong>Envoyer mes changements</strong>.</li><li>Ici : collez le lien reçu, puis tapez le code du foyer (affiché sur l'autre téléphone).</li></ol>
       <button class="btn block" data-a="pasteSync">Coller le lien reçu</button>
       <form data-f="onbJoin" class="stack"><label class="field">Ou collez le message ici<textarea rows="3" data-i="onbJoin">${esc(joinText)}</textarea></label><button class="btn ghost">Importer</button></form>

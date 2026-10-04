@@ -14,6 +14,7 @@ export function describeEvent(s, e) {
         case 'recipe.archive': return `${e.p.archived ? 'ranger' : 'ressortir'} ${recipe(s, e.p.recipe)}`;
         case 'slot.presence': return `noter ${member(s, e.p.member)} ${e.p.presence === 'dehors' ? 'absent·e' : e.p.presence === 'boite' ? 'en boîte' : 'présent·e'} ${when(e.p.slot)}`;
         case 'slot.guests': return `noter ${e.p.guests} invité(s) ${when(e.p.slot)}`;
+        case 'slot.chef': return e.p.member ? `confier la cuisine ${when(e.p.slot)} à ${member(s, e.p.member)}` : `retirer le cuisinier ${when(e.p.slot)}`;
         case 'slot.cook': return `prévoir ${recipe(s, e.p.recipe)} ${when(e.p.slot)}`;
         case 'slot.from': return `prévoir les restes de ${prepName(s, e.p.prep)} ${when(e.p.slot)}`;
         case 'slot.outside': return `noter un repas extérieur ${when(e.p.slot)}`;

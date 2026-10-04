@@ -5,7 +5,9 @@ import { newId, openConflicts } from '../../core/reduce.js';
 import { fmtDayShort, paris } from '../../core/dates.js';
 import { A, S, dispatch, setDevice, setLog, persist, unsent, memberName, otherNames } from '../state.js';
 import { snapshot, snapshots, wipe } from '../store.js';
-import { openSheet, sheetHead, closeSheet, esc, toast } from '../dom.js';
+import { openSheet, sheetHead, closeSheet, esc, toast, saveFile } from '../dom.js';
+import { orderedAisles } from '../../core/shopping.js';
+import { available as relayAvailable, enabled as autoOn, syncNow, sync as autoSync, statusLabel, joinWithCode, forgetRelay } from '../autosync.js';
 import { CLICK, CHANGE, SUBMIT, num } from '../registry.js';
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const PRES = { maison: 'Maison', boite: 'Boîte', dehors: 'Dehors' };
@@ -72,8 +74,13 @@ const standalone = () => matchMedia('(display-mode: standalone)').matches || nav
 export function openSync() {
     openSheet({ id: 'sync', render: () => {
             const n = unsent();
-            return `${sheetHead(`Synchro avec ${esc(otherNames())}`, 'Un lien chiffré par message. Le code du foyer ne voyage jamais dans le lien.')}
-    <button class="btn block" data-a="sendSync">Envoyer mes changements${n ? ` (${n})` : ''}</button>
+            const auto = relayAvailable() ? `<section class="card stack"><h3 class="section-title">Synchro automatique</h3>
+      <label class="item"><input type="checkbox" data-c="autoSync" ${A.device.auto ? 'checked' : ''}><span>Synchroniser seul avec ${esc(otherNames())} (chiffré de bout en bout ; le relais ne voit que des blocs illisibles)</span></label>
+      ${autoOn() ? `<p>État : <strong>${esc(statusLabel() || 'en attente')}</strong>${autoSync.at ? ` · dernier échange ${esc(ago(autoSync.at))}` : ''}${autoSync.error && autoSync.status !== 'ok' ? `<br><span class="small muted">${esc(autoSync.error)}</span>` : ''}</p>
+      <button class="btn ghost" data-a="syncNow">Synchroniser maintenant</button>` : ''}</section>` : '';
+            return `${sheetHead(`Synchro avec ${esc(otherNames())}`, relayAvailable() ? 'Automatique par défaut ; le lien chiffré reste disponible en secours.' : 'Un lien chiffré par message. Le code du foyer ne voyage jamais dans le lien.')}
+    ${auto}
+    <button class="btn ${autoOn() ? 'ghost ' : ''}block" data-a="sendSync">Envoyer un lien${n && !autoOn() ? ` (${n} changements)` : ''}</button>
     <button class="btn ghost block" data-a="pasteSync">Coller le lien reçu</button>
     <details><summary>Le lien ne se colle pas ?</summary><form data-f="syncText" class="stack"><label class="field">Collez ici le message ou le lien<textarea name="text" rows="3"></textarea></label><button class="btn ghost">Importer</button></form></details>
     <ul class="parsed"><li>Dernier envoi : ${esc(ago(A.device.lastSentAt))}</li><li>Dernière réception : ${esc(ago(A.device.lastRecvAt))}</li></ul>
@@ -83,6 +90,30 @@ export function openSync() {
         } });
 }
 CLICK['sync'] = () => openSync();
+CHANGE['autoSync'] = (_d, el) => { setDevice({ auto: el.checked }); if (A.device.auto)
+    void syncNow(); A.render(); openSync(); };
+CLICK['syncNow'] = async () => { await syncNow(); openSync(); toast(autoSync.status === 'ok' ? 'Synchronisé' : `Synchro impossible : ${autoSync.error || statusLabel()}`); };
+// Rejoindre un foyer avec le seul code (relais disponible).
+SUBMIT['joinCode'] = async (data) => {
+    const code = String(data.get('code') ?? '');
+    if (!validCode(code)) {
+        toast('Le code fait 12 signes (lettres et chiffres, sans 0, O, 1 ni I)');
+        return;
+    }
+    toast('Recherche du foyer…');
+    const r = await joinWithCode(normCode(code));
+    if (r === 'introuvable') {
+        toast('Aucun foyer avec ce code. Vérifiez-le, ou utilisez un lien.');
+        return;
+    }
+    if (r === 'hors-ligne') {
+        toast('Relais injoignable : réessayez, ou utilisez un lien.');
+        return;
+    }
+    A.render();
+    toast('Foyer retrouvé et synchronisé');
+    CLICK['members']?.({}, document.body);
+};
 CLICK['sendSync'] = async () => {
     if (A.demo) {
         toast('Mode découverte : rien n\'est envoyé');
@@ -225,28 +256,9 @@ CLICK['exportBackup'] = async () => {
     const s = S();
     if (!s.hid)
         return;
-    const json = exportBackup(A.log, s.hid, A.device.dev, A.now());
-    const name = `foyer-sauvegarde-${paris(A.now()).date}.json`;
-    const file = new File([json], name, { type: 'application/json' });
-    try {
-        if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ files: [file], title: name });
-            toast('Sauvegarde partagée');
-            return;
-        }
-    }
-    catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError')
-            return;
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(file);
-    a.download = name;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    toast('Sauvegarde téléchargée');
+    const r = await saveFile(`foyer-sauvegarde-${paris(A.now()).date}.json`, 'application/json', exportBackup(A.log, s.hid, A.device.dev, A.now()));
+    if (r !== 'annule')
+        toast(r === 'partage' ? 'Sauvegarde partagée' : 'Sauvegarde téléchargée');
 };
 CHANGE['importBackup'] = async (_d, el) => {
     const f = el.files?.[0];
@@ -293,6 +305,26 @@ CLICK['restoreSnap'] = async (d) => {
         toast('Copie illisible');
     }
 };
+/* ---------- Ordre des rayons (celui de votre magasin) ---------- */
+let aisles = [];
+CLICK['aisleOrder'] = () => { aisles = orderedAisles(S()).map(a => a.id); openSheet({ id: 'aisles', render: aislesHtml }); };
+function aislesHtml() {
+    const all = orderedAisles(S());
+    const label = (id) => all.find(a => a.id === id);
+    return `${sheetHead('Ordre des rayons', 'Celui de votre magasin : la liste de courses suit votre parcours.')}
+  <ol class="list">${aisles.map((id, i) => `<li><div class="item"><span class="grow"><span aria-hidden="true">${label(id)?.icon ?? ''}</span> ${esc(label(id)?.label ?? id)}</span>
+    <button class="icon-btn" data-a="aisleUp" data-n="${i}" aria-label="Monter ${esc(label(id)?.label ?? id)}" ${i === 0 ? 'disabled' : ''}>↑</button>
+    <button class="icon-btn" data-a="aisleDown" data-n="${i}" aria-label="Descendre ${esc(label(id)?.label ?? id)}" ${i === aisles.length - 1 ? 'disabled' : ''}>↓</button></div></li>`).join('')}</ol>
+  <button class="btn block" data-a="aisleSave">Enregistrer cet ordre</button>`;
+}
+const swap = (i, j) => { if (i < 0 || j < 0 || i >= aisles.length || j >= aisles.length)
+    return; [aisles[i], aisles[j]] = [aisles[j], aisles[i]]; openSheet({ id: 'aisles', render: aislesHtml }); };
+CLICK['aisleUp'] = d => swap(num(d['n']), num(d['n']) - 1);
+CLICK['aisleDown'] = d => swap(num(d['n']), num(d['n']) + 1);
+CLICK['aisleSave'] = () => { closeSheet(); dispatch([{ t: 'settings.set', p: { aisleOrder: aisles } }], { toast: 'Ordre des rayons enregistré' }); };
+/* ---------- Installer sur l'écran d'accueil (iPhone) ---------- */
+export const needsInstall = () => isIOS() && !standalone() && !A.device.installHint;
+CLICK['installDone'] = () => { setDevice({ installHint: true }); A.render(); };
 /* ---------- Divers ---------- */
 CHANGE['theme'] = (_d, el) => { const t = el.value; setDevice({ theme: t }); applyTheme(); };
 export function applyTheme() { const t = A.device.theme; if (t === 'auto')
@@ -301,4 +333,4 @@ else
     document.documentElement.dataset['theme'] = t; }
 CLICK['wipe'] = () => openSheet({ id: 'wipe', render: () => `${sheetHead('Effacer Foyer sur ce téléphone ?', 'L\'autre téléphone garde tout. Une sauvegarde ou un lien de synchro permet de tout récupérer.')}
   <div class="actions"><button class="btn ghost" data-a="exportBackup">Exporter d'abord une sauvegarde</button><button class="btn danger" data-a="wipeOk">Effacer ce téléphone</button></div>` });
-CLICK['wipeOk'] = async () => { await snapshot(A.log, 'Avant effacement'); wipe(); location.reload(); };
+CLICK['wipeOk'] = async () => { await snapshot(A.log, 'Avant effacement'); wipe(); forgetRelay(); location.reload(); };

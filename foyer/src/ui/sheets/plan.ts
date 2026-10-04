@@ -5,8 +5,9 @@ import { type Proposal, proposeWeek, copyWeek, acceptDrafts, rank } from '../../
 import { weekPreps } from '../../core/shopping.ts';
 import { portions } from '../../core/plan.ts';
 import { prepTitle, capital } from '../../core/status.ts';
-import { S, clock, dispatch, thisWeek } from '../state.ts';
-import { openSheet, sheetHead, closeSheet, esc, toast } from '../dom.ts';
+import { A, S, clock, dispatch, thisWeek } from '../state.ts';
+import { weekIcs, weekItems } from '../../core/ics.ts';
+import { openSheet, sheetHead, closeSheet, esc, toast, saveFile } from '../dom.ts';
 import { CLICK, num } from '../registry.ts';
 import { openRecipe } from './recipe.ts';
 
@@ -113,5 +114,21 @@ CLICK['ahead'] = d => {
       <p class="small muted">Foyer liste ce que vous avez renseigné. Il ne calcule pas d'ordre de cuisson ni de durée totale, et ne recommande aucune conservation.</p>`
       : '<p class="empty"><strong>Rien à préparer</strong>Aucun plat à cuisiner cette semaine, ou tout est déjà déclaré préparé.</p>'}`;
   } });
+};
+// Rappels dans l'agenda du téléphone (fichier .ics), sans serveur ni notification.
+CLICK['agenda'] = d => {
+  const week = d['week'] ?? thisWeek();
+  const from = clock().date;
+  const n = weekItems(S(), week, false, from).length, m = weekItems(S(), week, true, from).length;
+  openSheet({ id: 'agenda', render: () => `${sheetHead('Ajouter la semaine à l\'agenda', `Semaine du ${esc(fmtDayShort(week))} · fichier à ouvrir avec Calendrier`)}
+    <button class="btn block" data-a="agendaGo" data-week="${week}" data-meals="" ${n ? '' : 'disabled'}>Rappels seulement (${n})</button>
+    <button class="btn ghost block" data-a="agendaGo" data-week="${week}" data-meals="1" ${m ? '' : 'disabled'}>Repas et rappels (${m})</button>
+    <p class="small muted">Rappels : « à faire la veille » à 19 h, « le matin » à 8 h, boîtes à préparer la veille à 21 h. Si le planning change, refaites l'export : les mêmes événements sont mis à jour plutôt que dupliqués (selon l'application d'agenda).</p>` });
+};
+CLICK['agendaGo'] = async d => {
+  const week = d['week'] ?? thisWeek();
+  const r = await saveFile(`foyer-semaine-${week}.ics`, 'text/calendar', weekIcs(S(), week, !!d['meals'], A.now(), `${location.origin}${location.pathname}`, clock().date));
+  closeSheet();
+  if (r !== 'annule') toast(r === 'partage' ? 'Choisissez « Calendrier » pour ajouter les rappels' : 'Fichier agenda téléchargé : ouvrez-le pour ajouter les rappels');
 };
 CLICK['completeRecipe'] = d => openRecipe(d['id'] ?? null);

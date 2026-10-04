@@ -16,6 +16,7 @@ export interface UI {
   home: 'plats' | 'portions' | 'surveiller' | 'reglages';
   q: string;
   showDone: boolean;
+  store: boolean;              // mode magasin : écran allumé, seulement ce qui reste
 }
 
 export const A = {
@@ -24,8 +25,9 @@ export const A = {
   device: null as unknown as Device,
   demo: false,
   saveError: null as string | null,
-  ui: { tab: 'aujourdhui', week: null, day: -1, weekList: false, shopWeek: null, home: 'plats', q: '', showDone: false } as UI,
+  ui: { tab: 'aujourdhui', week: null, day: -1, weekList: false, shopWeek: null, home: 'plats', q: '', showDone: false, store: false } as UI,
   render: (): void => undefined,
+  onChange: (): void => undefined,   // après chaque changement local (synchro automatique)
   now: (): Date => new Date(),
 };
 
@@ -70,6 +72,7 @@ export function dispatch(drafts: readonly Draft[], opts: DispatchOpts = {}): Any
   persist();
   A.render();
   refreshSheet();
+  A.onChange();
   const rejected = events.map(e => A.r.rejected.get(e.id)).find(x => x?.severity === 'conflict');
   if (rejected) toast(`Non enregistré : ${rejected.reason}`);
   else if (opts.toast) toast(opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));

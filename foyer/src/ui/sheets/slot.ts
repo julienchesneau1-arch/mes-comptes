@@ -38,6 +38,9 @@ function slotHtml(k: SlotKey): string {
       <button class="icon-btn" data-a="guests" data-k="${k}" data-d="-1" aria-label="Un invité de moins" ${guests ? '' : 'disabled'}>−</button>
       <output aria-live="polite">${guests}</output>
       <button class="icon-btn" data-a="guests" data-k="${k}" data-d="1" aria-label="Un invité de plus">+</button></div></div>
+    ${slot?.dish && slot.dish.kind !== 'outside' ? `<div class="person"><span class="title">Qui cuisine ?</span><div class="seg" role="radiogroup" aria-label="Qui cuisine ${esc(fmtSlot(k, c.date))}">
+      <label><input type="radio" name="chef" value="" data-c="chef" data-k="${k}" ${slot.chef ? '' : 'checked'}>Pas décidé</label>
+      ${s.members.map(m => `<label><input type="radio" name="chef" value="${m.id}" data-c="chef" data-k="${k}" ${slot.chef === m.id ? 'checked' : ''}>${esc(m.name)}</label>`).join('')}</div></div>` : ''}
     <p class="small muted">Boîte = mange un plat de la maison, emporté. Le rythme habituel se règle dans Maison › Réglages.</p></section>
   <section class="card stack" aria-labelledby="dish-h"><h3 id="dish-h" class="section-title">Au menu</h3>${dishHtml(k)}</section>
   ${watch.length ? `<section class="card stack"><h3 class="section-title">Produits surveillés liés</h3>${watch.map(w => `<p>${esc(w.item.name)} · ${esc(w.headline)}</p>`).join('')}</section>` : ''}`;
@@ -167,6 +170,10 @@ CLICK['extra'] = d => {
   if (!prep) return;
   const extra = Math.max(0, Math.min(30, prep.extra + num(d['d'])));
   dispatch([{ t: 'prep.extra', p: { prep: prep.id, extra } }], { toast: `${prepTitle(S(), prep)} : ${portions(S(), { ...prep, extra }).planned} portions à préparer · courses recalculées` });
+};
+CHANGE['chef'] = (d, el) => {
+  const v = (el as HTMLInputElement).value || null;
+  dispatch([{ t: 'slot.chef', p: { slot: d['k'] ?? '', member: v } }], { toast: v ? `${S().members.find(m => m.id === v)?.name ?? ''} cuisine ${fmtSlot(d['k'] ?? '', clock().date)}` : 'Cuisinier retiré' });
 };
 CLICK['start'] = d => dispatch([{ t: 'prep.start', p: { prep: d['id'] ?? '' } }], { toast: 'Préparation commencée' });
 

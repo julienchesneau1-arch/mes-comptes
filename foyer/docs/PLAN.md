@@ -35,6 +35,16 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | Ergonomie | **partiel** | axe : **0 violation** sur 11 écrans ; clavier seul (ouvrir un créneau, Échap, focus rendu) ; déplacer par bouton ; zoom 200 % sans débordement horizontal ; contraste ≥ 4,5:1 calculé en clair et sombre. **VoiceOver réel et Safari iOS réel non testés** |
 | Synchro réelle | **livré** | Deux navigateurs : lien de 0,8 Ko, code faux refusé, même liste des deux côtés, absence de Sam → 450 g de poulet chez les deux |
 
+### V2.2 (rattrapage des meilleures apps, `BENCHMARK.md`)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Synchro automatique chiffrée, rejoindre par le code | **prêt, non activé** | Protocole testé contre un serveur local qui reproduit l'API Supabase et la RLS (`relay.test.ts`) ; parcours complet à deux téléphones sur relais simulé (`e2e/synchro-auto.mjs`) : rejoindre par code, mêmes courses, coche propagée, rien en clair. **Non testé contre le vrai Supabase** : le projet n'existe pas encore |
+| Import d'une adresse web | **prêt, non activé** | Extracteur testé sur 5 variantes schema.org (`web.test.ts`) ; parcours d'import dans l'app sur fonction simulée. **Non testé sur les vrais sites** : accès réseau bloqué depuis cet environnement |
+| Glisser-déposer + aperçu | **livré** | Navigateur : fantôme, cible, aperçu « ce midi : rien → curry » |
+| Varier / réutiliser dans les propositions | **livré** | Test : pas de poulet deux jours de suite ; le gratin remonte car il reprend la crème de la tarte |
+| Qui cuisine, ordre des rayons, mode magasin, agenda .ics, saisie assistée, conseil d'installation iPhone | **livré** | Tests unitaires (ics, rayons, cuisinier) + navigateur (fichier .ics téléchargé, rayons réordonnés, mode magasin) ; axe : 0 défaut |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -58,13 +68,14 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 **Étape D — Décisions conditionnelles**
 | Décision | Déclencheur mesuré | Contenu |
 |---|---|---|
-| V1C synchro automatique | Plus de 3 liens échangés par semaine, ou oubli d'envoi qui a causé une erreur | Relais Supabase qui ne stocke que des événements **déjà chiffrés** ; table unique, accès par étiquette de foyer dérivée du code ; demande votre accord et un projet Supabase (création non faite : action payante possible et irréversible) |
+| Activer le relais (synchro auto + import web) | **Construit (V2.2)** ; activation dès votre accord | Projet Supabase gratuit dédié « foyer » (2ᵉ projet gratuit de votre organisation, Assemblages non touché) : migration `supabase/migrations/`, fonction `foyer-import`, adresse dans `src/ui/config.ts` et `index.html` |
 | V1B OCR des dates | Plus de 5 produits surveillés par semaine **et** saisie de date ressentie comme un frein | Audit Savore (accès au dépôt requis), corpus réel, confirmation champ par champ |
 | Rappels hors de l'app | Tâches « la veille » oubliées malgré Aujourd'hui | Fichier agenda (.ics) des tâches de la semaine, comme Mes Comptes ; notifications iOS impossibles sans serveur |
 
 ## 4. Limites connues (assumées, documentées)
 
-- Synchro **manuelle** par lien (comme Mes Comptes) : rien n'arrive chez l'autre tant qu'aucun lien n'est envoyé. Le compteur « N changements pas encore envoyés » le rappelle.
+- Tant que le relais n'est pas activé : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle). Relais activé : automatique toutes les 20 s, pas instantané.
+- Projet Supabase gratuit : mis en pause après une semaine sans aucune activité ; Foyer continue alors en local et par lien.
 - Le lien contient tout le journal (≈ 1 Ko au départ, quelques dizaines de Ko après des mois) ; compactage non fait.
 - Un seul navigateur testé (Chromium). Safari iOS et VoiceOver restent à vérifier sur les téléphones.
 - Glisser-déposer non implémenté (le bouton « Déplacer » est l'interface obligatoire du PRD).
@@ -81,3 +92,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Interface | 4 écrans, une vingtaine de feuilles, accueil, découverte, mode cuisine | livré | Safari iOS non testé |
 | 2026-10-04 | Vérification | 34 tests, 2 scénarios navigateur, axe 0 violation | livré | VoiceOver non testé |
 | 2026-10-04 | Isolation | Service worker de Mes Comptes limité à ses caches | livré | — |
+| 2026-10-04 | Comparatif | AnyList, Paprika, Mealie, Jow, Mealime vérifiés en ligne ; notes pondérées | livré | Notes attribuées par l'auteur |
+| 2026-10-04 | V2.2 | Glisser-déposer, variété/réutilisation, qui cuisine, rayons, mode magasin, agenda | livré | iPhone non testé |
+| 2026-10-04 | V2.2 | Relais chiffré + import web (code, migration, fonction, tests simulés) | prêt, non activé | Supabase réel non testé |

@@ -1,7 +1,9 @@
 // Nos plats : saisie minimale (un nom suffit), ingrédients en texte libre analysé en direct, collage d'une recette entière.
 import { type RecipeContent, type AheadTask, current } from '../../core/model.ts';
 import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredients.ts';
-import { parseRecipeText, lineText } from '../../core/recipe-text.ts';
+import { parseRecipeText, lineText, fromWeb, type ParsedRecipe } from '../../core/recipe-text.ts';
+import type { WebRecipe } from '../../core/recipe-web.ts';
+import { RELAY } from '../config.ts';
 import { TAGS } from '../../core/propose.ts';
 import { newId } from '../../core/reduce.ts';
 import { portions } from '../../core/plan.ts';
@@ -10,7 +12,7 @@ import { qFrom, mul, div, q } from '../../core/rational.ts';
 import { UNIT, toBase, showQty } from '../../core/units.ts';
 import { fmtSlot } from '../../core/dates.ts';
 import { S, clock, dispatch } from '../state.ts';
-import { openSheet, sheetHead, closeSheet, esc, $, toast } from '../dom.ts';
+import { openSheet, sheetHead, closeSheet, esc, $, toast, keepAwake } from '../dom.ts';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.ts';
 
 interface Draft { id: string | null; name: string; yield: string; ing: string; steps: string; veille: string; matin: string; tags: Set<string>; note: string; banner: string }
@@ -103,25 +105,45 @@ CLICK['newRecipe'] = () => openRecipe(null);
 
 /* ---------- Coller une recette ---------- */
 let pasted = '';
+let webUrl = '';
 CLICK['pasteRecipe'] = () => {
   pasted = '';
-  openSheet({ id: 'paste', render: () => `${sheetHead('Coller une recette', 'Depuis vos notes, un message ou un site. Lecture sans IA, à relire avant d\'enregistrer.')}
-    <label class="field">Texte de la recette<textarea rows="10" data-i="pasteText" placeholder="Curry (pour 4)&#10;Ingrédients&#10;600 g de poulet&#10;…&#10;Préparation&#10;1. …">${esc(pasted)}</textarea></label>
-    <div class="actions"><button class="btn" data-a="pasteGo">Analyser</button><button class="btn ghost" data-a="close">Annuler</button></div>` });
+  openSheet({ id: 'paste', render: () => `${sheetHead('Ajouter une recette existante', 'Lecture sans IA, toujours à relire avant d\'enregistrer.')}
+    ${RELAY ? `<form data-f="webImport" class="stack"><label class="field">Adresse de la page (Marmiton, 750g, un blog…)<input type="url" name="url" inputmode="url" autocomplete="off" placeholder="https://…" value="${esc(webUrl)}" data-i="webUrl"></label>
+      <button class="btn">Importer depuis le site</button></form><hr class="sep">` : ''}
+    <label class="field">Ou collez le texte de la recette<textarea rows="8" data-i="pasteText" placeholder="Curry (pour 4)&#10;Ingrédients&#10;600 g de poulet&#10;…&#10;Préparation&#10;1. …">${esc(pasted)}</textarea></label>
+    <div class="actions"><button class="btn ${RELAY ? 'ghost' : ''}" data-a="pasteGo">Analyser le texte</button><button class="btn ghost" data-a="close">Annuler</button></div>` });
+};
+INPUT['webUrl'] = (_d, el) => { webUrl = (el as HTMLInputElement).value; };
+// Import d'une page : la fonction du relais lit les données schema.org de la page ; Foyer les analyse comme une saisie.
+SUBMIT['webImport'] = async data => {
+  const url = String(data.get('url') ?? '').trim();
+  if (!RELAY || !/^https?:\/\/\S+\.\S+/.test(url)) { toast('Adresse à vérifier (elle commence par https://)'); return; }
+  toast('Lecture de la page…');
+  try {
+    const r = await fetch(`${RELAY.url}/functions/v1/foyer-import`, { method: 'POST', headers: { apikey: RELAY.key, Authorization: `Bearer ${RELAY.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+    const body = (await r.json()) as WebRecipe & { error?: string };
+    if (!r.ok || body.error) { toast(body.error ?? `Import impossible (${r.status})`); return; }
+    webUrl = '';
+    showParsed(fromWeb(body), `Importé de ${new URL(url).hostname}`, body.source);
+  } catch { toast('Import impossible : pas de réseau ou relais injoignable. Copiez plutôt le texte de la recette.'); }
 };
 INPUT['pasteText'] = (_d, el) => { pasted = (el as HTMLTextAreaElement).value; };
 CLICK['pasteGo'] = () => {
   if (!pasted.trim()) { toast('Collez d\'abord le texte'); return; }
-  const r = parseRecipeText(pasted);
-  const review = r.ingredients.filter(i => i.review).length;
-  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [], note: '' },
-    `Lu : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
-  show();
+  showParsed(parseRecipeText(pasted), 'Lu', '');
 };
+function showParsed(r: ParsedRecipe, origin: string, source: string): void {
+  const review = r.ingredients.filter(i => i.review || !i.line.qty).length;
+  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [], note: source ? `Source : ${source}` : '' },
+    `${origin} : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
+  show();
+}
 
 /* ---------- Mode cuisine : quantités pour les portions réellement prévues, étapes à cocher ---------- */
 export function openCook(prepId: string): void {
-  openSheet({ id: `cook:${prepId}`, render: () => {
+  void keepAwake(true);
+  openSheet({ id: `cook:${prepId}`, onClose: () => { void keepAwake(false); }, render: () => {
     const s = S(), prep = s.preps[prepId];
     if (!prep) return sheetHead('Plat introuvable');
     const r = s.recipes[prep.recipe];
@@ -139,7 +161,7 @@ export function openCook(prepId: string): void {
       const key = `step:${prepId}:${i}`; const done = !!s.tasks[key]?.done;
       return `<li class="${done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="task" data-key="${esc(key)}" ${done ? 'checked' : ''} aria-label="Étape ${i + 1} faite"><span></span></label><span class="title">${i + 1}. ${esc(st)}</span></div></li>`; }).join('')}</ul></section>`
       : '<p class="muted">Aucune étape renseignée pour ce plat.</p>'}
-    <p class="small muted">Durées non renseignées : Foyer n'estime pas de temps de cuisson. Un minuteur terminé ne coche rien à votre place.</p>`;
+    <p class="small muted">L'écran reste allumé tant que cette page est ouverte. Durées non renseignées : Foyer n'estime pas de temps de cuisson.</p>`;
   } });
 }
 CLICK['cook'] = d => openCook(d['id'] ?? '');

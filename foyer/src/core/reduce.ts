@@ -22,7 +22,7 @@ export function sortLog(events: Iterable<AnyEv>): AnyEv[] {
   return [...byId.values()].sort(order);
 }
 
-const slotOf = (s: State, k: SlotKey): Slot => (s.slots[k] ??= { presence: {}, guests: 0, dish: null, eaten: null });
+const slotOf = (s: State, k: SlotKey): Slot => (s.slots[k] ??= { presence: {}, guests: 0, dish: null, eaten: null, chef: null });
 const weekShop = (s: State, w: string): WeekShop => (s.shop[w] ??= { checked: {}, pantry: {}, items: {} });
 const prepOf = (s: State, id: string) => s.preps[id] ?? conflict('plat introuvable (retiré entre-temps)');
 const recipeName = (s: State, id: string): string => { const r = s.recipes[id]; return r ? current(r).name : 'ce plat'; };
@@ -36,7 +36,7 @@ const dishName = (s: State, k: SlotKey): string => {
 // Un créneau devenu vide sans réglage particulier disparaît : l'état reste compact.
 const tidy = (s: State, k: SlotKey): void => {
   const x = s.slots[k];
-  if (x && !x.dish && !x.eaten && !x.guests && !Object.keys(x.presence).length) delete s.slots[k];
+  if (x && !x.dish && !x.eaten && !x.guests && !x.chef && !Object.keys(x.presence).length) delete s.slots[k];
 };
 
 function removeDish(s: State, k: SlotKey): void {
@@ -72,6 +72,7 @@ function apply(s: State, e: AnyEv): void {
       if (e.p.weekStart !== undefined) s.settings.weekStart = e.p.weekStart;
       if (e.p.rhythm !== undefined) s.settings.rhythm = structuredClone(e.p.rhythm);
       if (e.p.boxesFromDinner !== undefined) s.settings.boxesFromDinner = e.p.boxesFromDinner;
+      if (e.p.aisleOrder !== undefined) s.settings.aisleOrder = [...e.p.aisleOrder];
       return;
     }
     case 'recipe.save': {
@@ -97,6 +98,12 @@ function apply(s: State, e: AnyEv): void {
     }
     case 'slot.guests': {
       slotOf(s, e.p.slot).guests = e.p.guests;
+      tidy(s, e.p.slot);
+      return;
+    }
+    case 'slot.chef': {
+      if (e.p.member !== null && !s.members.some(m => m.id === e.p.member)) conflict('membre inconnu');
+      slotOf(s, e.p.slot).chef = e.p.member;
       tidy(s, e.p.slot);
       return;
     }

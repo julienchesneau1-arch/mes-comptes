@@ -5,11 +5,13 @@ import { esc, norm } from '../core/text.js';
 import { A, S, initDevice, setLog, dispatch } from './state.js';
 import { loadLog } from './store.js';
 import { wire, CLICK } from './registry.js';
+import { wireDrag } from './drag.js';
 import { $, $$, toast, closeSheet, sheetOpen, openSheet, sheetHead } from './dom.js';
 import { todayView, weekView, shopView, homeView } from './views.js';
 import { onboardingView, CLASSICS } from './onboarding.js';
 import { demoLog } from './demo.js';
 import { applyTheme, linkFromUrl } from './sheets/settings.js';
+import { startAutoSync } from './autosync.js';
 import './sheets/slot.js';
 import './sheets/recipe.js';
 import './sheets/plan.js';
@@ -75,7 +77,9 @@ function boot() {
     setLog(log);
     A.render = render;
     wire(document);
+    wireDrag(document);
     route();
+    startAutoSync();
     if (dropped > 0)
         toast(`${dropped} élément(s) illisible(s) écarté(s) à l'ouverture. Une copie de secours existe dans Maison › Réglages.`);
     if (dropped < 0)

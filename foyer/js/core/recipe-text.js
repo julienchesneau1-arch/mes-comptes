@@ -58,3 +58,9 @@ export function lineText(l) {
     const unit = l.unit && l.unit !== 'piece' ? UNIT[l.unit]?.one ?? '' : '';
     return [qty, unit, l.name, l.form ?? '', l.note ? `(${l.note})` : ''].filter(Boolean).join(' ');
 }
+// Recette lue sur une page web : mêmes règles de lecture que la saisie, et même relecture avant enregistrement.
+export function fromWeb(r) {
+    const y = /(\d{1,2})/.exec(r.yieldText);
+    const n = y ? Number(y[1]) : null;
+    return { name: r.name || 'Recette importée', yield: n && n > 0 && n <= 50 ? n : null, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
+}

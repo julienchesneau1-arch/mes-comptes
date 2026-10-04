@@ -11,7 +11,7 @@ export type MemberId = string;
 export type Presence = 'maison' | 'boite' | 'dehors'; // boîte = mange un plat de la maison, emporté
 export interface Member { id: MemberId; name: string }
 export interface RhythmDay { midi: Record<MemberId, Presence>; soir: Record<MemberId, Presence> }
-export interface Settings { weekStart: number; rhythm: RhythmDay[]; boxesFromDinner: boolean }
+export interface Settings { weekStart: number; rhythm: RhythmDay[]; boxesFromDinner: boolean; aisleOrder?: string[] }
 
 export interface AheadTask { label: string; when: 'veille' | 'matin' }
 export interface RecipeContent {
@@ -27,7 +27,7 @@ export interface Recipe { id: string; versions: RecipeContent[]; archived: boole
 
 export type Dish = { kind: 'cook'; prep: string } | { kind: 'from'; prep: string } | { kind: 'outside'; note: string };
 export interface Eaten { n: number; by: MemberId | null; at: string }
-export interface Slot { presence: Record<MemberId, Presence>; guests: number; dish: Dish | null; eaten: Eaten | null }
+export interface Slot { presence: Record<MemberId, Presence>; guests: number; dish: Dish | null; eaten: Eaten | null; chef: MemberId | null }
 
 export interface PrepDone { yield: number; planned: number; version: number; by: MemberId | null; at: string }
 export interface Prep {
@@ -60,11 +60,12 @@ export interface Staple { name: string; qty: string; aisle: string }
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[] };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
   'slot.guests': { slot: SlotKey; guests: number };
+  'slot.chef': { slot: SlotKey; member: MemberId | null };
   'slot.cook': { slot: SlotKey; prep: string; recipe: string; extra: number };
   'slot.from': { slot: SlotKey; prep: string };
   'slot.outside': { slot: SlotKey; note: string };
@@ -100,7 +101,7 @@ export interface Ev<T extends EventType = EventType> {
 }
 export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
-  'slot.guests', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
+  'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
   'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'watch.save',
   'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
 
@@ -134,8 +135,9 @@ function validPresenceMap(v: unknown): v is Record<MemberId, Presence> {
 export function validRhythm(v: unknown): v is RhythmDay[] {
   return Array.isArray(v) && v.length === 7 && v.every(d => isObj(d) && validPresenceMap(d['midi']) && validPresenceMap(d['soir']));
 }
+const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v: unknown): v is Settings {
-  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']);
+  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder']));
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -167,11 +169,12 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'household.init': p => isId(p['hid']) && validMembers(p['members']) && validSettings(p['settings']),
   'members.set': p => validMembers(p['members']),
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
-    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])),
+    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder'])),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
   'slot.guests': p => isSlotKey(p['slot']) && int(p['guests'], 0, 20),
+  'slot.chef': p => isSlotKey(p['slot']) && (p['member'] === null || isId(p['member'])),
   'slot.cook': p => isSlotKey(p['slot']) && isId(p['prep']) && isId(p['recipe']) && int(p['extra'], 0, 30),
   'slot.from': p => isSlotKey(p['slot']) && isId(p['prep']),
   'slot.outside': p => isSlotKey(p['slot']) && str(p['note'], 80),

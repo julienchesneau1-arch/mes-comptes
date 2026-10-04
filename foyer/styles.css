@@ -244,3 +244,12 @@ dialog.sheet::backdrop { background: rgba(25, 18, 10, .45); }
 hr.sep { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; width: 100%; }
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; font-weight: 600; }
 .warn-save { background: var(--plum-bg); color: var(--plum); padding: .75rem 1rem; border-radius: var(--r); }
+
+/* ---------- Glisser-déposer ---------- */
+.slot { -webkit-touch-callout: none; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 70; pointer-events: none; background: var(--ink); color: var(--paper); padding: .5rem .875rem;
+  border-radius: 999px; font-weight: 700; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot.dragging { opacity: .45; }
+.slot.drop-target { outline: 3px dashed var(--apricot); outline-offset: 2px; }
+body.is-dragging { -webkit-user-select: none; user-select: none; cursor: grabbing; }
+.btn.warn { border-color: var(--amber); color: var(--amber); }

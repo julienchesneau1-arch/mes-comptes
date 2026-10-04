@@ -14,6 +14,10 @@
 
 **ADR-6 — Dates de calendrier.** Une date est une chaîne `AAAA-MM-JJ` en heure de Paris (Intl, fuseau explicite) ; l'arithmétique se fait en jours entiers ; les instants (ISO) ne servent qu'à l'affichage. Testé autour de minuit et des changements d'heure.
 
+**ADR-8 — Relais chiffré (synchro automatique).** Table Supabase `foyer_relais` (migration `supabase/migrations/`) : chaque ligne = une étiquette de foyer, un appareil, un bloc chiffré. Étiquette et clé AES-GCM sont tirées du code du foyer par PBKDF2 (210 000 itérations) avec deux sels distincts : l'étiquette ne permet pas de déchiffrer. La règle RLS n'autorise lecture et ajout qu'avec l'étiquette dans l'en-tête `x-foyer` ; aucune modification ni suppression. Les téléphones déposent les événements que le relais ne connaît pas encore et relèvent depuis leur dernier numéro ; la fusion reste l'union idempotente + rejeu (ADR-2). Sans relais configuré (`src/ui/config.ts`), l'app fonctionne exactement comme avant.
+
+**ADR-9 — Import web côté serveur, analyse côté téléphone.** Un navigateur ne peut pas lire la page d'un autre site (CORS). La fonction `supabase/functions/foyer-import` télécharge la page (8 s, 3 Mo maximum, ni adresse IP ni nom local) et n'en renvoie que les données schema.org extraites par `recipe-web.ts`, fichier identique à celui de l'app (un test le vérifie). Le téléphone analyse ensuite les lignes avec le même lecteur que la saisie.
+
 **ADR-7 — Rien de magique.** Pas d'IA, pas de champ `safe=true`, pas de stock déduit du calendrier, pas de durée de conservation. Les seuls textes sanitaires sont des libellés factuels issus de la fiche DGCCRF citée.
 
 ## Carte des modules
@@ -38,7 +42,11 @@ src/core/            logique pure, sans DOM, testée sous Node
   watch.ts           produits surveillés : contrôles limités et sourcés
   describe.ts        phrase d'une action (conflits)
   sync.ts            chiffrement, lien, fusion, sauvegarde
-src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs)
+  relay.ts           relais : étiquette et clé, dépôt et relève chiffrés
+  recipe-web.ts      lecture schema.org d'une page de recette (partagé avec la fonction serveur)
+  ics.ts             rappels de la semaine pour l'agenda
+src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique)
+supabase/            migration du relais et fonction d'import web (déployées seulement avec votre accord)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```
 
@@ -50,7 +58,7 @@ Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance �
 
 ## Sécurité et vie privée
 
-- CSP : `script-src 'self'`, `style-src 'self'`, `connect-src 'self'` (aucune connexion sortante), aucun script ni style en ligne (testé).
-- Données : sur le téléphone (localStorage relu après écriture, copies de secours IndexedDB). Rien n'est envoyé à un serveur.
+- CSP : `script-src 'self'`, `style-src 'self'`, `connect-src 'self'` plus, seulement si un relais est configuré, son adresse exacte ; aucun script ni style en ligne (testé).
+- Données : sur le téléphone (localStorage relu après écriture, copies de secours IndexedDB). Avec le relais : seulement des blocs chiffrés de bout en bout ; le relais voit une étiquette pseudonyme, des identifiants d'appareil, des heures et des tailles.
 - Hébergement partagé avec Mes Comptes : clés de stockage préfixées `foyer:`, base IndexedDB `foyer`, caches `foyer-*`, service worker de portée `foyer/`. Le service worker de Mes Comptes ne supprime plus que ses propres caches.
 - Données personnelles minimales : prénoms, plats, dates déclarées. Sauvegarde JSON lisible (non chiffrée, à garder pour soi) ; liens de synchro chiffrés.

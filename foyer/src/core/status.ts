@@ -37,7 +37,8 @@ export function slotView(s: State, k: SlotKey, today: LocalDate, hour: number): 
   const base: SlotView = { key: k, status: n ? 'vide' : 'personne', servings: n, title: '', sub: '', prep: null, recipe: null, incomplete: false, link: null, past };
   const people = eaters(s, k).filter(e => e.presence !== 'dehors').map(e => (e.presence === 'boite' ? `${e.name} (boîte)` : e.name));
   const guests = slot?.guests ? `${slot.guests} invité${slot.guests > 1 ? 's' : ''}` : '';
-  base.sub = [...people, guests].filter(Boolean).join(' · ');
+  const chef = slot?.chef ? s.members.find(m => m.id === slot.chef)?.name : undefined;
+  base.sub = [...people, guests, chef ? `cuisine : ${chef}` : ''].filter(Boolean).join(' · ');
   const d = slot?.dish;
   if (!d) return base;
   if (d.kind === 'outside') return { ...base, status: 'exterieur', title: d.note || 'Repas extérieur' };

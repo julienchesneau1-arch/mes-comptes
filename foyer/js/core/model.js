@@ -3,7 +3,7 @@ import { AISLE } from './ingredients.js';
 import { UNIT } from './units.js';
 import { qFrom } from './rational.js';
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
-    'slot.guests', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
+    'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
     'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -37,8 +37,9 @@ function validPresenceMap(v) {
 export function validRhythm(v) {
     return Array.isArray(v) && v.length === 7 && v.every(d => isObj(d) && validPresenceMap(d['midi']) && validPresenceMap(d['soir']));
 }
+const validAisleOrder = (v) => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v) {
-    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']);
+    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder']));
 }
 export function validIngredient(v) {
     if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120))
@@ -79,11 +80,12 @@ const P = {
     'household.init': p => isId(p['hid']) && validMembers(p['members']) && validSettings(p['settings']),
     'members.set': p => validMembers(p['members']),
     'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
-        && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])),
+        && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder'])),
     'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
     'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
     'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
     'slot.guests': p => isSlotKey(p['slot']) && int(p['guests'], 0, 20),
+    'slot.chef': p => isSlotKey(p['slot']) && (p['member'] === null || isId(p['member'])),
     'slot.cook': p => isSlotKey(p['slot']) && isId(p['prep']) && isId(p['recipe']) && int(p['extra'], 0, 30),
     'slot.from': p => isSlotKey(p['slot']) && isId(p['prep']),
     'slot.outside': p => isSlotKey(p['slot']) && str(p['note'], 80),
