@@ -15,6 +15,7 @@ import { startAutoSync } from './autosync.js';
 import { startReminders } from './push.js';
 import { startAgenda } from './agenda.js';
 import './sheets/agenda.js';
+import './sheets/help.js';
 import './sheets/slot.js';
 import './sheets/recipe.js';
 import './sheets/plan.js';

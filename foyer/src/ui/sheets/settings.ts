@@ -70,8 +70,8 @@ CHANGE['boxes'] = (_d, el) => dispatch([{ t: 'settings.set', p: { boxesFromDinne
 CHANGE['weekStart'] = (_d, el) => dispatch([{ t: 'settings.set', p: { weekStart: Number((el as HTMLSelectElement).value) } }], { toast: 'Début de semaine changé' });
 
 /* ---------- Synchro par lien ---------- */
-const isIOS = (): boolean => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const standalone = (): boolean => matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+export const isIOS = (): boolean => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export const standalone = (): boolean => matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 export function openSync(): void {
   openSheet({ id: 'sync', render: () => {

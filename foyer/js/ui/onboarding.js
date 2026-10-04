@@ -28,7 +28,7 @@ export function onboardingView() {
     switch (step) {
         case 'welcome': return `<main id="main" class="onb" tabindex="-1">${mark}<h1>Foyer</h1>
       <p><strong>Une semaine visible. Des courses utiles. Moins de décisions le soir.</strong></p>
-      <p class="muted">Vos repas de la semaine, la liste de courses calculée toute seule, les restes et les boîtes du midi. Sur vos deux téléphones, sans compte ni serveur.</p>
+      <p class="muted">Vos repas de la semaine, la liste de courses calculée toute seule, les restes et les boîtes du midi. Sur vos deux téléphones, sans compte : ce que vous notez reste chez vous, et ne voyage que chiffré.</p>
       <button class="btn block" data-a="onb" data-s="names">Créer notre foyer</button>
       <button class="btn ghost block" data-a="onb" data-s="join">L'autre téléphone a déjà Foyer</button>
       <button class="btn quiet block" data-a="demo">Découvrir avec un exemple</button></main>`;

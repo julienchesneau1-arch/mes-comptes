@@ -9,7 +9,7 @@ import { describe } from './describe.ts';
 export type SlotStatus = 'personne' | 'vide' | 'exterieur' | 'a-cuisiner' | 'commence' | 'pret' | 'attend' | 'mange' | 'passe' | 'probleme';
 export const STATUS_LABEL: Record<SlotStatus, string> = {
   personne: 'Personne à la maison', vide: 'Rien de prévu', exterieur: 'Repas extérieur', 'a-cuisiner': 'À cuisiner', commence: 'Préparation commencée',
-  pret: 'Prêt (déclaré)', attend: 'Restes pas encore préparés', mange: 'Mangé', passe: 'Passé, non confirmé', probleme: 'À résoudre',
+  pret: 'Préparé', attend: 'Restes à venir', mange: 'Mangé', passe: 'Passé (pas noté mangé)', probleme: 'À résoudre',
 };
 
 // Un créneau est passé le lendemain, ou le jour même après 15 h pour le midi. Il reste « non confirmé », sans relance.

@@ -54,6 +54,7 @@ const FILES = [
   'js/ui/sheets/agenda.js',
   'js/ui/sheets/discover.js',
   'js/ui/sheets/drive.js',
+  'js/ui/sheets/help.js',
   'js/ui/sheets/plan.js',
   'js/ui/sheets/preview.js',
   'js/ui/sheets/recipe.js',

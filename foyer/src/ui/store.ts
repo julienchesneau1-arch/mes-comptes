@@ -17,6 +17,7 @@ export interface Device {
   auto: boolean;             // synchro automatique par le relais (si disponible)
   push: boolean;             // rappels en notifications sur ce téléphone
   pushHash: string;          // rappels déjà déposés (évite de les redéposer à l'identique)
+  guide: boolean;            // carte « Premiers pas » affichée
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -53,6 +54,7 @@ export function loadDevice(newId: () => string): Device {
     auto: d.auto !== false,
     push: d.push === true,
     pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
+    guide: d.guide !== false,
   };
   saveDevice(dev);
   return dev;

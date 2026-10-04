@@ -150,3 +150,35 @@ test('la fonction serveur lit les agendas avec exactement le même code que l\'a
   for (const ok of ['calendar.google.com', 'p52-caldav.icloud.com', 'outlook.office365.com', 'outlook.live.com', 'calendar.proton.me']) assert.ok(host.test(ok), ok);
   for (const bad of ['calendar.google.com.evil.fr', 'evil.fr', '169.254.169.254', 'p52-caldav.icloud.com.evil.fr', 'localhost']) assert.ok(!host.test(bad), bad);
 });
+
+test('événements récurrents anciens : la lecture saute au mois voulu sans se décaler, et reste rapide', async () => {
+  const { addDays } = await import('../src/core/dates.ts');
+  const r = read(cal(`
+    DTSTART;TZID=Europe/Paris:20150106T193000
+    DTEND;TZID=Europe/Paris:20150106T210000
+    RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TU
+    UID:quinzaine
+    SUMMARY:Chorale`, `
+    DTSTART;TZID=Europe/Paris:20150115T200000
+    DTEND;TZID=Europe/Paris:20150115T220000
+    RRULE:FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15
+    UID:trimestre
+    SUMMARY:Club`, `
+    DTSTART;VALUE=DATE:20150101
+    RRULE:FREQ=DAILY;INTERVAL=3
+    UID:tous3j
+    SUMMARY:Arrosage`));
+  // Attendu calculé à la main, jour après jour depuis 2015 (sans saut).
+  const brute = (start: string, step: number) => { const out: string[] = []; for (let d = start; d <= '2026-11-04'; d = addDays(d, step)) if (d >= '2026-10-04') out.push(d); return out; };
+  const days = (t: string) => r.occurrences.filter(o => o.title === t).map(o => o.days?.[0] ?? new Date(o.start + 7200e3).toISOString().slice(0, 10));
+  assert.deepEqual(days('Chorale'), brute('2015-01-06', 14));
+  assert.deepEqual(days('Club'), ['2026-10-15']);
+  assert.deepEqual(days('Arrosage'), brute('2015-01-01', 3));
+  // Agenda chargé (150 récurrences depuis 2015, 8 000 événements simples) : bien en dessous du plafond d'une fonction serveur.
+  const ev: string[] = [];
+  for (let i = 0; i < 150; i++) ev.push(`DTSTART;TZID=Europe/Paris:2015${String(1 + (i % 12)).padStart(2, '0')}10T0${i % 9}3000\nDTEND;TZID=Europe/Paris:2015${String(1 + (i % 12)).padStart(2, '0')}10T1${i % 9}3000\nRRULE:FREQ=${i % 2 ? 'DAILY' : 'WEEKLY'}\nUID:r${i}\nSUMMARY:R${i}`);
+  for (let i = 0; i < 8000; i++) { const s = new Date(Date.UTC(2016, 0, 1) + i * 37 * 3600e3).toISOString().replace(/[-:]/g, '').slice(0, 15); ev.push(`DTSTART;TZID=Europe/Paris:${s}\nDTEND;TZID=Europe/Paris:${s}\nUID:s${i}\nSUMMARY:S${i}`); }
+  const t0 = performance.now();
+  assert.ok(read(cal(...ev)).occurrences.length > 2000);
+  assert.ok(performance.now() - t0 < 4000, `${Math.round(performance.now() - t0)} ms`);
+});

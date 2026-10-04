@@ -160,6 +160,15 @@ await step('aujourd\'hui', async () => {
   await page.waitForTimeout(200);
   await shot('10-aujourdhui'); await axe('aujourdhui');
   console.log('   aujourd\'hui:', (await page.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 500));
+  // Premiers pas : cochés d'après ce qui est fait (plats notés, semaine prévue), le reste avec son bouton.
+  const guide = page.locator('section', { has: page.getByRole('heading', { name: /^Premiers pas · \d sur \d$/ }) });
+  console.log('   premiers pas :', (await guide.innerText()).replace(/\s+/g, ' ').slice(0, 160));
+  if (!(await guide.getByRole('heading').textContent())?.startsWith('Premiers pas · 2 sur')) throw new Error('premiers pas : 2 gestes faits attendus');
+  await guide.getByRole('button', { name: 'Comment ça marche' }).click();
+  await page.locator('dialog[open]').getByRole('heading', { name: 'Comment ça marche' }).waitFor();
+  await shot('10b-aide'); await axe('aide');
+  await page.keyboard.press('Escape');
+  await page.locator('dialog[open]').waitFor({ state: 'detached' });
 });
 await step('feuille créneau', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
