@@ -1,0 +1,27 @@
+name: catalogue
+# Régénère foyer/catalogue.json depuis Wikilivres (CC BY-SA 4.0) et l'enregistre sur la branche.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['foyer/scripts/catalogue.mjs', 'foyer/src/core/wikibook.ts', '.github/workflows/catalogue.yml']
+permissions:
+  contents: write
+jobs:
+  catalogue:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: foyer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: node scripts/catalogue.mjs
+      - run: npm run build
+      - name: Enregistrer le catalogue
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalogue.json sw.js
+          git diff --cached --quiet || { git commit -m "Foyer : catalogue Wikilivres régénéré" && git push; }

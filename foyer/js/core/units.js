@@ -21,14 +21,14 @@ export const UNITS = [
 export const UNIT = Object.fromEntries(UNITS.map(x => [x.id, x]));
 // Alias saisis → unité. Comparés mot à mot sur le texte normalisé (sans accent, minuscules).
 const ALIASES = {
-    g: ['g', 'gr', 'gr.', 'gramme', 'grammes'], kg: ['kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes'], mg: ['mg', 'milligramme', 'milligrammes'],
+    g: ['g', 'g.', 'gr', 'gr.', 'gramme', 'grammes'], kg: ['kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes'], mg: ['mg', 'milligramme', 'milligrammes'],
     ml: ['ml', 'millilitre', 'millilitres'], cl: ['cl', 'centilitre', 'centilitres'], dl: ['dl', 'decilitre', 'decilitres'],
     l: ['l', 'litre', 'litres', 'lt'],
     piece: ['piece', 'pieces', 'pc', 'pcs', 'unite', 'unites'],
     cs: ['cs', 'c.s', 'c.s.', 'cas', 'c.a.s', 'c.a.s.', 'c. a s.', 'c. a s', 'c a s', 'c. a soupe', 'c.a soupe', 'cuil. a soupe', 'cuill. a soupe',
-        'cuillere a soupe', 'cuilleres a soupe', 'cuilleree a soupe', 'cuillerees a soupe', 'cuillere soupe', 'cuilleres soupe', 'tbsp'],
+        'cuillere a soupe', 'cuilleres a soupe', 'cuilleree a soupe', 'cuillerees a soupe', 'cuiller a soupe', 'cuillers a soupe', 'cuillere soupe', 'cuilleres soupe', 'tbsp'],
     cc: ['cc', 'c.c', 'c.c.', 'cac', 'c.a.c', 'c.a.c.', 'c. a c.', 'c. a c', 'c a c', 'c. a cafe', 'c.a cafe', 'cuil. a cafe', 'cuill. a cafe',
-        'cuillere a cafe', 'cuilleres a cafe', 'cuilleree a cafe', 'cuillerees a cafe', 'cuillere cafe', 'cuilleres cafe', 'tsp'],
+        'cuillere a cafe', 'cuilleres a cafe', 'cuilleree a cafe', 'cuillerees a cafe', 'cuiller a cafe', 'cuillers a cafe', 'cuillere cafe', 'cuilleres cafe', 'tsp'],
 };
 for (const x of UNITS)
     if (!ALIASES[x.id])

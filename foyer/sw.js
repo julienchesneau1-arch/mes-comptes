@@ -33,6 +33,7 @@ const FILES = [
   'js/core/today.js',
   'js/core/units.js',
   'js/core/watch.js',
+  'js/core/wikibook.js',
   'js/ui/autosync.js',
   'js/ui/config.js',
   'js/ui/demo.js',
