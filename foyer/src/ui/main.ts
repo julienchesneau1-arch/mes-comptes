@@ -17,6 +17,7 @@ import './sheets/recipe.ts';
 import './sheets/plan.ts';
 import './sheets/shop.ts';
 import './sheets/drive.ts';
+import './sheets/discover.ts';
 
 const TABS: Tab[] = ['aujourdhui', 'semaine', 'courses', 'maison'];
 

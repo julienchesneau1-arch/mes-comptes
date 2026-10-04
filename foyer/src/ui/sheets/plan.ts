@@ -1,7 +1,8 @@
 // Planifier en un geste : propositions à relire (« Autre idée », « Retirer »), reprise d'une semaine, préparation en avance.
 import { type LocalDate, type SlotKey, addDays, fmtDayShort, fmtSlot, slotKey, SLOTS } from '../../core/dates.ts';
 import { current } from '../../core/model.ts';
-import { type Proposal, proposeWeek, copyWeek, acceptDrafts, rank } from '../../core/propose.ts';
+import { type Proposal, proposeWeek, copyWeek, acceptDrafts, rank, nextDiscovery } from '../../core/propose.ts';
+import { loadCatalog } from '../catalog.ts';
 import { weekPreps } from '../../core/shopping.ts';
 import { portions } from '../../core/plan.ts';
 import { prepTitle, capital } from '../../core/status.ts';
@@ -15,6 +16,7 @@ let props: Proposal[] = [];
 let tried = new Map<SlotKey, Set<string>>();
 let heading = '';
 let note = '';
+let curWeek = '';
 
 function dishLabel(p: Proposal): string {
   const s = S(), today = clock().date;
@@ -22,8 +24,9 @@ function dishLabel(p: Proposal): string {
   if (!d) return 'Présences seulement (plat à choisir)';
   if (d.kind === 'outside') return d.note ? `Extérieur : ${d.note}` : 'Repas extérieur';
   if (d.kind === 'cook') { const r = s.recipes[d.recipe]; return r ? current(r).name : 'Plat'; }
+  if (d.kind === 'new') return `Nouveau : ${d.catalog.title}`;
   const src = props.find(x => x.slot === d.source)?.dish;
-  const name = src?.kind === 'cook' ? dishLabel({ ...props.find(x => x.slot === d.source) as Proposal })
+  const name = src?.kind === 'cook' || src?.kind === 'new' ? dishLabel({ ...props.find(x => x.slot === d.source) as Proposal })
     : (() => { const sd = s.slots[d.source]?.dish; return sd?.kind === 'cook' ? prepTitle(s, s.preps[sd.prep]) : 'plat'; })();
   return `Restes de ${name} (${fmtSlot(d.source, today)})`;
 }
@@ -35,12 +38,12 @@ function openProposals(title: string, list: Proposal[], extra = ''): void {
 
 function render(): string {
   const today = clock().date;
-  const cooks = props.filter(p => p.dish?.kind === 'cook').length;
+  const cooks = props.filter(p => p.dish?.kind === 'cook' || p.dish?.kind === 'new').length;
   return `${sheetHead(esc(heading), 'Proposition : rien n\'est enregistré avant « Accepter ».')}
   ${note ? `<p class="banner info">${esc(note)}</p>` : ''}
   ${props.length ? `<ul class="list">${props.map((p, i) => `<li><div class="item"><span class="grow"><span class="sub">${esc(capital(fmtSlot(p.slot, today)))}</span><br>
-    <span class="title">${esc(dishLabel(p))}</span><br><span class="sub">${esc(p.reason)}</span></span>
-    <span class="stack">${p.dish?.kind === 'cook' ? `<button class="btn small-btn ghost" data-a="propAlt" data-n="${i}">Autre idée</button>` : ''}
+    <span class="title">${esc(dishLabel(p))}</span><br><span class="sub">${esc(p.reason)}</span>${p.dish?.kind === 'new' ? `<br><a class="small" href="${esc(p.dish.catalog.url)}" target="_blank" rel="noopener noreferrer">Voir la recette sur Wikilivres</a><span class="small muted"> · ajoutée à « Nos plats » si vous acceptez</span>` : ''}</span>
+    <span class="stack">${p.dish?.kind === 'cook' || p.dish?.kind === 'new' ? `<button class="btn small-btn ghost" data-a="propAlt" data-n="${i}">Autre idée</button>` : ''}
     <button class="btn small-btn quiet" data-a="propDrop" data-n="${i}" aria-label="Retirer la proposition pour ${esc(fmtSlot(p.slot, today))}">Retirer</button></span></div></li>`).join('')}</ul>
   <div class="actions"><button class="btn" data-a="propOk">Accepter ${props.length} proposition${props.length > 1 ? 's' : ''}</button><button class="btn ghost" data-a="close">Annuler</button></div>
   <p class="small muted">${cooks} plat${cooks > 1 ? 's' : ''} à cuisiner. Les courses et les tâches se mettent à jour dès l'acceptation.</p>`
@@ -48,8 +51,19 @@ function render(): string {
     ${Object.keys(S().recipes).length ? '' : '<button class="btn block" data-a="newRecipe">Ajouter un plat</button>'}`}`;
 }
 
-CLICK['propAlt'] = d => {
+CLICK['propAlt'] = async d => {
   const i = num(d['n']), p = props[i];
+  if (p?.dish?.kind === 'new') {
+    const cat = await loadCatalog();
+    const t = tried.get(p.slot) ?? new Set<string>([p.dish.catalog.id]);
+    const others = props.flatMap(x => (x.dish?.kind === 'new' ? [x.dish.catalog.id] : []));
+    const next = cat ? nextDiscovery(S(), cat, p.slot, curWeek, new Set([...others, ...t])) : undefined;
+    if (!next) { toast('Plus d\'autre découverte pour ce repas'); return; }
+    t.add(next.recipe.id); tried.set(p.slot, t);
+    props[i] = { ...p, dish: { kind: 'new', catalog: next.recipe, extra: 0 }, reason: next.reason };
+    openSheet({ id: 'proposals', render });
+    return;
+  }
   if (!p || p.dish?.kind !== 'cook') return;
   const t = tried.get(p.slot) ?? new Set<string>([p.dish.recipe]);
   const used = new Set(props.filter((x, j) => j !== i && x.dish?.kind === 'cook').map(x => (x.dish as { recipe: string }).recipe));
@@ -71,10 +85,13 @@ CLICK['propOk'] = () => {
   dispatch(drafts, { toast: `${n} repas prévu${n > 1 ? 's' : ''} · courses à jour` });
 };
 
-CLICK['propose'] = d => {
+CLICK['propose'] = async d => {
   const c = clock();
   const week = d['week'] ?? thisWeek();
-  openProposals(`Proposer la semaine du ${fmtDayShort(week)}`, proposeWeek(S(), week, c.date, c.hour));
+  const cat = await loadCatalog(); // hors ligne sans catalogue : vos plats seulement
+  curWeek = week;
+  openProposals(`Proposer la semaine du ${fmtDayShort(week)}`, proposeWeek(S(), week, c.date, c.hour, cat),
+    cat ? '' : 'Catalogue de découvertes indisponible (hors ligne) : propositions tirées de vos plats seulement.');
 };
 
 CLICK['copyWeek'] = d => {

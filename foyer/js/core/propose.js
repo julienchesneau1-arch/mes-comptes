@@ -9,6 +9,7 @@ import { aisleOf } from './ingredients.js';
 import { newId } from './reduce.js';
 import { wholeExtra } from './commands.js';
 import { prepTitle } from './status.js';
+import { discover, familiesOf, toContent } from './catalog.js';
 export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien'];
 // Dernier jour où chaque plat a été prévu (cuisiné).
 export function lastPlanned(s) {
@@ -132,12 +133,46 @@ export const isUpcoming = (k, today, hour) => {
         return false;
     return p.date > today || (p.date === today && (p.slot === 'soir' ? hour < 21 : hour < 14));
 };
+// Contexte d'un créneau pour une découverte : familles (volaille, poisson…) des jours voisins, produits frais de la semaine.
+function discoveryContext(s, slot, week, extra, newFamilies, exclude) {
+    const p = parseSlot(slot);
+    const near = around(s, p.date, extra);
+    const days = [-1, 0, 1].map(dd => addDays(p.date, dd));
+    const neighbourFamilies = familiesOf(s, days.flatMap(d => near.get(d) ?? []));
+    for (const d of days)
+        for (const f of newFamilies.get(d) ?? [])
+            neighbourFamilies.add(f);
+    const weekFresh = new Map();
+    for (const rs of near.values())
+        for (const r of rs)
+            for (const [k, v] of fresh(s, r))
+                weekFresh.set(k, v);
+    return { week, weekend: weekday(p.date) >= 5, evening: p.slot === 'soir', neighbourFamilies, weekFresh, exclude };
+}
+// « Autre idée » sur une découverte : la suivante pour ce créneau, hors celles déjà vues ou proposées ailleurs.
+export function nextDiscovery(s, cat, slot, week, exclude) {
+    return discover(s, cat, discoveryContext(s, slot, week, new Map(), new Map(), exclude))[0];
+}
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
-export function proposeWeek(s, week, today, hour) {
+// Avec le catalogue : vos plats d'abord ; une découverte quand il n'en reste plus, et au moins une par semaine
+// (à la place de la proposition la moins convaincante, hors plat dont dépend une boîte).
+export function proposeWeek(s, week, today, hour, cat = null) {
     const out = [];
-    const used = new Set();
+    const used = new Set(), usedNew = new Set();
+    const newFamilies = new Map();
+    const scores = new Map();
     const cooks = new Map(); // créneau → préparation existante (null si seulement proposée)
     const proposed = new Map();
+    const pickNew = (k) => {
+        const best = cat ? discover(s, cat, discoveryContext(s, k, week, proposed, newFamilies, usedNew))[0] : undefined;
+        if (!best)
+            return null;
+        usedNew.add(best.recipe.id);
+        const d = parseSlot(k)?.date;
+        if (best.recipe.main)
+            newFamilies.set(d, [...(newFamilies.get(d) ?? []), best.recipe.main]);
+        return best;
+    };
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
             const k = slotKey(addDays(week, i), sl);
@@ -162,13 +197,27 @@ export function proposeWeek(s, week, today, hour) {
                 continue;
             }
             const best = rank(s, k, today, used, proposed)[0];
-            if (!best)
+            if (!best) {
+                const fresh = pickNew(k);
+                if (fresh) {
+                    cooks.set(k, null);
+                    out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 });
+                }
                 continue;
+            }
             used.add(best.recipe);
             cooks.set(k, null);
+            scores.set(k, best.score);
             proposed.set(addDays(week, i), [...(proposed.get(addDays(week, i)) ?? []), best.recipe]);
             out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason: best.reason, presence: {}, guests: 0 });
         }
+    if (cat && !out.some(p => p.dish?.kind === 'new')) {
+        const weakest = out.filter(p => p.dish?.kind === 'cook' && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
+            .sort((a, b) => (scores.get(a.slot) ?? 0) - (scores.get(b.slot) ?? 0) || (a.slot < b.slot ? -1 : 1))[0];
+        const fresh = weakest ? pickNew(weakest.slot) : null;
+        if (weakest && fresh)
+            out[out.indexOf(weakest)] = { ...weakest, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason };
+    }
     return out;
 }
 // Reprendre une autre semaine comme brouillon : plats, présences et invités ; jamais les états, coches, vérifications ni dates.
@@ -226,6 +275,11 @@ export function acceptDrafts(s, proposals) {
             const id = newId();
             prepAt.set(p.slot, id);
             drafts.push({ t: 'slot.cook', p: { slot: p.slot, prep: id, recipe: p.dish.recipe, extra: p.dish.extra } });
+        }
+        if (p.dish?.kind === 'new') {
+            const recipe = newId(), id = newId();
+            prepAt.set(p.slot, id);
+            drafts.push({ t: 'recipe.save', p: { recipe, content: toContent(p.dish.catalog) } }, { t: 'slot.cook', p: { slot: p.slot, prep: id, recipe, extra: p.dish.extra } });
         }
         if (p.dish?.kind === 'outside')
             drafts.push({ t: 'slot.outside', p: { slot: p.slot, note: p.dish.note } });
