@@ -11,7 +11,7 @@ export type MemberId = string;
 export type Presence = 'maison' | 'boite' | 'dehors'; // boîte = mange un plat de la maison, emporté
 export interface Member { id: MemberId; name: string }
 export interface RhythmDay { midi: Record<MemberId, Presence>; soir: Record<MemberId, Presence> }
-export interface Settings { weekStart: number; rhythm: RhythmDay[]; boxesFromDinner: boolean; aisleOrder?: string[] }
+export interface Settings { weekStart: number; rhythm: RhythmDay[]; boxesFromDinner: boolean; aisleOrder?: string[]; holidays?: boolean } // holidays : fériés (absent = oui)
 
 export interface AheadTask { label: string; when: 'veille' | 'matin' }
 export interface RecipeContent {
@@ -57,13 +57,20 @@ export interface Staple { name: string; qty: string; aisle: string }
 // Produit retenu au drive pour un ingrédient : lien et contenance saisis par le foyer (rien n'est lu sur le site du magasin).
 export interface Product { url: string; label: string; size: string | null; unit: string | null; by: MemberId | null; at: string }
 export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
+// Agendas branchés : adresse de lecture (secrète) d'un agenda, rattachée à une personne ou au foyer entier.
+export interface AgendaCal { id: string; member: MemberId | null; label: string; url: string }
+// Présence posée d'après l'agenda : l'occurrence d'origine est gardée pour la retirer si l'événement disparaît ;
+// « overridden » = modifiée ensuite à la main, l'agenda ne s'en mêle plus.
+export interface AgendaMark { src: string; cal: string; title: string; presence: Presence; overridden: boolean }
+export interface AgendaState { cals: Record<string, AgendaCal>; rules: Record<string, 'auto' | 'jamais'>; marks: Record<string, AgendaMark> }
+export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/;
 
 /* ---------- Événements ---------- */
 
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[] };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -88,6 +95,9 @@ export interface Payloads {
   'staple.set': { key: string; name: string; qty: string; aisle: string; removed: boolean };
   'aisle.set': { key: string; aisle: string };
   'product.set': { key: string; url: string | null; label: string; size: string | null; unit: string | null };
+  'agenda.set': { cal: string; member: MemberId | null; label: string; url: string | null };
+  'agenda.rule': { key: string; effect: 'auto' | 'jamais' | null };
+  'agenda.mark': { slot: SlotKey; member: MemberId; presence: Presence | null; src: string; cal: string; title: string };
   'watch.save': { id: string; name: string; qty: string; date: DateDecl | null; state: ItemState; slot: SlotKey | null };
   'watch.close': { id: string; outcome: 'utilise' | 'jete' };
   'conflict.ack': { event: string };
@@ -106,7 +116,7 @@ export interface Ev<T extends EventType = EventType> {
 export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-  'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
+  'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
   'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
@@ -143,7 +153,7 @@ export function validRhythm(v: unknown): v is RhythmDay[] {
 }
 const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v: unknown): v is Settings {
-  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder']));
+  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']));
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -175,7 +185,8 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'household.init': p => isId(p['hid']) && validMembers(p['members']) && validSettings(p['settings']),
   'members.set': p => validMembers(p['members']),
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
-    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder'])),
+    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
+    && (p['holidays'] === undefined || bool(p['holidays'])),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -202,6 +213,11 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
   'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
     && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])),
+  'agenda.set': p => isId(p['cal']) && (p['member'] === null || isId(p['member'])) && str(p['label'], 40)
+    && (p['url'] === null || (typeof p['url'] === 'string' && AGENDA_URL_RE.test(p['url']))),
+  'agenda.rule': p => isKey(p['key']) && (p['effect'] === null || p['effect'] === 'auto' || p['effect'] === 'jamais'),
+  'agenda.mark': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence']))
+    && typeof p['src'] === 'string' && /^[0-9a-f]{16}$/.test(p['src']) && isId(p['cal']) && str(p['title'], 120),
   'watch.save': p => isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && (p['date'] === null || validDateDecl(p['date']))
     && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
   'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
@@ -232,6 +248,7 @@ export interface State {
   staples: Record<string, Staple>;
   aisles: Record<string, string>;
   products: Record<string, Product>;
+  agenda: AgendaState;
   watch: Record<string, WatchItem>;
   tasks: Record<string, Mark & { done: boolean }>;
   acked: Set<string>;
@@ -245,7 +262,7 @@ export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Pr
 
 export const emptyState = (): State => ({
   hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, watch: {}, tasks: {}, acked: new Set(),
+  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
 });
 
 export const current = (r: Recipe): RecipeContent => r.versions[r.versions.length - 1] as RecipeContent;

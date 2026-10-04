@@ -80,6 +80,8 @@ function apply(s, e) {
                 s.settings.boxesFromDinner = e.p.boxesFromDinner;
             if (e.p.aisleOrder !== undefined)
                 s.settings.aisleOrder = [...e.p.aisleOrder];
+            if (e.p.holidays !== undefined)
+                s.settings.holidays = e.p.holidays;
             return;
         }
         case 'recipe.save': {
@@ -109,6 +111,9 @@ function apply(s, e) {
                 delete slot.presence[e.p.member];
             else
                 slot.presence[e.p.member] = e.p.presence;
+            const mark = s.agenda.marks[`${e.p.slot}|${e.p.member}`];
+            if (mark)
+                mark.overridden = true; // décision à la main : prioritaire sur l'agenda
             tidy(s, e.p.slot);
             return;
         }
@@ -332,6 +337,51 @@ function apply(s, e) {
                 return;
             }
             s.products[e.p.key] = { url: e.p.url, label: e.p.label, size: e.p.size, unit: e.p.unit, by: e.by, at: e.at };
+            return;
+        }
+        case 'agenda.set': {
+            if (e.p.member !== null && !s.members.some(m => m.id === e.p.member))
+                conflict('membre inconnu');
+            if (e.p.url === null) {
+                if (!s.agenda.cals[e.p.cal])
+                    noop('agenda déjà retiré');
+                delete s.agenda.cals[e.p.cal];
+                return;
+            }
+            s.agenda.cals[e.p.cal] = { id: e.p.cal, member: e.p.member, label: e.p.label, url: e.p.url };
+            return;
+        }
+        case 'agenda.rule': {
+            if (e.p.effect === null) {
+                if (!s.agenda.rules[e.p.key])
+                    noop('aucune décision mémorisée');
+                delete s.agenda.rules[e.p.key];
+                return;
+            }
+            s.agenda.rules[e.p.key] = e.p.effect;
+            return;
+        }
+        case 'agenda.mark': {
+            if (!s.members.some(m => m.id === e.p.member))
+                conflict('membre inconnu');
+            const key = `${e.p.slot}|${e.p.member}`, mark = s.agenda.marks[key];
+            if (s.slots[e.p.slot]?.eaten)
+                noop('repas déjà mangé');
+            if (e.p.presence === null) { // l'événement a disparu de l'agenda : retour au rythme habituel, sauf réglage fait à la main depuis
+                if (!mark || mark.src !== e.p.src)
+                    noop('rien à retirer');
+                if (!mark.overridden)
+                    delete slotOf(s, e.p.slot).presence[e.p.member];
+                delete s.agenda.marks[key];
+                tidy(s, e.p.slot);
+                return;
+            }
+            if (mark?.src === e.p.src && mark.overridden)
+                noop('modifié à la main : l\'agenda ne s\'en mêle plus');
+            if (mark?.src === e.p.src && s.slots[e.p.slot]?.presence[e.p.member] === e.p.presence)
+                noop('déjà appliqué');
+            slotOf(s, e.p.slot).presence[e.p.member] = e.p.presence;
+            s.agenda.marks[key] = { src: e.p.src, cal: e.p.cal, title: e.p.title, presence: e.p.presence, overridden: false };
             return;
         }
         case 'watch.save': {

@@ -2,6 +2,8 @@
 // Le relais (table Supabase) ne voit qu'une étiquette de foyer et des blocs chiffrés ; le code du foyer reste sur les téléphones.
 // Étiquette et clé sont tirées du code par PBKDF2 avec deux sels distincts : connaître l'étiquette ne donne pas la clé.
 import { type AnyEv, validEvent } from './model.ts';
+import type { Occurrence } from './ical.ts';
+import { type LocalDate, isDate } from './dates.ts';
 
 export interface RelayConf { url: string; key: string }
 export type Fetch = (input: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
@@ -94,6 +96,27 @@ export async function vapidPublic(c: RelayConf, f: Fetch): Promise<string> {
   const body = (await r.json()) as { pub?: unknown };
   if (!r.ok || typeof body.pub !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(body.pub)) throw new RelayError(r.status, 'notifications : clé du serveur indisponible');
   return body.pub;
+}
+
+// Agenda : la fonction foyer-agenda lit l'adresse iCal et ne renvoie que les événements de la période, revérifiés ici un à un.
+export interface AgendaRead { occurrences: Occurrence[]; events: number; skipped: { title: string; why: string }[] }
+const validOcc = (o: unknown): o is Occurrence => {
+  if (typeof o !== 'object' || o === null) return false;
+  const x = o as Record<string, unknown>;
+  const days = x['days'];
+  return typeof x['id'] === 'string' && /^[0-9a-f]{16}$/.test(x['id']) && typeof x['title'] === 'string' && x['title'].length <= 120
+    && typeof x['allDay'] === 'boolean' && Number.isFinite(x['start']) && Number.isFinite(x['end']) && (x['end'] as number) >= (x['start'] as number)
+    && (days === null || (Array.isArray(days) && days.length === 2 && isDate(days[0]) && isDate(days[1])))
+    && typeof x['busy'] === 'boolean' && typeof x['recurring'] === 'boolean' && typeof x['tzGuess'] === 'boolean';
+};
+export async function readAgenda(c: RelayConf, url: string, from: LocalDate, to: LocalDate, cal: string, f: Fetch): Promise<AgendaRead> {
+  const r = await f(`${c.url}/functions/v1/foyer-agenda`, { method: 'POST', headers: relayHeaders(c), body: JSON.stringify({ url, from, to, cal }) });
+  const body = (await r.json().catch(() => ({}))) as { occurrences?: unknown; events?: unknown; skipped?: unknown; error?: unknown };
+  if (!r.ok) throw new RelayError(r.status, typeof body.error === 'string' ? body.error.slice(0, 200) : `agenda illisible (${r.status})`);
+  const occ = Array.isArray(body.occurrences) ? body.occurrences.slice(0, 3000) : [];
+  const skipped = Array.isArray(body.skipped) ? body.skipped.filter((s): s is { title: string; why: string } =>
+    typeof s === 'object' && s !== null && typeof (s as { title?: unknown }).title === 'string' && typeof (s as { why?: unknown }).why === 'string').slice(0, 20) : [];
+  return { occurrences: occ.filter(validOcc), events: Number.isInteger(body.events) ? body.events as number : 0, skipped };
 }
 
 // Dépose les événements par paquets (un bloc chiffré par paquet). Idempotent côté téléphones : un événement reçu deux fois ne compte qu'une fois.

@@ -13,6 +13,8 @@ import { demoLog } from './demo.js';
 import { applyTheme, linkFromUrl } from './sheets/settings.js';
 import { startAutoSync } from './autosync.js';
 import { startReminders } from './push.js';
+import { startAgenda } from './agenda.js';
+import './sheets/agenda.js';
 import './sheets/slot.js';
 import './sheets/recipe.js';
 import './sheets/plan.js';
@@ -84,6 +86,7 @@ function boot() {
     route();
     startAutoSync();
     startReminders();
+    startAgenda();
     if (dropped > 0)
         toast(`${dropped} élément(s) illisible(s) écarté(s) à l'ouverture. Une copie de secours existe dans Maison › Réglages.`);
     if (dropped < 0)

@@ -93,7 +93,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 5 | Courses → Mode magasin, attendre 2 min sans toucher | L'écran reste allumé |
 | 6 | Courses → « Commander chez Auchan » → « Chercher chez Auchan » | La recherche Auchan s'ouvre (noter : dans Safari ou dans l'app Auchan) ; retour dans Foyer sur le même article |
 | 7 | Copier l'adresse d'une page produit Auchan, la coller dans « Retenir le produit », contenance « 300 g » | « À mettre au panier : N × 300 g » |
-| 8 | Semaine → Agenda (.ics) → ouvrir le fichier | iOS propose d'ajouter les rappels au Calendrier |
+| 8 | Semaine → « Exporter vers mon agenda » (.ics) → ouvrir le fichier | iOS propose d'ajouter les rappels au Calendrier |
 | 9 | Maison → Coller une recette (texte de Notes) | Ingrédients et étapes reconnus, relecture avant enregistrement |
 | 10 | VoiceOver (triple clic sur le bouton latéral si activé) : parcourir Aujourd'hui | Chaque bouton est annoncé avec un nom clair |
 | 11 | Maison › Réglages › « Activer les rappels » → Autoriser, puis « Envoyer un rappel d'essai », verrouiller le téléphone | « 🔔 Essai Foyer » arrive en moins de 6 minutes (si « Un rappel pour vos repas : ouvrez Foyer » arrive à la place : envoyer le Diagnostic) |

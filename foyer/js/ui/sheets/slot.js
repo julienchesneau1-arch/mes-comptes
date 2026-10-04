@@ -22,9 +22,12 @@ function slotHtml(k) {
     const v = slotView(s, k, c.date, c.hour);
     const slot = s.slots[k];
     const people = eaters(s, k);
-    const presence = people.map(e => `<div class="person"><span class="title">${esc(e.name)}</span>
+    const presence = people.map(e => {
+        const mk = s.agenda.marks[`${k}|${e.id}`];
+        return `<div class="person"><span class="title">${esc(e.name)}${mk && !mk.overridden ? `<br><span class="sub">d'après l'agenda : « ${esc(mk.title)} »</span>` : ''}</span>
     <div class="seg" role="radiogroup" aria-label="${esc(e.name)}, ${esc(fmtSlot(k, c.date))}">${['maison', 'boite', 'dehors'].map(p => `
-      <label><input type="radio" name="pr-${e.id}" value="${p}" data-c="presence" data-k="${k}" data-m="${e.id}" ${e.presence === p ? 'checked' : ''}>${p === 'maison' ? 'Maison' : p === 'boite' ? 'Boîte' : 'Dehors'}</label>`).join('')}</div></div>`).join('');
+      <label><input type="radio" name="pr-${e.id}" value="${p}" data-c="presence" data-k="${k}" data-m="${e.id}" ${e.presence === p ? 'checked' : ''}>${p === 'maison' ? 'Maison' : p === 'boite' ? 'Boîte' : 'Dehors'}</label>`).join('')}</div></div>`;
+    }).join('');
     const guests = slot?.guests ?? 0;
     const probs = problems(A.r, c.date, c.hour).filter(p => p.slot === k || (v.prep && p.prep === v.prep.id));
     const watch = activeWatch(s.watch, c.date).filter(w => w.item.slot === k);

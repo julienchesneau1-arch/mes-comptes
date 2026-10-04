@@ -15,6 +15,8 @@ import { enabled as autoOn, statusLabel, sync as autoSync } from './autosync.js'
 import { fmtCode } from '../core/sync.js';
 import { CLICK, INPUT } from './registry.js';
 import { pushOn } from './push.js';
+import { toDecide } from './agenda.js';
+import { agendaSection } from './sheets/agenda.js';
 import { RELAY } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { packsFor } from '../core/drive.js';
@@ -82,9 +84,11 @@ export function todayView() {
             ? `<div class="banner info"><p class="grow">${esc(otherNames())} n'a pas encore Foyer : envoyez-lui le lien, puis donnez-lui une fois le code du foyer (Maison › Réglages › Synchro).</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer le lien</button></div>`
             : `<div class="banner info"><p class="grow">${plural(n, 'changement', 'changements')} pas encore envoyé${n > 1 ? 's' : ''} à ${esc(otherNames())}.</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer</button></div>`;
     const install = needsInstall() ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil ». Sur iPhone, Safari peut effacer les données d'un site peu ouvert ; l'app installée les garde.</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
+    const decide = toDecide();
+    const agenda = decide && !A.demo ? `<div class="banner info"><p class="grow"><strong>L'agenda change ${plural(decide, 'repas', 'repas')}.</strong> Une décision par événement ; ensuite, Foyer fait pareil tout seul.</p><button class="btn small-btn" data-a="agendaOpen">Voir</button></div>` : '';
     const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
     return `<div class="top"><h1>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
-  <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}
+  <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
     <div class="cols"><div class="stack">${cards}${ideas}</div><div class="stack">${checks}${tasks}${toBuy}${plan}</div></div></main>`;
 }
 /* ---------- Semaine ---------- */
@@ -110,7 +114,7 @@ export function weekView() {
     const head = `<div class="weeknav"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
     <h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
     </div>${week !== thisWeek() ? `<button class="btn small-btn quiet" data-a="wk" data-d="0">${week > thisWeek() && week === addDays(thisWeek(), 7) ? 'Revenir à la semaine en cours' : 'Cette semaine'}</button>` : ''}
-    <div class="actions"><button class="btn soft small-btn" data-a="propose" data-week="${week}">Proposer les repas vides</button><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Agenda</button></div>`;
+    <div class="actions"><button class="btn soft small-btn" data-a="propose" data-week="${week}">Proposer les repas vides</button><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div>`;
     let body;
     if (wide) {
         body = `<div class="grid7">${days.map(d => `<section aria-labelledby="d-${d}"><h3 id="d-${d}" class="${d === c.date ? 'today' : ''}">${esc(dayShort(d))} ${dayNumber(d)}</h3>
@@ -268,6 +272,7 @@ function settingsView() {
       <p>${pushOn() ? '<strong>Activés.</strong> ' : ''}La veille à 19 h « sortir le poulet », la boîte à préparer, et le dimanche à 18 h si la semaine suivante est vide.</p>
       <p class="small muted">Le serveur ne voit que l'heure et un bloc chiffré ; le texte est déchiffré sur le téléphone. Sur iPhone : Foyer installé sur l'écran d'accueil, iOS 16.4 ou plus.</p>
       <div class="actions">${pushOn() ? '<button class="btn ghost" data-a="pushTest">Envoyer un rappel d\'essai</button><button class="btn quiet" data-a="pushOff">Désactiver</button>' : '<button class="btn" data-a="pushOn">Activer les rappels</button>'}</div></section>` : ''}
+    ${agendaSection()}
     <section class="card stack"><h2>Affichage</h2><label class="field">Thème<select data-c="theme"><option value="auto" ${A.device.theme === 'auto' ? 'selected' : ''}>Comme le téléphone</option><option value="light" ${A.device.theme === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${A.device.theme === 'dark' ? 'selected' : ''}>Sombre</option></select></label>
       <button class="btn ghost" data-a="demo">Mode découverte (exemple, rien n'est enregistré)</button></section>
     <section class="card stack"><h2>Ce que fait Foyer, et ce qu'il ne fait pas</h2>

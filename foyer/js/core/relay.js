@@ -2,6 +2,7 @@
 // Le relais (table Supabase) ne voit qu'une étiquette de foyer et des blocs chiffrés ; le code du foyer reste sur les téléphones.
 // Étiquette et clé sont tirées du code par PBKDF2 avec deux sels distincts : connaître l'étiquette ne donne pas la clé.
 import { validEvent } from './model.js';
+import { isDate } from './dates.js';
 const ITER = 210000;
 const enc = new TextEncoder();
 const hex = (b) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
@@ -107,6 +108,25 @@ export async function vapidPublic(c, f) {
     if (!r.ok || typeof body.pub !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(body.pub))
         throw new RelayError(r.status, 'notifications : clé du serveur indisponible');
     return body.pub;
+}
+const validOcc = (o) => {
+    if (typeof o !== 'object' || o === null)
+        return false;
+    const x = o;
+    const days = x['days'];
+    return typeof x['id'] === 'string' && /^[0-9a-f]{16}$/.test(x['id']) && typeof x['title'] === 'string' && x['title'].length <= 120
+        && typeof x['allDay'] === 'boolean' && Number.isFinite(x['start']) && Number.isFinite(x['end']) && x['end'] >= x['start']
+        && (days === null || (Array.isArray(days) && days.length === 2 && isDate(days[0]) && isDate(days[1])))
+        && typeof x['busy'] === 'boolean' && typeof x['recurring'] === 'boolean' && typeof x['tzGuess'] === 'boolean';
+};
+export async function readAgenda(c, url, from, to, cal, f) {
+    const r = await f(`${c.url}/functions/v1/foyer-agenda`, { method: 'POST', headers: relayHeaders(c), body: JSON.stringify({ url, from, to, cal }) });
+    const body = (await r.json().catch(() => ({})));
+    if (!r.ok)
+        throw new RelayError(r.status, typeof body.error === 'string' ? body.error.slice(0, 200) : `agenda illisible (${r.status})`);
+    const occ = Array.isArray(body.occurrences) ? body.occurrences.slice(0, 3000) : [];
+    const skipped = Array.isArray(body.skipped) ? body.skipped.filter((s) => typeof s === 'object' && s !== null && typeof s.title === 'string' && typeof s.why === 'string').slice(0, 20) : [];
+    return { occurrences: occ.filter(validOcc), events: Number.isInteger(body.events) ? body.events : 0, skipped };
 }
 // Dépose les événements par paquets (un bloc chiffré par paquet). Idempotent côté téléphones : un événement reçu deux fois ne compte qu'une fois.
 export async function push(c, k, device, events, f) {
