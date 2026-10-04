@@ -1,0 +1,21 @@
+{
+  "name": "Foyer — repas, courses, restes",
+  "short_name": "Foyer",
+  "description": "Les repas de la semaine, les courses calculées et les restes, partagés à deux.",
+  "lang": "fr",
+  "start_url": "./#aujourdhui",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf6ee",
+  "theme_color": "#fbf6ee",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Courses", "url": "./#courses" },
+    { "name": "Semaine", "url": "./#semaine" }
+  ]
+}

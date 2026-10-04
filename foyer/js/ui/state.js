@@ -1,0 +1,77 @@
+// État de l'application côté interface : journal, rejeu courant, préférences de ce téléphone, et l'envoi des actions.
+import { paris, weekOf } from '../core/dates.js';
+import { replay, stamp, newId } from '../core/reduce.js';
+import { describe } from '../core/describe.js';
+import { loadDevice, saveDevice, saveLog } from './store.js';
+import { toast, refreshSheet } from './dom.js';
+export const A = {
+    log: [],
+    r: replay([]),
+    device: null,
+    demo: false,
+    saveError: null,
+    ui: { tab: 'aujourdhui', week: null, day: -1, weekList: false, shopWeek: null, home: 'plats', q: '', showDone: false },
+    render: () => undefined,
+    now: () => new Date(),
+};
+export const S = () => A.r.state;
+export const clock = () => paris(A.now());
+export const thisWeek = () => weekOf(clock().date, S().settings.weekStart);
+export const me = () => A.device.me;
+export const memberName = (id) => S().members.find(m => m.id === id)?.name ?? 'Quelqu\'un';
+export const otherNames = () => S().members.filter(m => m.id !== A.device.me).map(m => m.name).join(', ') || 'l\'autre téléphone';
+export function initDevice() { A.device = loadDevice(() => newId(16)); }
+export function setDevice(patch) { Object.assign(A.device, patch); if (!A.demo)
+    saveDevice(A.device); }
+export function setLog(log) {
+    A.log = log;
+    A.r = replay(log);
+}
+// Enregistre (sauf en découverte) avec relecture ; une erreur est montrée en permanence jusqu'au prochain succès.
+export function persist() {
+    if (A.demo)
+        return;
+    try {
+        saveLog(A.log);
+        A.saveError = null;
+    }
+    catch (e) {
+        A.saveError = `Vos dernières modifications ne sont pas enregistrées sur ce téléphone (${e instanceof Error ? e.message : String(e)}). Envoyez un lien de synchro ou exportez une sauvegarde.`;
+    }
+}
+// Simulation d'annulation : refusée si elle rendrait impossibles des actions faites depuis (par vous ou l'autre téléphone).
+export function undoProblem(ids) {
+    const after = replay(A.log, new Set(ids));
+    for (const [id, rj] of after.rejected) {
+        if (ids.includes(id) || A.r.rejected.has(id) || rj.severity !== 'conflict')
+            continue;
+        return `${memberName(rj.by)} a depuis voulu ${describe(A.r, id)} (${rj.reason})`;
+    }
+    return null;
+}
+// Une commande : événements horodatés, ajoutés au journal, rejoués, enregistrés. Renvoie les événements créés.
+export function dispatch(drafts, opts = {}) {
+    if (!drafts.length)
+        return [];
+    const events = stamp({ dev: A.device.dev, by: A.device.me, lc: A.r.maxLc, now: A.now() }, drafts);
+    setLog([...A.log, ...events]);
+    persist();
+    A.render();
+    refreshSheet();
+    const rejected = events.map(e => A.r.rejected.get(e.id)).find(x => x?.severity === 'conflict');
+    if (rejected)
+        toast(`Non enregistré : ${rejected.reason}`);
+    else if (opts.toast)
+        toast(opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));
+    return events;
+}
+export function undo(ids) {
+    const why = undoProblem(ids);
+    if (why) {
+        toast(`Impossible d'annuler : ${why}.`);
+        return;
+    }
+    dispatch(ids.map(id => ({ t: 'undo', p: { event: id } })), { toast: 'Annulé', undo: false });
+}
+// Changements faits sur ce téléphone et pas encore envoyés à l'autre.
+export const unsent = () => A.log.filter(e => e.dev === A.device.dev && e.lc > A.device.lastSentLc && e.t !== 'conflict.ack').length;

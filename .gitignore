@@ -4,3 +4,9 @@ releves/
 *.json
 !manifest.json
 presentation/
+node_modules/
+!foyer/package.json
+!foyer/package-lock.json
+!foyer/tsconfig.json
+!foyer/tsconfig.test.json
+captures/
