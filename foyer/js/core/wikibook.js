@@ -70,7 +70,7 @@ const EXCLUDE = /dessert|gâteau|sucrerie|confiserie|boisson|cocktail|confiture|
 const SIDE = /entrée|amuse|pâtés|accompagnement|sauce|condiment|marinade|apéritif|tapas|pains|bases/i; // ni plat ni repas à eux seuls
 // Desserts et préparations de base que Wikilivres ne range pas toujours en catégorie : reconnus au titre ou au sucre (≥ 50 g),
 // et seulement pour une recette sans viande, poisson ni volaille (« Porc au caramel » reste un plat).
-const DESSERT_TITLE = /g[âa]teau|fondant|\bcake\b|cookie|biscuit|brioche|panettone|confiture|compote|clafoutis|crumble|\bflan\b|beignet|madeleine|muffin|pain d'[ée]pices|sorbet|\bglace\b|mousse au|cr[èe]me (br[ûu]l[ée]e|caramel|anglaise|p[âa]tissi)|caramel|chocolat|tiramisu|charlotte|meringue|macarons?\b|cr[êe]pes? sucr|gaufre|financier|far breton|kouign|strudel|brownie|cheesecake|churro|donut|[ée]clair|canel[ée]|tarte (aux|au) (pomme|fraise|citron|poire|abricot|prune|myrtille|chocolat|framboise|cerise|rhubarbe|sucre)|sabl[ée]s?\b|galette des rois|nougat|praline|sirop|liqueur|milk-shake|smoothie/i;
+const DESSERT_TITLE = /g[âa]teau|fondant|\bcake\b|cookie|biscuit|brioche|panettone|confiture|compote|clafoutis|crumble|\bflan\b|beignet|madeleine|muffin|pain d'[ée]pices|sorbet|\bglace\b|mousse au|cr[èe]me (br[ûu]l[ée]e|caramel|anglaise|p[âa]tissi)|caramel|chocolat|tiramisu|charlotte|meringue|macarons?\b|cr[êe]pes? sucr|gaufre|financier|far breton|kouign|strudel|brownie|cheesecake|churro|donut|[ée]clair|canel[ée]|tarte (aux|au|à la|à l') ?(pomme|fraise|citron|poire|abricot|prune|myrtille|chocolat|framboise|cerise|rhubarbe|sucre)|moelleux|porridge|tzatz|sabl[ée]s?\b|galette des rois|nougat|praline|sirop|liqueur|milk-shake|smoothie/i;
 const BASE_TITLE = /^(bouillon|fond |fumet|p[âa]te (bris[ée]e|feuillet[ée]e|sabl[ée]e|[àa] )|sauce (aux|au|à la|blanche|tomate|b[ée]chamel)|vinaigrette|marinade|mayonnaise|pesto|a[ïi]oli|beurre |pain\b|chapelure|court-bouillon|nappage)/i;
 function sweet(lines) {
     return lines.some(l => {
@@ -161,7 +161,7 @@ export function parseWikiRecipe(p) {
     const tags = [...(minutes !== null && minutes <= 30 ? ['rapide'] : []), ...(veg ? ['végétarien'] : []),
         ...TYPE_TAGS.filter(([c]) => cats.includes(c)).map(([, t]) => t)];
     const title = (p.title.split('/').pop() ?? p.title).trim().slice(0, 80);
-    if (!main && (DESSERT_TITLE.test(title) || BASE_TITLE.test(title) || sweet(ingredients)))
+    if ((!main || main === 'œufs') && (DESSERT_TITLE.test(title) || BASE_TITLE.test(title) || sweet(ingredients)))
         return { ok: false, why: 'dessert ou préparation de base' };
     return { ok: true, recipe: { id: `wb${p.pageid}`, title, yield: yieldN && yieldN >= 1 ? yieldN : null, minutes, ingredients, steps: steps.slice(0, 20), tags, main: veg ? null : main,
             url: `https://fr.wikibooks.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_')).replace(/%2F/g, '/')}`, rev: p.revid } };
