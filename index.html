@@ -234,9 +234,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=37"></script>
+<script src="core.js?v=38"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 37;
+const KEY = 'mescomptes-v1', VERSION = 38;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -672,13 +672,17 @@ async function diagSheet() {
   const reg = await navigator.serviceWorker?.getRegistration?.().catch(() => null);
   const persisted = await navigator.storage?.persisted?.().catch(() => false), est = await navigator.storage?.estimate?.().catch(() => null);
   let files = false; try { files = !!navigator.canShare?.({ files: [new File(['x'], 'x.txt', { type: 'text/plain' })] }); } catch {}
+  // Vrai essai de la compression des liens et sauvegardes, sur vos données (elles ne quittent pas le téléphone) : 6 s maximum.
+  const sample = JSON.stringify(S), t0 = Date.now();
+  const zipOk = await Promise.race([zip(sample).then(unzip).then(t => t === sample), new Promise(r => setTimeout(() => r(null), 6000))]).catch(() => false);
+  jlog(`essai compression (${Math.round(sample.length / 1024)} Ko) : ${zipOk ? `OK en ${Date.now() - t0} ms` : zipOk === null ? 'bloquée' : 'erreur'}`);
   const ago = d => d ? `il y a ${plural(Math.max(0, Math.floor((Date.now() - Date.parse(d)) / 864e5)), 'jour')}` : 'jamais';
   const L = [
     [!!VKEY && !lsGet(KEY), 'Données chiffrées sur ce téléphone', 'Choisissez un code d\'entrée.'],
     [standalone(), 'Installée sur l\'écran d\'accueil', OS === 'ios' ? 'Ouverte dans Safari : Partager → « Sur l\'écran d\'accueil », sinon l\'iPhone peut effacer les données après 7 jours sans visite.' : 'Installez-la : menu du navigateur → Installer l\'application.'],
     [persisted || standalone(), 'Données protégées par le téléphone', 'Le téléphone pourrait faire de la place en les effaçant : gardez une sauvegarde récente.'],
     [!!(reg && reg.active), 'Fonctionne sans connexion', 'Rouvrez l\'app une fois avec internet.'],
-    [typeof CompressionStream === 'function', 'Synchro par lien', 'Mettez à jour le téléphone (iOS 16.4 ou plus récent).'],
+    [!!zipOk, 'Synchro par lien', 'Mettez à jour le téléphone (iOS 16.4 ou plus récent).'],
     [!!navigator.clipboard?.readText, 'Coller un lien reçu', 'Utilisez « Coller le lien » à la main (le champ s\'affiche).'],
     [files || OS === 'desktop', 'Partager des fichiers (sauvegarde)', 'La sauvegarde sera téléchargée comme fichier.'],
     ['setAppBadge' in navigator && window.Notification?.permission === 'granted', 'Pastille sur l\'icône', 'setAppBadge' in navigator ? 'Activez-la : Réglages → Rappels → « Pastille sur l\'icône » (accepter les notifications).' : 'Pas disponible sur ce téléphone : les rappels de l\'agenda suffisent.'],
