@@ -53,6 +53,15 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | Produit retenu + nombre de paquets | **livré** | 5 tests (`drive.test.ts`) : lien Auchan normalisé, tout autre site refusé ; contenance « 300 g », « 4 x 125 g », « 6 pièces » ; 450 g à acheter en paquets de 300 g → 2 ; besoin en grammes et contenance en pièces → pas de nombre inventé ; produit partagé entre les deux téléphones |
 | Panier rempli en un clic (comme Jow) | **non fait, volontairement** | Jow passe par des partenariats avec les enseignes ; aucune API publique de panier Auchan trouvée ; CGU d'auchan.fr : robots d'extraction interdits sauf licence écrite |
 
+### V2.4 (propositions à la Jow, sans aspirer ni inventer)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Catalogue Wikilivres (CC BY-SA 4.0) | **livré** | Généré en CI par l'API officielle : environ 1 500 pages lues, 423 recettes retenues, 139 avec nombre de personnes. Lecteur testé sur de vraies pages (personnes, quantités en lettres ou entre parenthèses, ustensiles écartés, desserts et bases reconnus) ; test du fichier publié (relu sans rejet, attribué) |
+| Découvertes dans « Proposer la semaine » | **livré** | Tests : 3 au plus, familles variées, jamais sans nombre de personnes, une seule quand vos plats suffisent, déterministe ; accepter ajoute le plat avec sa source et les courses le comptent |
+| « Découvrir des recettes » | **livré** | Navigateur : filtre, recherche, aperçu, ajout refusé tant que le nombre de portions manque ; axe : 0 défaut |
+| Aspirer Marmiton | **non fait, volontairement** | CGU de Marmiton (base de données non reproductible) ; droit des producteurs de bases de données |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -124,4 +133,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | V2.3 | Drive Auchan assisté : produit retenu, paquets calculés, commande guidée | livré | Liens auchan.fr vers l'app Auchan sur iPhone non vérifiés ; pas de prix |
 | 2026-10-04 | Fiabilité | Relais relu depuis le début quand la version de l'app lit d'autres types d'événements (test : l'événement écarté par l'ancienne version revient) | livré | — |
 | 2026-10-04 | iPhone | Écran « Diagnostic de ce téléphone » (9 contrôles, texte à copier) + liste de vérification en 10 gestes | livré | Vérification réelle à faire par vous |
+| 2026-10-04 | V2.4 | Catalogue Wikilivres en CI, découvertes dans les propositions (3 au plus), « Découvrir des recettes » | livré | Qualité inégale des recettes bénévoles |
+| 2026-10-04 | Test | Contrôle « rien en clair » du relais rendu fiable (base64url pur) ; workflow catalogue protégé contre les pushes concurrents | livré | — |
 | 2026-10-04 | Test | Scénario navigateur corrigé : une coche de test cochait toutes les lignes (`.first()` re-résolu) ; défaut du test, pas de l'app (vérifié sur le cœur) | livré | — |
