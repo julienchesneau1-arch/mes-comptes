@@ -137,6 +137,7 @@ details summary{cursor:pointer;color:var(--mute);font-size:15px;padding:8px 0;mi
 .fc .em{width:26px;height:26px;font-size:14px;border-radius:8px}
 [hidden]{display:none!important}
 .hint{display:none}
+#saveWarn{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;background:var(--tights);color:var(--tight);border-radius:14px;padding:12px 14px;font-weight:600;box-shadow:var(--shadow)}
 body.locked>header,body.locked>main,body.locked>nav{display:none}
 #lock{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
 #lock .box{width:100%;max-width:380px;text-align:center}
@@ -214,6 +215,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 </head>
 <body class="locked">
 <div id="lock" hidden></div>
+<div id="saveWarn" hidden data-a="diag"></div>
 <header>
   <button class="whobtn" id="whoBtn" data-a="whoSheet" aria-label="Changer de profil"></button>
   <div class="month"><button class="ib" data-a="prev" aria-label="Mois précédent">‹</button><b id="mlabel"></b><button class="ib" data-a="next" aria-label="Mois suivant">›</button></div>
@@ -232,9 +234,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=36"></script>
+<script src="core.js?v=37"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 36;
+const KEY = 'mescomptes-v1', VERSION = 37;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -264,6 +266,7 @@ function migrate(d) {
 const idb = (() => {
   let db;
   const open = () => db ||= new Promise((res, rej) => {
+    setTimeout(() => rej(new Error('IndexedDB ne répond pas')), 5000); // les copies de secours ne doivent jamais bloquer l'app
     const r = indexedDB.open('mescomptes', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('snap', { keyPath: 'id' });
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
@@ -297,14 +300,32 @@ function legacyLoad() {
   catch { try { return Object.assign(blank(), sanitizeState(JSON.parse(raw))); } catch { return blank(); } }
 }
 const vaultMeta = () => { try { return JSON.parse(localStorage.getItem(VAULT)) || null; } catch { return null; } };
-async function writeVault(json, n) { localStorage.setItem(VAULT, JSON.stringify({ v: 1, salt: VSALT, iter: VAULT_ITER, data: await vaultSeal(json, VKEY) })); vaultHasTx = n > 0; }
+// Écrit puis relu : un enregistrement n'est compté comme fait que s'il est réellement sur le téléphone.
+// ponytail: sans compression ≈ 330 Ko pour 1 000 opérations ; passer le coffre dans IndexedDB si un foyer approche la limite de 5 Mo.
+async function writeVault(json, n) {
+  const t0 = Date.now(), val = JSON.stringify({ v: 2, salt: VSALT, iter: VAULT_ITER, data: await vaultSeal(json, VKEY) });
+  localStorage.setItem(VAULT, val);
+  if (localStorage.getItem(VAULT) !== val) throw new Error('relecture différente');
+  vaultHasTx = n > 0; lastSave = { at: Date.now(), n }; saveWarn('');
+  jlog(`enregistré · ${n} op. · ${Date.now() - t0} ms · ${Math.round(val.length / 1024)} Ko`);
+}
+// Journal de bord, sans montant, libellé ni nom de fichier : gardé sur le téléphone même si l'app est tuée, pour voir où ça coince.
+const JOURNAL = 'mescomptes-journal';
+function jlog(e) {
+  try { const j = JSON.parse(localStorage.getItem(JOURNAL) || '[]'); j.push(new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + e); localStorage.setItem(JOURNAL, JSON.stringify(j.slice(-80))); } catch {}
+}
+let lastSave = null;
+function saveWarn(msg) { const w = $('#saveWarn'); if (w) { w.hidden = !msg; w.textContent = msg ? '⚠️ ' + msg + ' Touchez ici pour le détail.' : ''; } }
 // Enregistrement : chiffré, dans l'ordre ; jamais des données vides par-dessus des opérations (sauf « Tout effacer »), jamais en découverte.
 let allowEmpty = false, saving = Promise.resolve();
 function save() {
   if ((typeof ui !== 'undefined' && ui.demo) || !VKEY) return;
   if (!S.tx.length && !allowEmpty && vaultHasTx) return;
   const json = JSON.stringify(S), n = S.tx.length; allowEmpty = false;
-  saving = saving.then(() => writeVault(json, n)).catch(e => toast('Sauvegarde impossible : ' + e.message));
+  const dog = setTimeout(() => { jlog('enregistrement toujours en cours après 10 s'); saveWarn('L\'enregistrement ne se termine pas sur ce téléphone.'); }, 10000);
+  saving = saving.then(() => writeVault(json, n))
+    .catch(e => { jlog('ÉCHEC enregistrement : ' + (e && e.message || e)); saveWarn('Vos dernières données ne sont pas enregistrées (' + (e && e.message || e) + ').'); })
+    .finally(() => clearTimeout(dog));
 }
 
 /* ---------- Code d'entrée ---------- */
@@ -352,24 +373,25 @@ async function unlock(pin) {
   try { key = await vaultKey(pin, m.salt, m.iter || VAULT_ITER); json = await vaultOpen(m.data, key); }
   catch (e) {
     if (!e.badCode) return lockMsg('Ouverture impossible : ' + e.message);
-    const n = st.n + 1, wait = n >= 10 ? 1800 : n >= 8 ? 300 : n >= 5 ? 30 : 0;
+    const n = st.n + 1, wait = n >= 10 ? 1800 : n >= 8 ? 300 : n >= 5 ? 30 : 0; jlog('code refusé');
     try { localStorage.setItem(TRIES, JSON.stringify({ n, until: Date.now() + wait * 1000 })); } catch {}
     const f = $('#lock input'); if (f) f.value = '';
     return lockMsg(wait ? `Code incorrect. Trop d'essais : attendez ${wait < 60 ? wait + ' s' : wait / 60 + ' min'}.` : `Code incorrect (essai ${n}).`);
   }
   try { localStorage.removeItem(TRIES); } catch {}
   VKEY = key; VSALT = m.salt;
+  jlog(`code OK · ouverture du coffre (${(m.data || '').startsWith('v2.') ? 'v2' : 'v1'}, ${Math.round((m.data || '').length / 1024)} Ko)`);
   let data;
   try { data = migrate(JSON.parse(json)); }
   catch (e) { try { if (!localStorage.getItem(VAULT + '-secours')) localStorage.setItem(VAULT + '-secours', localStorage.getItem(VAULT)); } catch {} data = Object.assign(blank(), sanitizeState(JSON.parse(json)), { rescued: String(e && e.message || e) }); }
-  vaultHasTx = data.tx.length > 0;
+  vaultHasTx = data.tx.length > 0; jlog(`coffre lu · ${data.tx.length} op.`);
   boot(data);
 }
 async function createPin(pin, pin2, mode) {
   if (!goodPin(pin)) return lockMsg('6 à 12 chiffres, pas une suite (123456) ni un chiffre répété (000000).');
   if (pin !== pin2) return lockMsg('Les deux codes ne sont pas identiques.');
   lockMsg('Protection en cours…', true);
-  VSALT = newSalt(); VKEY = await vaultKey(pin, VSALT);
+  VSALT = newSalt(); VKEY = await vaultKey(pin, VSALT); jlog(`code choisi (${mode === 'protect' ? 'protection des données existantes' : 'nouveau départ'})`);
   const data = mode === 'protect' ? legacyLoad() : blank();
   // Des opérations en clair qu'on n'arrive pas à relire : on ne touche à rien plutôt que de protéger une copie vide.
   if (mode === 'protect' && !data.tx.length && /"tx":\[\{/.test(lsGet(KEY) || '')) { VKEY = null; return lockMsg('Vos données n\'ont pas pu être relues : rien n\'a été changé ni effacé.'); }
@@ -414,10 +436,12 @@ async function boot(data) {
   render(); restoreSession(); takeShared(); syncFromUrl(); entryFromUrl();
 }
 // Verrouillage : à la demande, et tout seul après 5 minutes en arrière-plan.
-async function lockNow() { if (ui.demo) endDemo(true); try { await saving; } catch {} $('#view').innerHTML = ''; showLock('unlock'); }
+async function lockNow() { jlog('verrouillage'); if (ui.demo) endDemo(true); try { await saving; } catch {} $('#view').innerHTML = ''; showLock('unlock'); }
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) hiddenAt = Date.now();
-  else if (booted && VKEY && hiddenAt && Date.now() - hiddenAt > 5 * 60e3) { if (importing) lockLater = true; else lockNow(); } // un import en cours finit d'abord
+  if (document.hidden) { hiddenAt = Date.now(); jlog('arrière-plan'); }
+  else if (hiddenAt) jlog(`retour après ${Math.round((Date.now() - hiddenAt) / 1000)} s`);
+  if (document.hidden) return;
+  if (booted && VKEY && hiddenAt && Date.now() - hiddenAt > 5 * 60e3) { if (importing) lockLater = true; else lockNow(); } // un import en cours finit d'abord
 });
 async function changePin(cur, pin, pin2) {
   if (!goodPin(pin)) return toast('6 à 12 chiffres, pas une suite ni un chiffre répété');
@@ -660,12 +684,15 @@ async function diagSheet() {
     ['setAppBadge' in navigator && window.Notification?.permission === 'granted', 'Pastille sur l\'icône', 'setAppBadge' in navigator ? 'Activez-la : Réglages → Rappels → « Pastille sur l\'icône » (accepter les notifications).' : 'Pas disponible sur ce téléphone : les rappels de l\'agenda suffisent.'],
     [!!(reg && 'periodicSync' in reg), 'Notifications intelligentes (Android)', OS === 'ios' ? 'Sur iPhone : rappels de l\'agenda + pastille sur l\'icône.' : 'Installez l\'app depuis Chrome pour les activer.'],
   ];
-  const facts = [['Version', VERSION], ['Dernière sauvegarde', ago(S.lastBackup)], ['Dernière synchro', ago([S.lastSync, S.lastRecv].filter(Boolean).sort().pop())],
+  const ios = (navigator.userAgent.match(/OS (\d+)_(\d+)/) || []).slice(1).join('.');
+  const facts = [['Version', VERSION], ...(ios ? [['iOS', ios]] : []), ['Dernier enregistrement', lastSave ? `il y a ${Math.round((Date.now() - lastSave.at) / 1000)} s (${lastSave.n} op.)` : 'aucun depuis l\'ouverture'], ['Dernière sauvegarde', ago(S.lastBackup)], ['Dernière synchro', ago([S.lastSync, S.lastRecv].filter(Boolean).sort().pop())],
     ['Chiffres à jour au', lastRealDate() ? dayName(lastRealDate()) : '—'], ['Opérations', S.tx.length], ['Place utilisée', est && est.usage ? Math.round(est.usage / 1024) + ' Ko' : '—']];
-  window.__diag = [...L.map(([ok, t]) => `${ok ? '✅' : '⚠️'} ${t}`), ...facts.map(([k, v]) => `${k} : ${v}`), `Appareil : ${OS}`].join('\n');
+  let journal = []; try { journal = JSON.parse(localStorage.getItem(JOURNAL) || '[]'); } catch {}
+  window.__diag = [...L.map(([ok, t]) => `${ok ? '✅' : '⚠️'} ${t}`), ...facts.map(([k, v]) => `${k} : ${v}`), `Appareil : ${OS}`, '— Journal —', ...journal.slice(-40)].join('\n');
   openSheet(`<h2 style="margin-top:0">🩺 Ce téléphone</h2>
     ${L.map(([ok, t, fix]) => `<div class="row" style="align-items:flex-start"><span>${ok ? '✅' : '⚠️'}</span><span class="grow"><b>${t}</b>${ok ? '' : `<div class="sm mute">${fix}</div>`}</span></div>`).join('')}
     <div class="sm mute" style="margin-top:10px">${facts.map(([k, v]) => `${k} : <b>${esc(String(v))}</b>`).join(' · ')}</div>
+    <details style="margin-top:10px"><summary class="sm mute">Journal de bord (sans aucun chiffre)</summary><pre class="sm mute" style="white-space:pre-wrap;max-height:220px;overflow:auto">${esc(journal.slice(-40).join('\n'))}</pre></details>
     <div class="chips"><button class="btn" style="flex:1" data-a="diagCopy">Copier pour l'envoyer</button><button class="btn ghost" data-a="closeSheet">Fermer</button></div>`);
 }
 
@@ -1704,6 +1731,7 @@ document.addEventListener('submit', e => {
   if (e.target.dataset.f === 'forgot') {
     if (String(f.get('ok') || '').trim().toUpperCase() !== 'EFFACER') return lockMsg('Tapez EFFACER pour confirmer.');
     for (const k of [VAULT, VAULT + '-secours', UIKEY, TRIES, KEY, KEY + '-secours']) try { localStorage.removeItem(k); } catch {}
+    jlog('téléphone effacé (code oublié)');
     idb.all().then(xs => Promise.all(xs.map(x => idb.del(x.id)))).catch(() => {}).finally(() => { showLock('create'); toast('Téléphone effacé : choisissez un nouveau code'); });
     return;
   }
@@ -1778,7 +1806,7 @@ async function pdfPages(buf) {
       pages.push(items.filter(i => i.str && i.str.trim()).map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5], w: i.width })));
     }
     return pages;
-  } finally { await task.destroy(); }
+  } finally { task.destroy().catch(() => {}); }
 }
 async function readText(file) {
   const buf = await file.arrayBuffer();
@@ -1792,7 +1820,8 @@ async function importFiles(files) {
 }
 async function importAll(files) {
   let added = 0, dup = 0, created = 0; const errs = [], notes = [];
-  await snapshot(`Avant l'import de ${plural(files.length, 'fichier')}`);
+  snapshot(`Avant l'import de ${plural(files.length, 'fichier')}`); // capturée tout de suite ; ne retarde jamais l'import
+  jlog(`import de ${plural(files.length, 'fichier')} · ${S.tx.length} op. avant`);
   const owner = ui.who === 'foyer' ? null : ui.who;
   let k = 0;
   for (const f of files) {
@@ -1822,10 +1851,11 @@ async function importAll(files) {
         } else parsed = /OFXHEADER|<OFX>/i.test(txt) ? parseOFX(txt) : parseCSV(txt, f.name);
       }
       const r = importParsed(S, parsed, owner);
+      jlog(`fichier ${k || 1}/${files.length} lu : +${r.added} (${r.dup} déjà connues)`);
       if (r.added) save(); // gardé tout de suite : si l'iPhone interrompt l'import, les relevés déjà lus restent
       added += r.added; dup += r.dup; created += r.created.filter(id => !S.accounts[id].hist).length;
       for (const p of parsed) if (p.check) notes.push(`⚠ ${S.accounts[p.account].name} : ${eur(p.check, 2)} d'écart entre les soldes du relevé et les opérations lues`);
-    } catch (err) { errs.push(`✘ ${f.name} : ${err.message || err}` + (/\.pdf$/i.test(f.name) && !bank().bpce ? ' · Astuce : sur le site de votre banque, « Exporter les opérations » en CSV ou OFX fonctionne avec toutes les banques.' : '')); }
+    } catch (err) { jlog(`fichier ${k || 1}/${files.length} : erreur ${err && err.message || err}`); errs.push(`✘ ${f.name} : ${err.message || err}` + (/\.pdf$/i.test(f.name) && !bank().bpce ? ' · Astuce : sur le site de votre banque, « Exporter les opérations » en CSV ou OFX fonctionne avec toutes les banques.' : '')); }
   }
   if (added) S.lastImport = new Date().toISOString();
   autoRecurring(S, today());
@@ -1869,6 +1899,7 @@ async function restoreText(text, code) {
 
 navigator.storage?.persist?.();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js');
+jlog(`ouverture v${VERSION} · ${OS}${(navigator.userAgent.match(/OS (\d+)_(\d+)/) || []).slice(1).join('.') ? ' ' + navigator.userAgent.match(/OS (\d+)_(\d+)/).slice(1).join('.') : ''} · ${standalone() ? 'icône' : 'navigateur'} · coffre ${vaultMeta() ? 'présent' : 'absent'}`);
 showLock(); // tout commence par le code
 addEventListener('hashchange', syncFromUrl); // app déjà ouverte : le lien ne recharge pas la page
 // Liens d'entrée : raccourci de l'icône (« ?saisie ») et automatisation Android (« #t=texte de la notification » ou « #add=12,50&m=Carrefour »).

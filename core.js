@@ -1223,14 +1223,18 @@ const VAULT_ITER = 600000;
 const goodPin = c => /^\d{6,12}$/.test(c) && !/^(\d)\1+$/.test(c) && !'01234567890123'.includes(c) && !'98765432109876'.includes(c);
 async function vaultKey(code, saltB64, iter = VAULT_ITER) { return keyFrom(code, b64u.dec(saltB64), iter, true); }
 const newSalt = () => b64u.enc(crypto.getRandomValues(new Uint8Array(16)));
+// Format « v2. » : chiffré sans compression (la compression par flux est le maillon fragile sur certains iPhone) ;
+// l'ancien format, compressé, reste lisible.
 async function vaultSeal(str, key) {
-  const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await zip(str)));
-  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return b64u.enc(out);
+  const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(str)));
+  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return 'v2.' + b64u.enc(out);
 }
 async function vaultOpen(b64, key) {
-  const u = b64u.dec(b64);
-  try { return await unzip(new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12)))); }
+  const v2 = b64.startsWith('v2.'), u = b64u.dec(v2 ? b64.slice(3) : b64);
+  let plain;
+  try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(0, 12) }, key, u.subarray(12))); }
   catch { const e = new Error('code incorrect'); e.badCode = true; throw e; }
+  return v2 ? new TextDecoder().decode(plain) : unzip(plain);
 }
 async function seal(bytes, code) {
   const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
@@ -1242,8 +1246,14 @@ async function unseal(bytes, code) {
   catch { const e = new Error('code du foyer incorrect'); e.needCode = true; throw e; }
 }
 // Sans Blob : Safari refuse de lire un Blob pendant la fermeture de l'app (moment où l'on enregistre la reprise).
-const zip = async str => new Uint8Array(await new Response(new Response(str).body.pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
-const unzip = async u8 => new Response(new Response(u8).body.pipeThrough(new DecompressionStream('deflate-raw'))).text();
+// Par morceaux de 32 Ko : un seul gros morceau peut bloquer le flux de compression sur certains iPhone.
+const pump = async (u8, stream) => {
+  const w = stream.writable.getWriter(), out = new Response(stream.readable).arrayBuffer();
+  for (let i = 0; i < u8.length; i += 32768) await w.write(u8.subarray(i, i + 32768));
+  await w.close(); return new Uint8Array(await out);
+};
+const zip = str => pump(new TextEncoder().encode(str), new CompressionStream('deflate-raw'));
+const unzip = async u8 => new TextDecoder().decode(await pump(u8, new DecompressionStream('deflate-raw')));
 
 // Synchro entre téléphones par un simple lien (#sync=…) : les données compressées et chiffrées voyagent dans le message,
 // jamais sur un serveur (le « # » d'une adresse n'est pas envoyé au site).
@@ -1347,7 +1357,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 }
 
 if (typeof module !== 'undefined') module.exports = {
-  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
+  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
   CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

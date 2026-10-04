@@ -714,9 +714,18 @@ console.log('OK — fichier de rappels publié');
   assert.deepStrictEqual(['123456', '000000', '987654', '12345', 'abcdef', '274913', '58210496'].map(C.goodPin), [false, false, false, false, false, true, true]);
   const salt = C.newSalt(), key = await C.vaultKey('274913', salt, 1000), data = JSON.stringify({ tx: [{ label: 'CARREFOUR', amount: -54.2 }] });
   const box = await C.vaultSeal(data, key);
-  assert.ok(!/CARREFOUR|54/.test(box));
+  assert.ok(!/CARREFOUR|54\.2/.test(box));
   assert.strictEqual(await C.vaultOpen(box, await C.vaultKey('274913', salt, 1000)), data);
   await assert.rejects(C.vaultOpen(box, await C.vaultKey('274914', salt, 1000)), e => e.badCode);       // un chiffre faux : refusé
   await assert.rejects(C.vaultOpen(box, await C.vaultKey('274913', C.newSalt(), 1000)), e => e.badCode); // même code, autre téléphone : refusé
+  assert.ok(box.startsWith('v2.'));
+  // coffre écrit par les versions 33 à 36 (compressé, sans préfixe) : toujours lisible
+  const old = async (str, k) => { const iv = crypto.getRandomValues(new Uint8Array(12)), z = new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, z)), out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
+    return Buffer.from(out).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const k1 = await C.vaultKey('274913', salt, 1000), big = JSON.stringify({ tx: Array.from({ length: 3000 }, (_, i) => ({ id: i, label: 'LIBELLE ' + i })) });
+  assert.strictEqual(await C.vaultOpen(await old(big, k1), k1), big);
+  // compression par morceaux (synchro, sauvegarde) : aller-retour exact, même pour de grosses données
+  assert.strictEqual(await C.unzip(await C.zip(big)), big);
   console.log('OK — coffre chiffré par le code d\'entrée');
 })();
