@@ -75,3 +75,19 @@ test('recettes écartées, avec la raison : dessert, accompagnement, catégorie 
   assert.deepEqual(parseWikiRecipe({ ...BASQUAISE, categories: [...BASQUAISE.categories, 'Catégorie:Desserts'] }), { ok: false, why: 'dessert, boisson ou cuisine historique' });
   assert.deepEqual(parseWikiRecipe({ ...BASQUAISE, categories: cat('Accompagnements', 'Recettes de cuisine à base d\'œuf') }), { ok: false, why: 'pas un plat de repas' });
 });
+
+test('desserts et préparations de base non rangés en catégorie : reconnus au titre ou au sucre, jamais un plat avec viande', () => {
+  const veg = cat('Recettes végétariennes');
+  const page = (title: string, lines: string[], categories = veg): WikiPage => ({ pageid: 1, revid: 1, title: `Livre de cuisine/${title}`, categories,
+    content: `== Ingrédients ==\nPour 4 personnes :\n${lines.map(l => `* ${l}`).join('\n')}\n== Préparation ==\n# Mélanger.\n# Cuire.` });
+  const why = (r: ReturnType<typeof parseWikiRecipe>) => (r.ok ? 'gardé' : r.why);
+  assert.equal(why(parseWikiRecipe(page('Fondant au chocolat', ['200 g de chocolat', '4 œufs', '100 g de beurre']))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Gâteau simple', ['200 g de farine', '150 g de sucre', '3 œufs']))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Douceur du soir', ['200 g de farine', '150 g de sucre', '3 œufs']))), 'dessert ou préparation de base'); // au sucre
+  assert.equal(why(parseWikiRecipe(page('Bouillon de légumes', ['2 carottes', '1 poireau', '2 l d\'eau']))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Pizza margherita', ['250 g de farine', '1 pincée de sucre', '200 g de mozzarella']))), 'gardé');
+  assert.equal(why(parseWikiRecipe(page('Porc au caramel', ['600 g de porc', '50 g de sucre', '2 c. à s. de nuoc-mâm'], cat('Plat principal', 'Recettes de cuisine à base de porc')))), 'gardé');
+  assert.equal(why(parseWikiRecipe(page('Salade de macaronis', ['250 g de macaronis', '2 tomates', '1 poivron']))), 'gardé');
+  const c = parseWikiRecipe({ ...page('Choucroute pour 4', ['1 kg de choucroute', '4 saucisses', '500 g de pommes de terre'], cat('Recettes de cuisine à base de saucisse')), content: '== Ingrédients ==\n* 1 kg de choucroute\n* 4 saucisses\n* 500 g de pommes de terre\n== Préparation ==\n# Cuire.\n# Servir.' });
+  assert.ok(c.ok && c.recipe.yield === 4); // nombre de personnes lu dans le titre
+});
