@@ -108,6 +108,8 @@ export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'se
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
   'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
   'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
+// Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
+export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 
 /* ---------- Validation stricte de tout ce qui vient d'ailleurs (lien de synchro, sauvegarde) ---------- */
 

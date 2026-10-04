@@ -13,6 +13,7 @@ const FILES = [
   'js/core/commands.js',
   'js/core/dates.js',
   'js/core/describe.js',
+  'js/core/diag.js',
   'js/core/drive.js',
   'js/core/ics.js',
   'js/core/ingredients.js',

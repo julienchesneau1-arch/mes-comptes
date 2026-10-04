@@ -62,6 +62,10 @@ export async function push(c: RelayConf, k: RelayKeys, device: string, events: r
 }
 
 // Relève les blocs déposés depuis le dernier passage (curseur = dernier numéro lu).
+// Une version plus ancienne a pu écarter des événements qu'elle ne savait pas lire, tout en avançant son curseur :
+// après une mise à jour (autre liste de types), on relit tout. La fusion par identifiant rend cette relecture sans effet de bord.
+export const resumeFrom = (cursor: number, readWith: string | undefined, schema: string): number => (readWith === schema ? cursor : 0);
+
 export async function pull(c: RelayConf, k: RelayKeys, cursor: number, f: Fetch): Promise<{ events: AnyEv[]; cursor: number; unreadable: number }> {
   const events: AnyEv[] = [];
   let unreadable = 0;

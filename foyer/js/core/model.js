@@ -7,6 +7,8 @@ export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.s
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
     'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
+// Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
+export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v, max, min = 0) => typeof v === 'string' && v.length >= min && v.length <= max;
 const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;

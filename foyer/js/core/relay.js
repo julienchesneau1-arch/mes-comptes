@@ -67,6 +67,9 @@ export async function push(c, k, device, events, f) {
     return rows.length;
 }
 // Relève les blocs déposés depuis le dernier passage (curseur = dernier numéro lu).
+// Une version plus ancienne a pu écarter des événements qu'elle ne savait pas lire, tout en avançant son curseur :
+// après une mise à jour (autre liste de types), on relit tout. La fusion par identifiant rend cette relecture sans effet de bord.
+export const resumeFrom = (cursor, readWith, schema) => (readWith === schema ? cursor : 0);
 export async function pull(c, k, cursor, f) {
     const events = [];
     let unreadable = 0;

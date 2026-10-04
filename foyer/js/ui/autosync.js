@@ -1,19 +1,22 @@
 // Synchro automatique : relève au démarrage, au retour dans l'app, toutes les 20 s quand l'app est visible ; dépose après chaque changement.
 // Hors ligne ou relais indisponible : rien n'est perdu, l'app continue en local et le lien chiffré reste disponible.
-import { relayKeys, push, pull, RelayError } from '../core/relay.js';
+import { relayKeys, push, pull, resumeFrom, RelayError } from '../core/relay.js';
 import { merge, SyncError } from '../core/sync.js';
+import { SCHEMA } from '../core/model.js';
 import { openConflicts } from '../core/reduce.js';
 import { RELAY } from './config.js';
 import { A, S, setLog, persist, setDevice } from './state.js';
 import { toast } from './dom.js';
 const KEY = 'foyer:relais';
-const load = () => { try {
-    const m = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return { cursor: Number(m.cursor) || 0, known: Array.isArray(m.known) ? m.known.filter(x => typeof x === 'string') : [] };
-}
-catch {
-    return { cursor: 0, known: [] };
-} };
+const load = () => {
+    try {
+        const m = JSON.parse(localStorage.getItem(KEY) || '{}');
+        return { cursor: Number(m.cursor) || 0, known: Array.isArray(m.known) ? m.known.filter(x => typeof x === 'string') : [], ...(typeof m.schema === 'string' ? { schema: m.schema } : {}) };
+    }
+    catch {
+        return { cursor: 0, known: [] };
+    }
+};
 const save = (m) => { try {
     localStorage.setItem(KEY, JSON.stringify(m));
 }
@@ -56,7 +59,7 @@ export async function syncNow() {
         try {
             const k = await keysFor(A.device.code);
             const mem = load();
-            const got = await pull(conf, k, mem.cursor, f);
+            const got = await pull(conf, k, resumeFrom(mem.cursor, mem.schema, SCHEMA), f);
             const known = new Set(mem.known);
             for (const e of got.events)
                 known.add(e.id);
@@ -80,7 +83,7 @@ export async function syncNow() {
                     known.add(e.id);
                 setDevice({ lastSentLc: A.r.maxLc, lastSentAt: A.now().toISOString() });
             }
-            save({ cursor: got.cursor, known: [...known] });
+            save({ cursor: got.cursor, known: [...known], schema: SCHEMA });
             sync.status = 'ok';
             sync.at = A.now().toISOString();
             sync.error = '';
@@ -116,7 +119,7 @@ export async function joinWithCode(code) {
         setLog(m.log);
         persist();
         setDevice({ code, auto: true, lastRecvAt: A.now().toISOString() });
-        save({ cursor: got.cursor, known: got.events.map(e => e.id) });
+        save({ cursor: got.cursor, known: got.events.map(e => e.id), schema: SCHEMA });
         sync.status = 'ok';
         sync.at = A.now().toISOString();
         return 'ok';

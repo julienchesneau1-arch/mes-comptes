@@ -18,6 +18,8 @@ Adresse (après publication de `main`) : `https://julienchesneau1-arch.github.io
 
 Safari → l'adresse ci-dessus → Partager → « Sur l'écran d'accueil ». Sur le deuxième téléphone : « L'autre téléphone a déjà Foyer », puis taper le code du foyer affiché sur le premier (synchro automatique), ou coller un lien reçu (sans relais).
 
+Quelque chose ne marche pas ? Maison › Réglages › « Diagnostic de ce téléphone » dit ce qui manque et ce que ça change.
+
 Sur iPhone, un lien reçu s'ouvre dans Safari, pas dans l'app : appui long → Copier, puis dans Foyer « Coller le lien reçu ».
 
 ## Ce que Foyer ne fait pas, volontairement
@@ -29,7 +31,7 @@ Pas d'inventaire du frigo, pas d'IA, pas de prix, pas de durée de conservation 
 ```
 cd foyer
 npm ci
-npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 49 tests
+npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 53 tests
 ```
 
 Sources dans `src/`, JavaScript publié dans `js/` (à recompiler et versionner après chaque modification ; la CI le vérifie). La liste hors ligne de `sw.js` est régénérée à chaque compilation.
