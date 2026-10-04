@@ -24,6 +24,8 @@
 
 **ADR-11 — Catalogue de découvertes en fichier statique, généré en CI.** Le Livre de cuisine de Wikilivres (CC BY-SA 4.0) est lu par l'API MediaWiki dans GitHub Actions (`scripts/catalogue.mjs`, workflow `catalogue`), analysé par `wikibook.ts` (déterministe, testé sur de vraies pages) et versionné en `catalogue.json`. L'app le charge à la demande (`ui/catalog.ts`), le relit (`readCatalog`) et le garde hors ligne (sw.js). Aucun serveur, aucune requête vers Wikilivres depuis le téléphone ; CSP inchangée. Une recette acceptée devient un événement `recipe.save` ordinaire, avec l'attribution dans la note.
 
+**ADR-12 — Rappels en notification sans que le serveur les lise.** Une app web sur iPhone (iOS 16.4+, installée) reçoit des notifications Web Push, mais il faut un serveur pour les envoyer à l'heure. Le téléphone dépose dans `foyer_rappel` l'heure et un bloc chiffré (AES-GCM, clé tirée du code du foyer, données associées `foyer-rappel-v1`) ; `pg_cron` appelle toutes les 5 min la fonction `foyer-push`, qui marque les rappels échus et envoie une notification **vide** (VAPID ES256, clé privée dans le coffre Supabase) aux abonnements du foyer ; le service worker relit les rappels envoyés de son foyer, les déchiffre avec la clé rangée (non exportable) dans IndexedDB et les affiche ; message générique s'il n'y arrive pas (iOS exige une notification visible). Adresses d'abonnement limitées à Apple, Google, Mozilla et Microsoft (contrainte en base et dans la fonction). Rejeté : contenu chiffré dans la notification (RFC 8291) — plus de code serveur pour rien de plus, le texte restant de toute façon illisible pour le serveur.
+
 ## Carte des modules
 
 ```
@@ -49,12 +51,13 @@ src/core/            logique pure, sans DOM, testée sous Node
   relay.ts           relais : étiquette et clé, dépôt et relève chiffrés
   recipe-web.ts      lecture schema.org d'une page de recette (partagé avec la fonction serveur)
   ics.ts             rappels de la semaine pour l'agenda
+  reminders.ts       rappels en notification : heures exactes (Paris → UTC), identifiants stables, semaine vide
   wikibook.ts        lecture du wikitexte Wikilivres → recette de catalogue (ou raison d'écart)
   catalog.ts         catalogue : relecture, recherche, découvertes classées, recette → contenu
   diag.ts            diagnostic du téléphone (fonctions disponibles, conséquence de chaque manque)
   drive.ts           drive Auchan : lien produit, contenance, nombre de paquets, articles à commander
-src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique)
-supabase/            migration du relais et fonction d'import web (déployées le 4 octobre 2026 sur le projet dédié)
+src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts)
+supabase/            migrations (relais, rappels) et fonctions foyer-import et foyer-push (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```
 
@@ -68,5 +71,6 @@ Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance �
 
 - CSP : `script-src 'self'`, `style-src 'self'`, `connect-src 'self'` plus, seulement si un relais est configuré, son adresse exacte ; aucun script ni style en ligne (testé).
 - Données : sur le téléphone (localStorage relu après écriture, copies de secours IndexedDB). Avec le relais : seulement des blocs chiffrés de bout en bout ; le relais voit une étiquette pseudonyme, des identifiants d'appareil, des heures et des tailles.
+- Rappels : le serveur voit l'étiquette du foyer, l'heure de chaque rappel, un bloc chiffré et l'adresse d'abonnement du téléphone (chez Apple, Google, Mozilla ou Microsoft) ; rappels effacés 2 jours après leur heure.
 - Hébergement partagé avec Mes Comptes : clés de stockage préfixées `foyer:`, base IndexedDB `foyer`, caches `foyer-*`, service worker de portée `foyer/`. Le service worker de Mes Comptes ne supprime plus que ses propres caches.
 - Données personnelles minimales : prénoms, plats, dates déclarées. Sauvegarde JSON lisible (non chiffrée, à garder pour soi) ; liens de synchro chiffrés.

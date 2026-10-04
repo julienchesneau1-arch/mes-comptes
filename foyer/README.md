@@ -12,7 +12,7 @@ Adresse (après publication de `main`) : `https://julienchesneau1-arch.github.io
 - **Semaine** : « Proposer les repas vides » remplit la semaine à partir de vos plats (le moins récent d'abord, « rapide » en semaine, les boîtes reliées au dîner de la veille), plus une à trois découvertes du Livre de cuisine de Wikilivres ; tout est à valider ligne par ligne. Déplacer, échanger, repas extérieur, absence : les conséquences s'affichent avant d'enregistrer.
 - **Courses** : par rayon, quantités exactes, calcul visible en touchant une ligne. « On en a déjà » vaut pour cette liste. Cocher = pris ; si le besoin augmente ensuite, seul l'écart réapparaît. Habituels en un geste, liste à partager par message. « Commander chez Auchan » : article par article, Foyer ouvre la page du produit choisi (retenu une fois) avec le nombre de paquets ; vous ajoutez au panier sur Auchan, l'article se coche.
 - **Maison** : vos plats (un nom suffit pour commencer ; une recette se colle en texte, s'importe depuis son adresse web ou se choisit dans « Découvrir des recettes »), les portions déclarées, les produits dont la date compte, les réglages et la synchro.
-- **À deux** : synchro automatique chiffrée de bout en bout (le second téléphone tape juste le code du foyer), « qui cuisine » par repas, glisser-déposer dans la semaine, rappels dans l'agenda, mode magasin (écran allumé).
+- **À deux** : synchro automatique chiffrée de bout en bout (le second téléphone tape juste le code du foyer), « qui cuisine » par repas, glisser-déposer dans la semaine, rappels en notification (« sortir le poulet » la veille à 19 h, la boîte à préparer, la semaine suivante vide ; Réglages › « Activer les rappels ») ou dans l'agenda, mode magasin (écran allumé).
 
 ## Installer sur iPhone (iOS 16.4 ou plus récent)
 
@@ -31,7 +31,7 @@ Pas d'inventaire du frigo, pas d'IA, pas de prix, pas de durée de conservation 
 ```
 cd foyer
 npm ci
-npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 53 tests
+npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 69 tests
 ```
 
 Sources dans `src/`, JavaScript publié dans `js/` (à recompiler et versionner après chaque modification ; la CI le vérifie). La liste hors ligne de `sw.js` est régénérée à chaque compilation.
@@ -40,4 +40,4 @@ Catalogue de découvertes : `catalogue.json`, tiré du [Livre de cuisine de Wiki
 
 Documents : [PRD V2.1/V2.2](docs/PRD_V2.1.md) · [Comparatif](docs/BENCHMARK.md) · [Plan et état](docs/PLAN.md) · [Architecture](docs/ARCHITECTURE.md)
 
-Synchro automatique et import web : relais Supabase dédié (`supabase/`), adresse dans `src/ui/config.ts` + `connect-src` d'`index.html` (un test vérifie qu'ils concordent). Relais indisponible : tout continue en local, avec la synchro par lien.
+Synchro automatique, import web et rappels : relais Supabase dédié (`supabase/` : migrations, fonctions `foyer-import` et `foyer-push`, tâche planifiée toutes les 5 min), adresse dans `src/ui/config.ts` + `connect-src` d'`index.html` (un test vérifie qu'ils concordent). Relais indisponible : tout continue en local, avec la synchro par lien.

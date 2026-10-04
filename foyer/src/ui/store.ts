@@ -15,6 +15,8 @@ export interface Device {
   theme: 'auto' | 'light' | 'dark';
   installHint: boolean;      // conseil d'installation iPhone déjà vu
   auto: boolean;             // synchro automatique par le relais (si disponible)
+  push: boolean;             // rappels en notifications sur ce téléphone
+  pushHash: string;          // rappels déjà déposés (évite de les redéposer à l'identique)
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -49,6 +51,8 @@ export function loadDevice(newId: () => string): Device {
     theme: d.theme === 'light' || d.theme === 'dark' ? d.theme : 'auto',
     installHint: d.installHint === true,
     auto: d.auto !== false,
+    push: d.push === true,
+    pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
   };
   saveDevice(dev);
   return dev;

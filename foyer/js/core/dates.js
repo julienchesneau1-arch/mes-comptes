@@ -9,6 +9,16 @@ export function paris(now) {
     const p = Object.fromEntries(PARTS.formatToParts(now).map(x => [x.type, x.value]));
     return { date: `${p['year']}-${p['month']}-${p['day']}`, hour: Number(p['hour']), minute: Number(p['minute']) };
 }
+// Heure de Paris (« 1900 » tel jour) → instant exact, changements d'heure compris : on corrige jusqu'à retomber sur l'heure voulue.
+export function parisToUtc(d, hhmm) {
+    const want = Date.parse(`${d}T${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}:00Z`);
+    let t = want;
+    for (let i = 0; i < 3; i++) {
+        const p = paris(new Date(t));
+        t += want - Date.parse(`${p.date}T${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}:00Z`);
+    }
+    return new Date(t);
+}
 const dayNum = (d) => Date.parse(`${d}T00:00:00Z`) / 864e5;
 export const addDays = (d, n) => new Date((dayNum(d) + n) * 864e5).toISOString().slice(0, 10);
 export const daysBetween = (a, b) => Math.round(dayNum(b) - dayNum(a));

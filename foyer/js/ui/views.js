@@ -14,6 +14,8 @@ import { needsInstall } from './sheets/settings.js';
 import { enabled as autoOn, statusLabel, sync as autoSync } from './autosync.js';
 import { fmtCode } from '../core/sync.js';
 import { CLICK, INPUT } from './registry.js';
+import { pushOn } from './push.js';
+import { RELAY } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { packsFor } from '../core/drive.js';
 import { ingredientKey } from '../core/ingredients.js';
@@ -262,6 +264,10 @@ function settingsView() {
     <section class="card stack"><h2>Synchro et sauvegarde</h2>
       <div class="actions"><button class="btn" data-a="sync">Synchro avec ${esc(otherNames())}</button><button class="btn ghost" data-a="exportBackup">Exporter une sauvegarde</button>
       <label class="btn ghost">Importer une sauvegarde<input type="file" accept="application/json,.json" data-c="importBackup" class="sr-only"></label><button class="btn ghost" data-a="snapshots">Copies de secours</button></div></section>
+    ${RELAY ? `<section class="card stack"><h2>Rappels sur ce téléphone</h2>
+      <p>${pushOn() ? '<strong>Activés.</strong> ' : ''}La veille à 19 h « sortir le poulet », la boîte à préparer, et le dimanche à 18 h si la semaine suivante est vide.</p>
+      <p class="small muted">Le serveur ne voit que l'heure et un bloc chiffré ; le texte est déchiffré sur le téléphone. Sur iPhone : Foyer installé sur l'écran d'accueil, iOS 16.4 ou plus.</p>
+      <div class="actions">${pushOn() ? '<button class="btn ghost" data-a="pushTest">Envoyer un rappel d\'essai</button><button class="btn quiet" data-a="pushOff">Désactiver</button>' : '<button class="btn" data-a="pushOn">Activer les rappels</button>'}</div></section>` : ''}
     <section class="card stack"><h2>Affichage</h2><label class="field">Thème<select data-c="theme"><option value="auto" ${A.device.theme === 'auto' ? 'selected' : ''}>Comme le téléphone</option><option value="light" ${A.device.theme === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${A.device.theme === 'dark' ? 'selected' : ''}>Sombre</option></select></label>
       <button class="btn ghost" data-a="demo">Mode découverte (exemple, rien n'est enregistré)</button></section>
     <section class="card stack"><h2>Ce que fait Foyer, et ce qu'il ne fait pas</h2>

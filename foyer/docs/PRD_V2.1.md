@@ -160,4 +160,17 @@ Demande : « nous n'avons pas encore de recettes ; sois fort de proposition, scr
 
 Limites assumées : catalogue modeste et inégal (contributions bénévoles, certaines recettes exotiques ou approximatives) ; pas de photos ; durée connue pour peu de recettes.
 
-Fin du PRD V2.1 (révisions V2.2, V2.3 et V2.4 incluses).
+## 11. V2.5 — rappels en notification sur le téléphone (4 octobre 2026)
+
+Demande retenue : « Notifications iPhone ». Le PRD V2.1 les écartait (« impossibles sans serveur ») ; le relais existe désormais, la contrainte tombe.
+
+| Règle | Contenu |
+|---|---|
+| Quels rappels | Les mêmes que l'agenda : tâche « la veille » à 19 h, sinon le jour même à 8 h ; boîte à préparer (la veille à 21 h pour un midi, à 17 h pour un soir) ; plus « la semaine prochaine est vide » le dimanche à 18 h si on mange à la maison |
+| Activation | Par téléphone, à la demande (Réglages), jamais à l'ouverture ; désactivable ; effacer Foyer retire l'abonnement |
+| Vie privée | Le serveur ne lit aucun texte : heures et blocs chiffrés seulement ; rappels effacés 2 jours après |
+| Honnêteté | Rappel illisible (hors ligne, relais indisponible) → « Un rappel pour vos repas : ouvrez Foyer », jamais un texte deviné |
+
+Limites assumées : 5 minutes de précision ; réception sur iPhone non vérifiée à ce jour (geste 11 de `PLAN.md`).
+
+Fin du PRD V2.1 (révisions V2.2 à V2.5 incluses).

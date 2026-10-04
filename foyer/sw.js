@@ -28,6 +28,7 @@ const FILES = [
   'js/core/recipe-web.js',
   'js/core/reduce.js',
   'js/core/relay.js',
+  'js/core/reminders.js',
   'js/core/shopping.js',
   'js/core/status.js',
   'js/core/sync.js',
@@ -44,6 +45,7 @@ const FILES = [
   'js/ui/drag.js',
   'js/ui/main.js',
   'js/ui/onboarding.js',
+  'js/ui/push.js',
   'js/ui/registry.js',
   'js/ui/sheets/discover.js',
   'js/ui/sheets/drive.js',
@@ -66,4 +68,54 @@ self.addEventListener('fetch', e => {
   e.respondWith(fetch(e.request.url, { cache: 'no-cache' })
     .then(r => { if (!r.ok) return caches.match(e.request, { ignoreSearch: true }).then(c => c || r); const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true }).then(c => c || caches.match('index.html'))));
+});
+
+// Rappels : la notification arrive VIDE ; on relit les rappels chiffrés du foyer, on les déchiffre ici et on les affiche.
+// Configuration (adresse du relais, étiquette, clé non exportable) rangée par l'app dans IndexedDB « foyer-push ».
+function pushStore(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const o = indexedDB.open('foyer-push', 1);
+    o.onupgradeneeded = () => o.result.createObjectStore('kv');
+    o.onerror = () => reject(o.error);
+    o.onsuccess = () => { const tx = o.result.transaction('kv', mode); const r = fn(tx.objectStore('kv')); tx.oncomplete = () => resolve(r && r.result); tx.onerror = () => reject(tx.error); };
+  });
+}
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+async function openNote(key, blob) {
+  try {
+    const raw = unb64u(blob);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12), additionalData: new TextEncoder().encode('foyer-rappel-v1') }, key, raw.slice(12));
+    const m = JSON.parse(new TextDecoder().decode(pt));
+    return typeof m.title === 'string' && typeof m.body === 'string' ? m : null;
+  } catch { return null; }
+}
+self.foyerOpenNote = openNote; // lu par les tests (même format que relay.ts)
+async function showReminders() {
+  let shown = 0;
+  try {
+    const c = await pushStore('readonly', s => s.get('conf'));
+    if (c) {
+      const since = new Date(Date.now() - 3 * 3600e3).toISOString(), until = new Date(Date.now() + 5 * 60e3).toISOString();
+      const r = await fetch(`${c.url}/rest/v1/foyer_rappel?select=rid,at,blob&sent_at=not.is.null&at=gt.${encodeURIComponent(since)}&at=lte.${encodeURIComponent(until)}&order=at.asc`,
+        { headers: { apikey: c.apikey, 'x-foyer': c.tag } });
+      const rows = r.ok ? await r.json() : [];
+      const seen = new Set((await pushStore('readonly', s => s.get('seen'))) || []);
+      for (const row of rows) {
+        if (seen.has(row.rid)) continue;
+        const m = await openNote(c.key, row.blob);
+        if (!m) continue;
+        await self.registration.showNotification(m.title, { body: m.body, tag: row.rid, data: { url: './#aujourdhui' } });
+        seen.add(row.rid); shown++;
+      }
+      await pushStore('readwrite', s => s.put([...seen].slice(-200), 'seen'));
+    }
+  } catch { /* hors ligne ou relais indisponible : message générique ci-dessous */ }
+  // iOS exige une notification visible à chaque envoi.
+  if (!shown) await self.registration.showNotification('Foyer', { body: 'Un rappel pour vos repas : ouvrez Foyer.', tag: 'foyer-rappel', data: { url: './#aujourdhui' } });
+}
+self.addEventListener('push', e => e.waitUntil(showReminders()));
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(ws => (ws.length ? ws[0].focus() : self.clients.openWindow((e.notification.data && e.notification.data.url) || './'))));
 });

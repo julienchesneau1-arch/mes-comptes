@@ -12,6 +12,7 @@ import { onboardingView, CLASSICS } from './onboarding.ts';
 import { demoLog } from './demo.ts';
 import { applyTheme, linkFromUrl } from './sheets/settings.ts';
 import { startAutoSync } from './autosync.ts';
+import { startReminders } from './push.ts';
 import './sheets/slot.ts';
 import './sheets/recipe.ts';
 import './sheets/plan.ts';
@@ -71,6 +72,7 @@ function boot(): void {
   wireDrag(document);
   route();
   startAutoSync();
+  startReminders();
   if (dropped > 0) toast(`${dropped} élément(s) illisible(s) écarté(s) à l'ouverture. Une copie de secours existe dans Maison › Réglages.`);
   if (dropped < 0) toast('Données illisibles sur ce téléphone : restaurez une sauvegarde ou un lien de synchro.');
   addEventListener('hashchange', route);
