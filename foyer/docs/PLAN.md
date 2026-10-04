@@ -62,6 +62,16 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | « Découvrir des recettes » | **livré** | Navigateur : filtre, recherche, aperçu, ajout refusé tant que le nombre de portions manque ; axe : 0 défaut |
 | Aspirer Marmiton | **non fait, volontairement** | CGU de Marmiton (base de données non reproductible) ; droit des producteurs de bases de données |
 
+### V2.5 (rappels en notification sur le téléphone)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Rappels : tâche de la veille (19 h), boîte à préparer, semaine suivante vide (dimanche 18 h) | **livré** | 5 tests (`push.test.ts`) : heures exactes de part et d'autre du changement d'heure ; identifiants stables ; le passé jamais renvoyé |
+| Contenu chiffré, illisible pour le serveur | **livré** | Test : rappel chiffré avec la clé du foyer, relu par l'app **et par le service worker publié** ; autre clé → rien ; dépôt au relais sans aucun mot en clair |
+| Envoi serveur (Web Push VAPID, notification vide) | **en service** | Fonction `foyer-push` déployée, appelée toutes les 5 min (`pg_cron`, 1ʳᵉ exécution 18:10 UTC : 200). Vrai serveur : rappel échu marqué envoyé, jeton VAPID signé, envoi effectué, abonnement expiré (410) retiré ; abonnement vers une adresse non Apple/Google/Mozilla/Microsoft → 400 ; autre foyer → 401 ; fonctions serveur appelées par le public → 401 ; rappel déjà envoyé non effaçable, rappel à venir effaçable ; relecture par le service worker : seuls les rappels envoyés de son foyer |
+| Bouton « Activer les rappels » | **livré** | Navigateur : permission refusée → message clair (« Réglages de l'iPhone › Notifications › Foyer »), rien d'activé ; axe : 0 défaut |
+| Réception réelle sur iPhone | **à vérifier** | Impossible ici (pas d'iPhone ; le navigateur de test ne s'abonne pas). Geste 11 ci-dessous |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -86,6 +96,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 8 | Semaine → Agenda (.ics) → ouvrir le fichier | iOS propose d'ajouter les rappels au Calendrier |
 | 9 | Maison → Coller une recette (texte de Notes) | Ingrédients et étapes reconnus, relecture avant enregistrement |
 | 10 | VoiceOver (triple clic sur le bouton latéral si activé) : parcourir Aujourd'hui | Chaque bouton est annoncé avec un nom clair |
+| 11 | Maison › Réglages › « Activer les rappels » → Autoriser, puis « Envoyer un rappel d'essai », verrouiller le téléphone | « 🔔 Essai Foyer » arrive en moins de 6 minutes (si « Un rappel pour vos repas : ouvrez Foyer » arrive à la place : envoyer le Diagnostic) |
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -102,7 +113,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 |---|---|---|
 | Activer le relais (synchro auto + import web) | **Fait le 4 octobre 2026** | Projet Supabase gratuit dédié « foyer » (2ᵉ projet gratuit de l'organisation, Assemblages non touché) : table et RLS appliquées, fonction `foyer-import` déployée, adresse dans `src/ui/config.ts` et `index.html` |
 | V1B OCR des dates | Plus de 5 produits surveillés par semaine **et** saisie de date ressentie comme un frein | Audit Savore (accès au dépôt requis), corpus réel, confirmation champ par champ |
-| Rappels hors de l'app | Tâches « la veille » oubliées malgré Aujourd'hui | Fichier agenda (.ics) des tâches de la semaine, comme Mes Comptes ; notifications iOS impossibles sans serveur |
+| Rappels hors de l'app | **Fait le 4 octobre 2026** | Notifications par téléphone (Réglages › « Activer les rappels ») ; le fichier agenda (.ics) reste disponible |
 
 ## 4. Limites connues (assumées, documentées)
 
@@ -111,6 +122,9 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 - Le lien contient tout le journal (≈ 1 Ko au départ, quelques dizaines de Ko après des mois) ; compactage non fait.
 - Un seul navigateur testé (Chromium). Safari iOS et VoiceOver restent à vérifier sur les téléphones.
 - Rayon « Tomates » en boîte classé « Fruits & légumes » par défaut : un geste pour le changer, mémorisé.
+- Rappels : jusqu'à 5 minutes de retard (passage du serveur toutes les 5 min). Les deux téléphones abonnés reçoivent les rappels du foyer. Un téléphone pas encore synchronisé peut retirer un rappel déposé par l'autre : chaque téléphone ouvert redépose sa liste au moins une fois par heure, mais si aucun des deux n'est ouvert entre-temps, ce rappel manque.
+- Rappels hors ligne au moment de l'envoi, ou relais injoignable : notification générique « Un rappel pour vos repas : ouvrez Foyer » (iOS impose d'afficher quelque chose).
+- Conseiller de sécurité Supabase : 1 avertissement (extension `pg_net` créée dans le schéma `public` ; le déplacement a expiré depuis l'outil). Correction en une fois dans l'éditeur SQL : `drop extension pg_net; create extension pg_net with schema extensions;`.
 
 ## 5. Journal de session
 
@@ -136,3 +150,5 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | V2.4 | Catalogue Wikilivres en CI, découvertes dans les propositions (3 au plus), « Découvrir des recettes » | livré | Qualité inégale des recettes bénévoles |
 | 2026-10-04 | Test | Contrôle « rien en clair » du relais rendu fiable (base64url pur) ; workflow catalogue protégé contre les pushes concurrents | livré | — |
 | 2026-10-04 | Test | Scénario navigateur corrigé : une coche de test cochait toutes les lignes (`.first()` re-résolu) ; défaut du test, pas de l'app (vérifié sur le cœur) | livré | — |
+| 2026-10-04 | V2.5 | Rappels chiffrés en notification : tables + RLS, fonction `foyer-push` (VAPID), tâche toutes les 5 min, service worker qui déchiffre | livré | Réception sur iPhone non vérifiée |
+| 2026-10-04 | Vérification réelle | Rappels : dépôt, doublon ignoré, autre foyer refusé, abonnement interdit refusé, envoi + abonnement expiré retiré, exécution planifiée 200 | livré | Avertissement `pg_net` dans `public` (correction manuelle) |

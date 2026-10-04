@@ -54,6 +54,60 @@ export class RelayError extends Error {
     status;
     constructor(status, m) { super(m); this.status = status; }
 }
+/* ---------- Rappels (notifications) ---------- */
+// Chaque rappel est chiffré avec la clé du foyer ; le service worker du téléphone le déchiffre (même format, sw.js).
+const NOTE_AAD = enc.encode('foyer-rappel-v1');
+export async function sealNote(key, msg) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: NOTE_AAD }, key, enc.encode(JSON.stringify(msg))));
+    const out = new Uint8Array(12 + ct.length);
+    out.set(iv);
+    out.set(ct, 12);
+    return b64u.enc(out);
+}
+export async function openNote(key, blob) {
+    try {
+        const raw = b64u.dec(blob);
+        const m = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12), additionalData: NOTE_AAD }, key, raw.slice(12))));
+        return typeof m.title === 'string' && typeof m.body === 'string' ? { title: m.title, body: m.body } : null;
+    }
+    catch {
+        return null;
+    }
+}
+// La liste complète remplace les rappels pas encore envoyés, sauf ceux des 10 prochaines minutes (jamais retirés au dernier moment).
+export async function depositReminders(c, k, list, now, f) {
+    const soon = new Date(now.getTime() + 10 * 60e3).toISOString();
+    const keep = list.map(r => r.rid).join(',');
+    const del = await f(`${c.url}/rest/v1/foyer_rappel?sent_at=is.null&at=gt.${encodeURIComponent(soon)}${keep ? `&rid=not.in.(${keep})` : ''}`, { method: 'DELETE', headers: { ...headers(c, k.tag), Prefer: 'return=minimal' } });
+    if (!del.ok)
+        throw new RelayError(del.status, `rappels : mise à jour refusée (${del.status})`);
+    if (!list.length)
+        return;
+    const rows = await Promise.all(list.map(async (r) => ({ household: k.tag, rid: r.rid, at: r.at, blob: await sealNote(k.key, { title: r.title, body: r.body }) })));
+    const ins = await f(`${c.url}/rest/v1/foyer_rappel?on_conflict=household,rid`, { method: 'POST', headers: { ...headers(c, k.tag), Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(rows) });
+    if (!ins.ok)
+        throw new RelayError(ins.status, `rappels : dépôt refusé (${ins.status})`);
+}
+export async function subscribePush(c, k, device, endpoint, f) {
+    const r = await f(`${c.url}/rest/v1/foyer_push?on_conflict=endpoint`, { method: 'POST', headers: { ...headers(c, k.tag), Prefer: 'resolution=ignore-duplicates,return=minimal' },
+        body: JSON.stringify([{ endpoint, household: k.tag, device }]) });
+    if (!r.ok)
+        throw new RelayError(r.status, `notifications : abonnement refusé (${r.status})`);
+}
+export async function unsubscribePush(c, k, endpoint, f) {
+    const r = await f(`${c.url}/rest/v1/foyer_push?endpoint=eq.${encodeURIComponent(endpoint)}`, { method: 'DELETE', headers: { ...headers(c, k.tag), Prefer: 'return=minimal' } });
+    if (!r.ok)
+        throw new RelayError(r.status, `notifications : désabonnement refusé (${r.status})`);
+}
+// Clé publique VAPID du relais (créée au premier appel de la fonction foyer-push).
+export async function vapidPublic(c, f) {
+    const r = await f(`${c.url}/functions/v1/foyer-push`, { method: 'POST', headers: relayHeaders(c), body: '{}' });
+    const body = (await r.json());
+    if (!r.ok || typeof body.pub !== 'string' || !/^[A-Za-z0-9_-]{80,100}$/.test(body.pub))
+        throw new RelayError(r.status, 'notifications : clé du serveur indisponible');
+    return body.pub;
+}
 // Dépose les événements par paquets (un bloc chiffré par paquet). Idempotent côté téléphones : un événement reçu deux fois ne compte qu'une fois.
 export async function push(c, k, device, events, f) {
     const rows = [];

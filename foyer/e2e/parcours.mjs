@@ -166,6 +166,12 @@ await step('mode découverte', async () => {
   await page.getByRole('link', { name: 'Maison', exact: true }).click();
   await page.getByRole('button', { name: 'Réglages' }).click();
   await shot('12-reglages'); await axe('reglages');
+  // Rappels : permission non accordée dans ce navigateur de test → message clair, rien d'activé.
+  await page.getByRole('button', { name: 'Activer les rappels' }).click();
+  const why = page.getByText(/Notifications refusées|synchro automatique|ne reçoit pas de notifications/);
+  await why.waitFor();
+  console.log('   rappels :', (await why.innerText()).slice(0, 90));
+  await page.getByRole('button', { name: 'Activer les rappels' }).waitFor();
   await page.getByRole('button', { name: 'Diagnostic de ce téléphone' }).click();
   const diag = page.locator('dialog[open]');
   await diag.getByText('Chiffrement').waitFor();

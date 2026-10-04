@@ -10,6 +10,7 @@ import { orderedAisles } from '../../core/shopping.ts';
 import { available as relayAvailable, enabled as autoOn, syncNow, sync as autoSync, statusLabel, joinWithCode, forgetRelay } from '../autosync.ts';
 import { CLICK, CHANGE, SUBMIT, num } from '../registry.ts';
 import { type Env, diagnose, diagText, iosVersion } from '../../core/diag.ts';
+import { enablePush, disablePush, forgetPush, testReminder } from '../push.ts';
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const PRES: Record<Presence, string> = { maison: 'Maison', boite: 'Boîte', dehors: 'Dehors' };
@@ -251,6 +252,11 @@ CLICK['aisleSave'] = () => { closeSheet(); dispatch([{ t: 'settings.set', p: { a
 export const needsInstall = (): boolean => isIOS() && !standalone() && !A.device.installHint;
 CLICK['installDone'] = () => { setDevice({ installHint: true }); A.render(); };
 
+/* ---------- Rappels en notifications ---------- */
+CLICK['pushOn'] = async () => { toast('Activation…'); const why = await enablePush(); A.render(); toast(why ?? 'Rappels activés sur ce téléphone'); };
+CLICK['pushOff'] = async () => { await disablePush(); A.render(); toast('Rappels désactivés sur ce téléphone'); };
+CLICK['pushTest'] = async () => { toast(await testReminder() ? 'Rappel d\'essai prévu : il arrive dans les 5 minutes' : 'Envoi impossible pour l\'instant (réseau ?)'); };
+
 /* ---------- Diagnostic du téléphone ---------- */
 async function env(): Promise<Env> {
   const n = navigator as Navigator & { wakeLock?: unknown };
@@ -288,4 +294,4 @@ CHANGE['theme'] = (_d, el) => { const t = (el as HTMLSelectElement).value as 'au
 export function applyTheme(): void { const t = A.device.theme; if (t === 'auto') delete document.documentElement.dataset['theme']; else document.documentElement.dataset['theme'] = t; }
 CLICK['wipe'] = () => openSheet({ id: 'wipe', render: () => `${sheetHead('Effacer Foyer sur ce téléphone ?', 'L\'autre téléphone garde tout. Une sauvegarde ou un lien de synchro permet de tout récupérer.')}
   <div class="actions"><button class="btn ghost" data-a="exportBackup">Exporter d'abord une sauvegarde</button><button class="btn danger" data-a="wipeOk">Effacer ce téléphone</button></div>` });
-CLICK['wipeOk'] = async () => { await snapshot(A.log, 'Avant effacement'); wipe(); forgetRelay(); location.reload(); };
+CLICK['wipeOk'] = async () => { await snapshot(A.log, 'Avant effacement'); await forgetPush(); wipe(); forgetRelay(); location.reload(); };

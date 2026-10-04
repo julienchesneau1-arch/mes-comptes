@@ -55,6 +55,8 @@ export function loadDevice(newId) {
         theme: d.theme === 'light' || d.theme === 'dark' ? d.theme : 'auto',
         installHint: d.installHint === true,
         auto: d.auto !== false,
+        push: d.push === true,
+        pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
     };
     saveDevice(dev);
     return dev;
