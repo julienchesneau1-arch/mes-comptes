@@ -173,4 +173,21 @@ Demande retenue : « Notifications iPhone ». Le PRD V2.1 les écartait (« impo
 
 Limites assumées : 5 minutes de précision ; réception sur iPhone non vérifiée à ce jour (geste 11 de `PLAN.md`).
 
-Fin du PRD V2.1 (révisions V2.2 à V2.5 incluses).
+## 12. V2.6 — l'agenda du mois ajuste les repas ; prise en main (4 octobre 2026)
+
+Demande : « que l'app ait accès à nos emplois du temps sur le mois entier et que, dès qu'un événement peut changer les repas, elle le prenne en compte et fasse le nécessaire » ; « une personne novice peut-elle comprendre l'app ? ».
+
+[ANOMALIE_LOGIQUE 13 — arbitrée] « Accès » et « dès que » : une app web n'a pas accès au Calendrier de l'iPhone et ne tourne pas en arrière-plan sur iOS. Arbitrage : lecture d'une adresse iCal par agenda, relue à chaque ouverture et toutes les 30 min quand l'app est ouverte. « Faire le nécessaire » sans jamais demander supposerait de deviner le sens de chaque événement : une décision par titre d'événement (« pareil les prochaines fois »), ensuite c'est automatique.
+
+| Règle | Contenu |
+|---|---|
+| Ce qui change un repas | Événement « occupé » pendant au moins la moitié du créneau (midi 12 h-14 h, soir 19 h-21 h 30) ; titre parlant de repas (resto, dîner, apéro…) dès qu'il touche le créneau ; absence de plusieurs jours (vacances, déplacement, séminaire…) ; télétravail, RTT, congé, férié → midi à la maison ; « à la maison », « on reçoit » → invités (nombre demandé) |
+| Ce qui ne change rien | Événement « disponible » ; journée entière sans mot d'absence (« Anniversaire de Léa ») ; repas déjà commencé ou passé ; repas déjà noté mangé |
+| Priorité | Un réglage fait à la main l'emporte toujours ; un repas dehors annoncé l'emporte sur une journée à la maison, qui l'emporte sur un simple « occupé » |
+| Retour arrière | Événement supprimé ou déplacé → la présence revient à l'habitude ; jamais sur une lecture d'agenda ratée |
+| Plat sans convives | Décalé au prochain repas à la maison sans plat (6 jours au plus), s'il n'est pas commencé et ne nourrit pas d'autres repas |
+| Vie privée | Adresse dans le journal chiffré ; serveur sans mémoire ; événements en cache sur le téléphone seulement |
+
+Prise en main : « Premiers pas » (gestes cochés d'après l'état réel), « Comment ça marche », libellés clarifiés ; la phrase d'accueil « sans compte ni serveur » corrigée (le relais existe, même s'il ne lit rien).
+
+Fin du PRD V2.1 (révisions V2.2 à V2.6 incluses).

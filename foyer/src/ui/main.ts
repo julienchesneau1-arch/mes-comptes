@@ -15,6 +15,7 @@ import { startAutoSync } from './autosync.ts';
 import { startReminders } from './push.ts';
 import { startAgenda } from './agenda.ts';
 import './sheets/agenda.ts';
+import './sheets/help.ts';
 import './sheets/slot.ts';
 import './sheets/recipe.ts';
 import './sheets/plan.ts';

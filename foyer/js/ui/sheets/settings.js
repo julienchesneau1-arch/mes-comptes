@@ -71,8 +71,8 @@ CLICK['rhSave'] = () => { closeSheet(); dispatch([{ t: 'settings.set', p: { rhyt
 CHANGE['boxes'] = (_d, el) => dispatch([{ t: 'settings.set', p: { boxesFromDinner: el.checked } }]);
 CHANGE['weekStart'] = (_d, el) => dispatch([{ t: 'settings.set', p: { weekStart: Number(el.value) } }], { toast: 'Début de semaine changé' });
 /* ---------- Synchro par lien ---------- */
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 export function openSync() {
     openSheet({ id: 'sync', render: () => {
             const n = unsent();

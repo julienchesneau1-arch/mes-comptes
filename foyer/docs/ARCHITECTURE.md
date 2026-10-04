@@ -26,6 +26,8 @@
 
 **ADR-12 — Rappels en notification sans que le serveur les lise.** Une app web sur iPhone (iOS 16.4+, installée) reçoit des notifications Web Push, mais il faut un serveur pour les envoyer à l'heure. Le téléphone dépose dans `foyer_rappel` l'heure et un bloc chiffré (AES-GCM, clé tirée du code du foyer, données associées `foyer-rappel-v1`) ; `pg_cron` appelle toutes les 5 min la fonction `foyer-push`, qui marque les rappels échus et envoie une notification **vide** (VAPID ES256, clé privée dans le coffre Supabase) aux abonnements du foyer ; le service worker relit les rappels envoyés de son foyer, les déchiffre avec la clé rangée (non exportable) dans IndexedDB et les affiche ; message générique s'il n'y arrive pas (iOS exige une notification visible). Adresses d'abonnement limitées à Apple, Google, Mozilla et Microsoft (contrainte en base et dans la fonction). Rejeté : contenu chiffré dans la notification (RFC 8291) — plus de code serveur pour rien de plus, le texte restant de toute façon illisible pour le serveur.
 
+**ADR-13 — Agenda du mois → repas, par règles fixes et décisions mémorisées.** Une app web ne lit pas le Calendrier de l'iPhone ; elle lit une adresse iCal (Google : adresse secrète ; iCloud : calendrier public ; Outlook : lien publié). Le navigateur ne peut pas la télécharger (CORS) : la fonction `foyer-agenda` la télécharge (fournisseurs connus seulement), la lit avec `ical.ts` (copie exacte, testée) et ne renvoie que les occurrences du mois ; le téléphone les garde en cache local (jamais dans le journal). `agenda.ts` en déduit, sans IA, les présences à changer (mots du titre, chevauchement des heures de repas) ; un seul événement gagne par repas et par personne ; tout changement est une proposition tant que le foyer n'a pas décidé « pareil les prochaines fois » (`agenda.rule`). Les présences posées d'après l'agenda (`agenda.mark`) gardent leur occurrence d'origine : retirées si l'événement disparaît (seulement après une lecture réussie), figées si quelqu'un les modifie à la main. Rejeté : connexion OAuth à Google (validation de l'application, jetons expirant au bout de 7 jours en mode test, rien pour iCloud) ; lecture sur le serveur sans le téléphone (le serveur devrait garder l'adresse et lire les repas : contraire au chiffrement de bout en bout).
+
 ## Carte des modules
 
 ```
@@ -56,14 +58,17 @@ src/core/            logique pure, sans DOM, testée sous Node
   catalog.ts         catalogue : relecture, recherche, découvertes classées, recette → contenu
   diag.ts            diagnostic du téléphone (fonctions disponibles, conséquence de chaque manque)
   drive.ts           drive Auchan : lien produit, contenance, nombre de paquets, articles à commander
+  ical.ts            lecture iCalendar : récurrences, exceptions, fuseaux (copié dans la fonction foyer-agenda)
+  agenda.ts          agenda → repas : classement des événements, propositions, automatismes, retour arrière, plat décalé
+  feries.ts          jours fériés français (Pâques calculé)
 src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts)
-supabase/            migrations (relais, rappels) et fonctions foyer-import et foyer-push (déployées le 4 octobre 2026 sur le projet dédié)
+supabase/            migrations (relais, rappels) et fonctions foyer-import, foyer-push et foyer-agenda (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```
 
 ## Événements
 
-`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `staple.set`, `aisle.set`, `product.set` (produit Auchan retenu), `watch.save`, `watch.close`, `conflict.ack`, `undo`.
+`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `staple.set`, `aisle.set`, `product.set` (produit Auchan retenu), `agenda.set` (agenda branché), `agenda.rule` (décision mémorisée), `agenda.mark` (présence d'après l'agenda), `watch.save`, `watch.close`, `conflict.ack`, `undo`.
 
 Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance → créneaux + présences ; PreparationPlan/MealAllocation → `prep` + `slot.from` ; PortionBatch/Reservation/Event → `prep.done` + réservations implicites des créneaux liés + `slot.eaten`/`prep.discard` ; ShoppingSnapshot/PantryCheck → `deriveShopping` + `shop.pantry` signé par le besoin ; SensitiveItem/DateDeclaration → `watch.save` ; AuditEvent → le journal lui-même.
 
@@ -72,5 +77,6 @@ Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance �
 - CSP : `script-src 'self'`, `style-src 'self'`, `connect-src 'self'` plus, seulement si un relais est configuré, son adresse exacte ; aucun script ni style en ligne (testé).
 - Données : sur le téléphone (localStorage relu après écriture, copies de secours IndexedDB). Avec le relais : seulement des blocs chiffrés de bout en bout ; le relais voit une étiquette pseudonyme, des identifiants d'appareil, des heures et des tailles.
 - Rappels : le serveur voit l'étiquette du foyer, l'heure de chaque rappel, un bloc chiffré et l'adresse d'abonnement du téléphone (chez Apple, Google, Mozilla ou Microsoft) ; rappels effacés 2 jours après leur heure.
+- Agenda : l'adresse iCal est dans le journal chiffré ; la fonction `foyer-agenda` la reçoit à chaque lecture, télécharge l'agenda, renvoie le mois et ne conserve rien ; les événements lus restent en cache sur le téléphone (`foyer:agenda`), jamais au relais.
 - Hébergement partagé avec Mes Comptes : clés de stockage préfixées `foyer:`, base IndexedDB `foyer`, caches `foyer-*`, service worker de portée `foyer/`. Le service worker de Mes Comptes ne supprime plus que ses propres caches.
 - Données personnelles minimales : prénoms, plats, dates déclarées. Sauvegarde JSON lisible (non chiffrée, à garder pour soi) ; liens de synchro chiffrés.

@@ -72,6 +72,18 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | Bouton « Activer les rappels » | **livré** | Navigateur : permission refusée → message clair (« Réglages de l'iPhone › Notifications › Foyer »), rien d'activé ; axe : 0 défaut |
 | Réception réelle sur iPhone | **à vérifier** | Impossible ici (pas d'iPhone ; le navigateur de test ne s'abonne pas). Geste 11 ci-dessous |
 
+### V2.6 (l'agenda du mois ajuste les repas ; prise en main)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Lecture d'agendas iCalendar (Google, iCloud, Outlook) | **livré** | 5 tests (`ical.test.ts`) : récurrences hebdomadaires, mensuelles (« 2ᵉ jeudi », « dernier vendredi »), annuelles, nombre d'occurrences, date de fin, un sur deux ; exception (EXDATE) ; occurrence déplacée qui garde son identifiant ; changement d'heure du 25 octobre ; journées entières ; fuseau Windows (Outlook) ; fuseau inconnu signalé ; ce qui n'est pas compris écarté avec sa raison. Vrai agenda Google public (jours fériés, 209 événements, 82 Ko) lu sur le serveur sans rejet |
+| Fonction `foyer-agenda` | **en service** | Déployée ; code en ligne identique au dépôt (sha256 comparés) ; même code de lecture que l'app (copie vérifiée par un test). Fournisseurs autorisés seulement (adresse interne → 400), mauvaise clé → 401, adresse secrète fausse → 404 avec message clair, redirections revérifiées, 12 Mo et 12 s au plus, période ≤ 62 jours (refus testé), rien d'enregistré. Relecture critique : un agenda ancien et chargé (8 150 événements, 150 récurrences depuis 2015) prenait 23 s de calcul, au-delà du plafond d'une fonction ; corrigé (0,5 s), test de non-régression |
+| Agenda → repas | **livré** | 6 tests (`agenda.test.ts`) : foot à l'heure du dîner (à confirmer), resto, télétravail (midi à la maison), vacances de plusieurs jours, invités (nombre demandé), « disponible » et journées sans absence ignorés, repas commencé jamais touché ; une décision puis automatique ; deux téléphones qui appliquent en même temps : rien en double ; événement supprimé → retour à l'habitude ; lecture ratée → rien de défait ; réglage à la main prioritaire ; « jamais » et « pas cette fois » ; deux événements sur un même repas : un seul gagne, pas de va-et-vient ; plat décalé quand plus personne ne le mange (dans le même geste, ou ensuite quand deux téléphones ont appliqué chacun le sien) |
+| Jours fériés | **livré** | Calculés (Code du travail, art. L3133-1 ; Pâques vérifié 2024-2027) ; férié en semaine → « midi à la maison » proposé ; une décision vaut pour tous les fériés |
+| Écrans agenda | **livré** | Navigateur (fonction simulée) : brancher un agenda (adresse webcal convertie, appel vérifié), « Ce que l'agenda change », Appliquer + « pareil les prochaines fois », « Pas cette fois », « Fait d'après l'agenda » avec Annuler, bandeau d'Aujourd'hui disparu ; axe : 0 défaut. Deux défauts trouvés et corrigés : deux boutons « agenda » en collision (test ajouté sur tous les gestionnaires), feuille rouverte aussitôt fermée qui n'était plus rafraîchie |
+| Prise en main | **livré** | « Premiers pas » sur Aujourd'hui (gestes cochés d'après l'état réel), « Comment ça marche » (8 explications), libellés clarifiés (« Restes à venir », « Préparé »), accueil corrigé (« sans serveur » n'était plus vrai) ; navigateur + axe : 0 défaut |
+| Lire l'agenda de l'iPhone directement | **non fait, impossible** | Une app web n'a pas accès au Calendrier de l'iPhone : il faut l'adresse iCal (Google) ou le lien « Calendrier public » (iCloud) |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -82,7 +94,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 3. Téléphone 1 : créer le foyer. Le code du foyer s'affiche sur Aujourd'hui.
 4. Téléphone 2 : ouvrir Foyer depuis l'écran d'accueil → « L'autre téléphone a déjà Foyer » → taper le code. Ensuite tout se synchronise seul (au démarrage, au retour dans l'app, toutes les 20 s).
 
-**Vérification iPhone (10 minutes, une fois, sur les deux téléphones)** — Foyer n'a été testé que dans Chromium. Noter ✓ ou ✗ ; en cas de ✗, envoyer le texte de Maison › Réglages › « Diagnostic de ce téléphone » › Copier.
+**Vérification iPhone (15 minutes, une fois, sur les deux téléphones)** — Foyer n'a été testé que dans Chromium. Noter ✓ ou ✗ ; en cas de ✗, envoyer le texte de Maison › Réglages › « Diagnostic de ce téléphone » › Copier.
 
 | # | Geste | Attendu |
 |---|---|---|
@@ -97,6 +109,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 9 | Maison → Coller une recette (texte de Notes) | Ingrédients et étapes reconnus, relecture avant enregistrement |
 | 10 | VoiceOver (triple clic sur le bouton latéral si activé) : parcourir Aujourd'hui | Chaque bouton est annoncé avec un nom clair |
 | 11 | Maison › Réglages › « Activer les rappels » → Autoriser, puis « Envoyer un rappel d'essai », verrouiller le téléphone | « 🔔 Essai Foyer » arrive en moins de 6 minutes (si « Un rappel pour vos repas : ouvrez Foyer » arrive à la place : envoyer le Diagnostic) |
+| 12 | Maison › Réglages › Agendas › « Brancher un agenda » avec l'adresse iCal (Google) ou le lien « Calendrier public » (iCloud) | « Agenda de … branché : N événements » ; un événement du soir apparaît dans « Ce que l'agenda change » |
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -113,6 +126,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 |---|---|---|
 | Activer le relais (synchro auto + import web) | **Fait le 4 octobre 2026** | Projet Supabase gratuit dédié « foyer » (2ᵉ projet gratuit de l'organisation, Assemblages non touché) : table et RLS appliquées, fonction `foyer-import` déployée, adresse dans `src/ui/config.ts` et `index.html` |
 | V1B OCR des dates | Plus de 5 produits surveillés par semaine **et** saisie de date ressentie comme un frein | Audit Savore (accès au dépôt requis), corpus réel, confirmation champ par champ |
+| Repas ajustés d'après l'agenda | **Fait le 4 octobre 2026** | Réglages › Agendas ; première semaine : décider une fois par événement récurrent |
 | Rappels hors de l'app | **Fait le 4 octobre 2026** | Notifications par téléphone (Réglages › « Activer les rappels ») ; le fichier agenda (.ics) reste disponible |
 
 ## 4. Limites connues (assumées, documentées)
@@ -124,6 +138,10 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 - Rayon « Tomates » en boîte classé « Fruits & légumes » par défaut : un geste pour le changer, mémorisé.
 - Rappels : jusqu'à 5 minutes de retard (passage du serveur toutes les 5 min). Les deux téléphones abonnés reçoivent les rappels du foyer. Un téléphone pas encore synchronisé peut retirer un rappel déposé par l'autre : chaque téléphone ouvert redépose sa liste au moins une fois par heure, mais si aucun des deux n'est ouvert entre-temps, ce rappel manque.
 - Rappels hors ligne au moment de l'envoi, ou relais injoignable : notification générique « Un rappel pour vos repas : ouvrez Foyer » (iOS impose d'afficher quelque chose).
+- Agenda : relu à l'ouverture de Foyer, au retour dans l'app et toutes les 30 min app ouverte ; iOS ne permet pas à une app web de travailler en arrière-plan : un événement ajouté quand personne n'ouvre Foyer est pris en compte à la prochaine ouverture (le rappel « semaine vide » du dimanche aide).
+- Agenda : règles par mots du titre et heures des repas (midi 12 h-14 h, soir 19 h-21 h 30), sans IA ; un titre ambigu est proposé, jamais appliqué sans une première décision. Le premier mois, des propositions inutiles sont probables : « Jamais pour … » les fait taire.
+- Agenda : l'adresse iCal donne accès en lecture à tout l'agenda ; elle est dans le journal chiffré et dans les sauvegardes exportées ; le serveur la reçoit à chaque lecture (rien n'est conservé). Couper l'accès : « Réinitialiser » (Google) ou désactiver « Calendrier public » (iCloud).
+- Un plat décalé par l'agenda ne revient pas tout seul si l'événement est ensuite supprimé (la présence, elle, revient).
 - Conseiller de sécurité Supabase : 1 avertissement (extension `pg_net` créée dans le schéma `public` ; le déplacement a expiré depuis l'outil). Correction en une fois dans l'éditeur SQL : `drop extension pg_net; create extension pg_net with schema extensions;`.
 
 ## 5. Journal de session
@@ -152,3 +170,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Test | Scénario navigateur corrigé : une coche de test cochait toutes les lignes (`.first()` re-résolu) ; défaut du test, pas de l'app (vérifié sur le cœur) | livré | — |
 | 2026-10-04 | V2.5 | Rappels chiffrés en notification : tables + RLS, fonction `foyer-push` (VAPID), tâche toutes les 5 min, service worker qui déchiffre | livré | Réception sur iPhone non vérifiée |
 | 2026-10-04 | Vérification réelle | Rappels : dépôt, doublon ignoré, autre foyer refusé, abonnement interdit refusé, envoi + abonnement expiré retiré, exécution planifiée 200 | livré | Avertissement `pg_net` dans `public` (correction manuelle) |
+| 2026-10-04 | Livraison | PR fusionnée dans `main` (V2.2 à V2.5) ; nettoyage SQL destructif bloqué côté outil, laissé à faire dans l'éditeur SQL | livré | Ligne d'essai et extension `http` encore présentes |
+| 2026-10-04 | V2.6 | Agenda du mois → repas : lecteur iCalendar, fonction `foyer-agenda`, règles, décisions, retour arrière, plat décalé, jours fériés | livré | iPhone non testé ; règles par mots-clés |
+| 2026-10-04 | Performance | Lecteur d'agenda : 23 s → 0,5 s sur un agenda chargé (dates hors fenêtre écartées sans calcul d'heure, récurrences sautées jusqu'au mois utile) ; fonction redéployée | livré | — |
+| 2026-10-04 | Prise en main | Premiers pas, « Comment ça marche », libellés clarifiés, phrase d'accueil rendue exacte | livré | Pas de test avec une personne novice réelle |

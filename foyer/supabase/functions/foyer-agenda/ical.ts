@@ -84,7 +84,11 @@ export function wall(ms: number, tz: string): { date: LocalDate; sec: number } {
 export function zoned(date: LocalDate, sec: number, tz: string): number {
   const want = Date.parse(`${date}T00:00:00Z`) + sec * 1000;
   let t = want;
-  for (let i = 0; i < 3; i++) { const w = wall(t, tz); t += want - (Date.parse(`${w.date}T00:00:00Z`) + w.sec * 1000); }
+  for (let i = 0; i < 3; i++) {
+    const w = wall(t, tz), d = want - (Date.parse(`${w.date}T00:00:00Z`) + w.sec * 1000);
+    if (!d) break;
+    t += d;
+  }
   return t;
 }
 
@@ -172,7 +176,8 @@ function monthDays(y: number, m: number, r: Rule, startDay: number): LocalDate[]
 }
 
 // Dates de début (jour local de l'événement) d'une règle, de DTSTART jusqu'à `last` (inclus), dans l'ordre.
-function expandDates(start: LocalDate, r: Rule, last: LocalDate, keep: (d: LocalDate) => boolean): LocalDate[] {
+// Sans COUNT, on saute directement près de `skipTo` (rien à compter avant) : un événement quotidien depuis dix ans reste rapide.
+function expandDates(start: LocalDate, r: Rule, last: LocalDate, keep: (d: LocalDate) => boolean, skipTo: LocalDate): LocalDate[] {
   const out: LocalDate[] = [];
   let n = 0, steps = 0;
   const [y0, m0, d0] = ymd(start);
@@ -183,7 +188,14 @@ function expandDates(start: LocalDate, r: Rule, last: LocalDate, keep: (d: Local
     return true;
   };
   const okMonth = (d: LocalDate): boolean => !r.bymonth.length || r.bymonth.includes(Number(d.slice(5, 7)));
-  for (let p = 0; steps < MAX_STEPS; p++, steps++) {
+  let p0 = 0;
+  if (r.count === null && skipTo > start) {
+    const [ys, ms] = ymd(skipTo);
+    const gap = r.freq === 'DAILY' ? daysBetween(start, skipTo) : r.freq === 'WEEKLY' ? Math.floor(daysBetween(start, skipTo) / 7)
+      : r.freq === 'MONTHLY' ? (ys - y0) * 12 + (ms - m0) : ys - y0;
+    p0 = Math.max(0, Math.floor(gap / r.interval) - 1);
+  }
+  for (let p = p0; steps < MAX_STEPS; p++, steps++) {
     let cands: LocalDate[];
     if (r.freq === 'DAILY') {
       const d = addDays(start, p * r.interval);
@@ -281,14 +293,16 @@ export function readCalendar(text: string, from: LocalDate, to: LocalDate, seed:
       if (sec === null) { skipped.push({ title, why: 'durée illisible' }); continue; }
       dur = s.kind === 'date' ? { sec: 0, days: Math.max(1, Math.round(sec / 86400)) } : { sec, days: 0 };
     }
+    // Jours locaux utiles (marge de la durée et des fuseaux) : tout ce qui est avant ou après est écarté sans calcul d'heure.
+    const span = Math.ceil(dur.sec / 86400) + dur.days + 1, low = addDays(from, -span - 1), high = addDays(to, 1);
     const rid = one(c, 'RECURRENCE-ID');
     if (rid) { // occurrence modifiée : émise avec l'identifiant de l'occurrence d'origine
       const w = parseWhenValue(rid.value, rid.params);
-      if (w) emit(c, uid, whenKey(w), s, dur, true);
+      if (w && s.date >= low && s.date <= high) emit(c, uid, whenKey(w), s, dur, true);
       continue;
     }
     const rr = one(c, 'RRULE');
-    if (!rr) { emit(c, uid, whenKey(s), s, dur, false); continue; }
+    if (!rr) { if (s.date >= low && s.date <= high) emit(c, uid, whenKey(s), s, dur, false); continue; }
     const rule = parseRule(rr.value);
     if (typeof rule === 'string') { skipped.push({ title, why: rule }); continue; }
     // Exceptions (EXDATE) : comparées à l'instant (heure précise) ou au jour.
@@ -297,10 +311,17 @@ export function readCalendar(text: string, from: LocalDate, to: LocalDate, seed:
     const own = overrides.get(uid);
     // Dernier jour local utile : fin de fenêtre (en jour local de l'événement, marge d'un jour pour les fuseaux) et UNTIL.
     const last = addDays(to, 1);
-    const untilMs = rule.until ? (rule.until.kind === 'date' ? zoned(addDays(rule.until.date, 1), 0, s.kind === 'time' ? s.tz : 'Europe/Paris') - 1 : instant(rule.until)) : Infinity;
-    const keep = (d: LocalDate): boolean => (s.kind === 'date' ? zoned(d, 0, 'Europe/Paris') : zoned(d, s.sec, s.tz)) <= untilMs;
-    const dates = expandDates(s.date, rule, last, keep);
+    const until = rule.until;
+    const untilMs = until ? (until.kind === 'date' ? zoned(addDays(until.date, 1), 0, s.kind === 'time' ? s.tz : 'Europe/Paris') - 1 : instant(until)) : Infinity;
+    // Calcul d'heure seulement à deux jours près de la fin (UNTIL) ; sinon simple comparaison de jours.
+    const keep = (d: LocalDate): boolean => {
+      if (!until || d <= addDays(until.date, -2)) return true;
+      if (d >= addDays(until.date, 2)) return false;
+      return (s.kind === 'date' ? zoned(d, 0, 'Europe/Paris') : zoned(d, s.sec, s.tz)) <= untilMs;
+    };
+    const dates = expandDates(s.date, rule, last, keep, low);
     for (const d of dates) {
+      if (d < low) continue;
       const inst: When = s.kind === 'date' ? { kind: 'date', date: d } : { ...s, date: d };
       const key = whenKey(inst);
       if (ex.has(key) || ex.has(`j${d}`) || own?.has(key)) continue;

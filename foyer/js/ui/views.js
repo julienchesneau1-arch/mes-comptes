@@ -17,6 +17,7 @@ import { CLICK, INPUT } from './registry.js';
 import { pushOn } from './push.js';
 import { toDecide } from './agenda.js';
 import { agendaSection } from './sheets/agenda.js';
+import { guideCard } from './sheets/help.js';
 import { RELAY } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { packsFor } from '../core/drive.js';
@@ -83,13 +84,14 @@ export function todayView() {
         : !n ? '' : !A.device.lastSentAt && !A.device.lastRecvAt
             ? `<div class="banner info"><p class="grow">${esc(otherNames())} n'a pas encore Foyer : envoyez-lui le lien, puis donnez-lui une fois le code du foyer (Maison › Réglages › Synchro).</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer le lien</button></div>`
             : `<div class="banner info"><p class="grow">${plural(n, 'changement', 'changements')} pas encore envoyé${n > 1 ? 's' : ''} à ${esc(otherNames())}.</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer</button></div>`;
-    const install = needsInstall() ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil ». Sur iPhone, Safari peut effacer les données d'un site peu ouvert ; l'app installée les garde.</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
+    const guide = guideCard();
+    const install = needsInstall() && !guide ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil ». Sur iPhone, Safari peut effacer les données d'un site peu ouvert ; l'app installée les garde.</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
     const decide = toDecide();
     const agenda = decide && !A.demo ? `<div class="banner info"><p class="grow"><strong>L'agenda change ${plural(decide, 'repas', 'repas')}.</strong> Une décision par événement ; ensuite, Foyer fait pareil tout seul.</p><button class="btn small-btn" data-a="agendaOpen">Voir</button></div>` : '';
     const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
     return `<div class="top"><h1>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
-    <div class="cols"><div class="stack">${cards}${ideas}</div><div class="stack">${checks}${tasks}${toBuy}${plan}</div></div></main>`;
+    <div class="cols"><div class="stack">${cards}${ideas}</div><div class="stack">${guide}${checks}${tasks}${toBuy}${plan}</div></div></main>`;
 }
 /* ---------- Semaine ---------- */
 function slotButton(k, label) {
@@ -282,6 +284,7 @@ function settingsView() {
       <li>Ne confirme jamais un repas parce que l'heure est passée.</li>
       <li>Données sur vos téléphones uniquement ; la synchro est chiffrée de bout en bout.</li></ul>
       <p class="small muted">Version ${VERSION} · <a href="${DGCCRF_URL}" target="_blank" rel="noopener">DLC et DDM (DGCCRF)</a></p>
+      <button class="btn ghost" data-a="help">Comment ça marche</button>
       <button class="btn ghost" data-a="diag">Diagnostic de ce téléphone</button>
       <button class="btn danger" data-a="wipe">Effacer Foyer sur ce téléphone</button></section>`;
 }
