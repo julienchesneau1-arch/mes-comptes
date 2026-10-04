@@ -232,16 +232,16 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=35"></script>
+<script src="core.js?v=36"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 35;
+const KEY = 'mescomptes-v1', VERSION = 36;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
 // Rien n'est lu avant le code d'entrée : les données ne sont stockées que chiffrées (coffre), la clé ne vit qu'en mémoire.
 let S = blank();
 const VAULT = 'mescomptes-coffre', TRIES = 'mescomptes-essais';
-let VKEY = null, VSALT = null, booted = false, vaultHasTx = false, resume = null, hiddenAt = 0;
+let VKEY = null, VSALT = null, booted = false, vaultHasTx = false, resume = null, hiddenAt = 0, importing = false, lockLater = false;
 const ui = { tab: 'home', month: null, acc: 'all', q: '', cat: '', showInt: false, sort: false, who: lsGet('mescomptes-who') || 'foyer' };
 // La dernière session : onglet, mois, compte, recherche, filtres, position dans la page, dépense en cours de saisie (chiffrée elle aussi).
 const UIKEY = 'mescomptes-ui', TABS = ['home', 'ops', 'save', 'accounts', 'trends', 'set'];
@@ -417,7 +417,7 @@ async function boot(data) {
 async function lockNow() { if (ui.demo) endDemo(true); try { await saving; } catch {} $('#view').innerHTML = ''; showLock('unlock'); }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) hiddenAt = Date.now();
-  else if (booted && VKEY && hiddenAt && Date.now() - hiddenAt > 5 * 60e3) lockNow();
+  else if (booted && VKEY && hiddenAt && Date.now() - hiddenAt > 5 * 60e3) { if (importing) lockLater = true; else lockNow(); } // un import en cours finit d'abord
 });
 async function changePin(cur, pin, pin2) {
   if (!goodPin(pin)) return toast('6 à 12 chiffres, pas une suite ni un chiffre répété');
@@ -1769,13 +1769,16 @@ async function pdfPages(buf) {
   await import('./vendor/pdfjs/polyfill-safari.mjs'); // correctif Safari, avant pdf.js
   const pdfjs = await import('./vendor/pdfjs/pdf.min.mjs');
   pdfjs.GlobalWorkerOptions.workerSrc = 'vendor/pdfjs/worker-safari.mjs';
-  const doc = await pdfjs.getDocument({ data: buf, isEvalSupported: false }).promise;
-  const pages = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    const { items } = await (await doc.getPage(p)).getTextContent();
-    pages.push(items.filter(i => i.str && i.str.trim()).map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5], w: i.width })));
-  }
-  return pages;
+  // Un lecteur par relevé, fermé dès la lecture finie : laissés ouverts, 34 relevés = 34 lecteurs, et l'iPhone ferme l'app avant l'enregistrement.
+  const task = pdfjs.getDocument({ data: buf, isEvalSupported: false });
+  try {
+    const doc = await task.promise, pages = [];
+    for (let p = 1; p <= doc.numPages; p++) {
+      const { items } = await (await doc.getPage(p)).getTextContent();
+      pages.push(items.filter(i => i.str && i.str.trim()).map(i => ({ str: i.str, x: i.transform[4], y: i.transform[5], w: i.width })));
+    }
+    return pages;
+  } finally { await task.destroy(); }
 }
 async function readText(file) {
   const buf = await file.arrayBuffer();
@@ -1784,12 +1787,16 @@ async function readText(file) {
 $('#file').addEventListener('change', async e => { const files = [...e.target.files]; e.target.value = ''; await importFiles(files); });
 async function importFiles(files) {
   endDemo(true);
+  importing = true;
+  try { await importAll(files); } finally { importing = false; if (lockLater) { lockLater = false; lockNow(); } }
+}
+async function importAll(files) {
   let added = 0, dup = 0, created = 0; const errs = [], notes = [];
   await snapshot(`Avant l'import de ${plural(files.length, 'fichier')}`);
   const owner = ui.who === 'foyer' ? null : ui.who;
   let k = 0;
   for (const f of files) {
-    if (files.length > 1) toast(`⏳ Lecture ${++k} / ${files.length}… patientez, rien à faire`); else toast('⏳ Lecture du fichier…');
+    if (files.length > 1) toast(`⏳ Lecture ${++k} / ${files.length}… gardez l'app ouverte`); else toast('⏳ Lecture du fichier…');
     if (/\.json$/i.test(f.name)) { await restoreFile(f); continue; }
     try {
       const head = new Uint8Array(await f.slice(0, 5).arrayBuffer());
@@ -1815,6 +1822,7 @@ async function importFiles(files) {
         } else parsed = /OFXHEADER|<OFX>/i.test(txt) ? parseOFX(txt) : parseCSV(txt, f.name);
       }
       const r = importParsed(S, parsed, owner);
+      if (r.added) save(); // gardé tout de suite : si l'iPhone interrompt l'import, les relevés déjà lus restent
       added += r.added; dup += r.dup; created += r.created.filter(id => !S.accounts[id].hist).length;
       for (const p of parsed) if (p.check) notes.push(`⚠ ${S.accounts[p.account].name} : ${eur(p.check, 2)} d'écart entre les soldes du relevé et les opérations lues`);
     } catch (err) { errs.push(`✘ ${f.name} : ${err.message || err}` + (/\.pdf$/i.test(f.name) && !bank().bpce ? ' · Astuce : sur le site de votre banque, « Exporter les opérations » en CSV ou OFX fonctionne avec toutes les banques.' : '')); }
