@@ -248,6 +248,11 @@ function apply(s: State, e: AnyEv): void {
       s.aisles[e.p.key] = e.p.aisle;
       return;
     }
+    case 'product.set': {
+      if (e.p.url === null) { if (!s.products[e.p.key]) noop('aucun produit retenu'); delete s.products[e.p.key]; return; }
+      s.products[e.p.key] = { url: e.p.url, label: e.p.label, size: e.p.size, unit: e.p.unit, by: e.by, at: e.at };
+      return;
+    }
     case 'watch.save': {
       const old = s.watch[e.p.id];
       s.watch[e.p.id] = { id: e.p.id, name: e.p.name, qty: e.p.qty, date: e.p.date ? { ...e.p.date } : null, state: e.p.state, slot: e.p.slot,

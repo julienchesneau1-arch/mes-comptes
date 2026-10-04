@@ -2,7 +2,7 @@
 import { type LocalDate, type SlotKey, addDays, slotKey, SLOTS, fmtSlot, fmtDayShort, isDate } from '../../core/dates.ts';
 import type { DateDecl, ItemState } from '../../core/model.ts';
 import { deriveShopping, explain, lineQty, checkSig } from '../../core/shopping.ts';
-import { AISLES, aisleOf, parseIngredient, lineLabel } from '../../core/ingredients.ts';
+import { AISLES, aisleOf, parseIngredient, lineLabel, ingredientKey } from '../../core/ingredients.ts';
 import { UNITS, UNIT, toBase, showQty } from '../../core/units.ts';
 import { parseQ, qStr, cmp } from '../../core/rational.ts';
 import { nameKey, capitalize } from '../../core/text.ts';
@@ -15,6 +15,7 @@ import { S, clock, dispatch, memberName } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast } from '../dom.ts';
 import { CLICK, CHANGE, SUBMIT, INPUT, num } from '../registry.ts';
 import { setLeftovers } from '../../core/commands.ts';
+import { productSection } from './drive.ts';
 
 const when = (iso: string): string => { const p = paris(new Date(iso)); return `${fmtDayShort(p.date)} ${String(p.hour).padStart(2, '0')} h ${String(p.minute).padStart(2, '0')}`; };
 
@@ -46,6 +47,7 @@ function lineHtml(week: LocalDate, key: string): string {
     ${l.pantry ? `<button class="btn quiet" data-a="pantryClear" data-week="${week}" data-key="${esc(key)}">Effacer la vérification</button>` : ''}</div>
   </section>
   ${l.check ? `<p class="small">Coché « pris » par ${esc(memberName(l.check.by))} (${esc(when(l.check.at))})${l.check.delta ? ` · il faut ${esc(showQty(l.check.delta, l.dim ?? 'piece'))} de plus depuis` : ''}${l.check.newUnknown ? ' · un plat sans quantité s\'est ajouté depuis' : ''}.</p>` : ''}
+  ${productSection(ingredientKey(l.name, l.form), l.name, S().products[ingredientKey(l.name, l.form)] ?? null)}
   <label class="field">Rayon<select data-c="aisleSet" data-name="${esc(l.name)}">${AISLES.map(a => `<option value="${a.id}" ${a.id === l.aisle ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></label>
   <button class="btn ghost" data-a="watchNew" data-name="${esc(l.name)}">Surveiller une date pour ce produit</button>`;
 }

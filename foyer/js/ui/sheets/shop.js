@@ -1,7 +1,7 @@
 // Détail d'une ligne de courses, articles ajoutés à la main, produits à surveiller, lots de portions.
 import { addDays, slotKey, SLOTS, fmtSlot, fmtDayShort, isDate } from '../../core/dates.js';
 import { deriveShopping, explain, lineQty, checkSig } from '../../core/shopping.js';
-import { AISLES, aisleOf, parseIngredient, lineLabel } from '../../core/ingredients.js';
+import { AISLES, aisleOf, parseIngredient, lineLabel, ingredientKey } from '../../core/ingredients.js';
 import { UNITS, UNIT, toBase, showQty } from '../../core/units.js';
 import { parseQ, qStr, cmp } from '../../core/rational.js';
 import { nameKey, capitalize } from '../../core/text.js';
@@ -14,6 +14,7 @@ import { S, clock, dispatch, memberName } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, toast } from '../dom.js';
 import { CLICK, CHANGE, SUBMIT, INPUT, num } from '../registry.js';
 import { setLeftovers } from '../../core/commands.js';
+import { productSection } from './drive.js';
 const when = (iso) => { const p = paris(new Date(iso)); return `${fmtDayShort(p.date)} ${String(p.hour).padStart(2, '0')} h ${String(p.minute).padStart(2, '0')}`; };
 /* ---------- Ligne calculée ---------- */
 export function openLine(week, key) { openSheet({ id: `line:${key}`, render: () => lineHtml(week, key) }); }
@@ -43,6 +44,7 @@ function lineHtml(week, key) {
     ${l.pantry ? `<button class="btn quiet" data-a="pantryClear" data-week="${week}" data-key="${esc(key)}">Effacer la vérification</button>` : ''}</div>
   </section>
   ${l.check ? `<p class="small">Coché « pris » par ${esc(memberName(l.check.by))} (${esc(when(l.check.at))})${l.check.delta ? ` · il faut ${esc(showQty(l.check.delta, l.dim ?? 'piece'))} de plus depuis` : ''}${l.check.newUnknown ? ' · un plat sans quantité s\'est ajouté depuis' : ''}.</p>` : ''}
+  ${productSection(ingredientKey(l.name, l.form), l.name, S().products[ingredientKey(l.name, l.form)] ?? null)}
   <label class="field">Rayon<select data-c="aisleSet" data-name="${esc(l.name)}">${AISLES.map(a => `<option value="${a.id}" ${a.id === l.aisle ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></label>
   <button class="btn ghost" data-a="watchNew" data-name="${esc(l.name)}">Surveiller une date pour ce produit</button>`;
 }

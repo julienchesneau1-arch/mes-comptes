@@ -33,6 +33,7 @@ export function describeEvent(s, e) {
         case 'shop.item': return `ajouter ${e.p.name} aux courses`;
         case 'staple.set': return `mémoriser ${e.p.name}`;
         case 'aisle.set': return 'changer un rayon';
+        case 'product.set': return e.p.url ? `retenir un produit Auchan (${e.p.label})` : 'oublier un produit Auchan';
         case 'watch.save': return `surveiller ${e.p.name}`;
         case 'watch.close': return 'retirer un produit surveillé';
         case 'conflict.ack': return 'marquer un conflit comme vu';

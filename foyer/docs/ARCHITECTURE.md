@@ -20,6 +20,8 @@
 
 **ADR-7 — Rien de magique.** Pas d'IA, pas de champ `safe=true`, pas de stock déduit du calendrier, pas de durée de conservation. Les seuls textes sanitaires sont des libellés factuels issus de la fiche DGCCRF citée.
 
+**ADR-10 — Drive Auchan assisté, sans robot.** Pas d'API publique de panier Auchan, CGU hostiles aux robots, et le navigateur ne peut pas écrire chez un autre site : Foyer ouvre des pages Auchan (lien `target=_blank`, aucune requête de Foyer vers auchan.fr, CSP inchangée). L'événement `product.set` retient, pour un ingrédient, une adresse de page produit (format vérifié : `https://www.auchan.fr/…/pr-…`) et une contenance optionnelle ; `drive.ts` en déduit le nombre de paquets en fractions exactes.
+
 ## Carte des modules
 
 ```
@@ -45,6 +47,7 @@ src/core/            logique pure, sans DOM, testée sous Node
   relay.ts           relais : étiquette et clé, dépôt et relève chiffrés
   recipe-web.ts      lecture schema.org d'une page de recette (partagé avec la fonction serveur)
   ics.ts             rappels de la semaine pour l'agenda
+  drive.ts           drive Auchan : lien produit, contenance, nombre de paquets, articles à commander
 src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique)
 supabase/            migration du relais et fonction d'import web (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
@@ -52,7 +55,7 @@ tests/               node --test, TypeScript exécuté directement par Node 22
 
 ## Événements
 
-`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `staple.set`, `aisle.set`, `watch.save`, `watch.close`, `conflict.ack`, `undo`.
+`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `staple.set`, `aisle.set`, `product.set` (produit Auchan retenu), `watch.save`, `watch.close`, `conflict.ack`, `undo`.
 
 Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance → créneaux + présences ; PreparationPlan/MealAllocation → `prep` + `slot.from` ; PortionBatch/Reservation/Event → `prep.done` + réservations implicites des créneaux liés + `slot.eaten`/`prep.discard` ; ShoppingSnapshot/PantryCheck → `deriveShopping` + `shop.pantry` signé par le besoin ; SensitiveItem/DateDeclaration → `watch.save` ; AuditEvent → le journal lui-même.
 

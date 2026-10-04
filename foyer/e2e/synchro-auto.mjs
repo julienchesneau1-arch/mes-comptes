@@ -100,12 +100,13 @@ await step('mêmes courses sur les deux téléphones', async () => {
   console.log('   ', a.slice(0, 140));
 });
 await step('B coche un article ; A le voit coché sans rien faire d\'autre que revenir dans l\'app', async () => {
-  await B.locator('input[data-c="shopCheck"]').first().check({ force: true });
+  const key = await B.locator('input[data-c="shopCheck"]').first().getAttribute('data-key'); // clé figée : voir parcours.mjs
+  await B.locator(`input[data-c="shopCheck"][data-key="${key}"]`).check({ force: true });
   await B.waitForTimeout(1500); // dépôt automatique après le changement
   await A.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await A.waitForTimeout(1500);
   const checked = await A.locator('input[data-c="shopCheck"]:checked').count();
-  if (checked < 1) throw new Error('rien de coché chez A');
+  if (checked !== 1) throw new Error(`${checked} ligne(s) cochée(s) chez A, 1 attendue`);
 });
 await step('le relais ne contient aucun texte en clair', async () => {
   const all = rows.map(r => r.blob).join('');

@@ -4,7 +4,7 @@
 
 ## Tableau
 
-| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.2** |
+| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.3** |
 |---|---|---|---|---|---|---|
 | Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC |
 | Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée |
@@ -14,8 +14,11 @@
 | Préparer à l'avance (×2) | 4 — vue cuisine, mise à l'échelle | 4 | 4 — mode cuisine | 4 | 4 — tâches de la veille, mode cuisine | **5** — + écran allumé, rappels dans l'agenda |
 | Imprévus (×2) | 4 — glisser-déposer | 3 | 4 — glisser-déposer | 3 | 4 — aperçu des conséquences | **5** — glisser-déposer + aperçu (portions, courses, repas dépendants) |
 | Finition native (×1) | **5** — Apple Watch, widgets | 4 | 3 — web | 4 | 2 — app web | **3** — rappels agenda ; pas de notification ni widget sur iPhone |
+| Commander au drive (×2) | ? | ? | ? | **5** — panier rempli en un clic chez Auchan, Carrefour, Leclerc… (partenariats avec les enseignes) | 1 — liste à partager | **2** — Auchan assisté : page du produit retenu ouverte, nombre de paquets calculé ; l'ajout au panier reste un geste sur Auchan, sans prix |
 | Coût, vie privée, pérennité (×1) | 3 — 14,99 $/an foyer | 3 — payant | 4 — à héberger soi-même | 3 — financé par les enseignes | **5** — gratuit, local, export | **5** |
-| **Moyenne pondérée** | **3,6** | **3,4** | **3,6** | **3,5** *(sans le critère non vérifié)* | **3,6** | **4,6** |
+| **Moyenne pondérée** | **3,6** *(sans le critère non vérifié)* | **3,4** *(idem)* | **3,6** *(idem)* | **3,6** *(sans le critère non vérifié)* | **3,4** | **4,3** |
+
+*Critère « Commander au drive » ajouté après coup, le 4 octobre : il manquait, et son absence flattait Foyer (V2.2 : 4,6 sans ce critère, 4,25 avec). Le panier assisté ne fait gagner qu'un point sur ce critère (4,25 → 4,34).*
 
 ## Lecture
 
@@ -25,6 +28,7 @@
 - **Pas de catalogue** (Jow : 5 000 recettes). Assumé : le PRD interdit des recettes « validées » inventées. Compensé par l'import d'une adresse web, qui reprend les recettes des sites que vous utilisez déjà.
 - **Pas de notification ni de widget sur iPhone.** Une app web ne peut pas recevoir de notification sur iPhone sans serveur d'envoi. Compensé par les rappels dans l'agenda (.ics). Une étape suivante possible : notifications Web Push via le relais.
 - **Pas de recul d'usage.** AnyList existe depuis 2012. Foyer n'a jamais été utilisé sur vos téléphones : c'est le seul vrai juge (`PLAN.md`, étape C).
+- **Pas de panier rempli en un clic.** Jow le fait grâce à des partenariats commerciaux avec les enseignes (page « Auchan x Jow » sur auchan.fr), y compris pour vos propres recettes. Aucune API publique de panier Auchan trouvée, et les CGU d'auchan.fr (12/06/2026) interdisent les robots d'extraction sauf licence écrite. Foyer ouvre donc la page du bon produit et calcule le nombre de paquets ; l'ajout au panier reste un geste sur Auchan. Jow reste la meilleure option si le clic unique prime sur le reste.
 - **Synchro toutes les 20 s, pas instantanée.** Suffisant à deux ; le temps réel par websocket est possible plus tard sur le même relais.
 
 **À noter.** D'après un comparatif publié par foodieprep.ai, Mealime ferme le 21 octobre 2026 sans export des données. C'est précisément le risque que Foyer évite : vos données restent sur vos téléphones, exportables en JSON à tout moment.
@@ -40,5 +44,6 @@
 - AnyList : https://help.anylist.com/articles/getting-started/ · https://www.anylist.com/ · comparatif https://thegourmethost.com/the-gourmet-host-vs-anylist-better-grocery-lists-for-hosts-2026/
 - Paprika : https://www.paprikaapp.com/ · https://www.paprikaapp.com/help/ios/
 - Mealie : https://mealie.io/ · https://github.com/mealie-recipes/mealie · https://cooklang.org/blog/40-mealie-review/
-- Jow : https://jow.fr/ · fiche App Store Jow
+- Jow : https://jow.fr/ · fiche App Store Jow · https://jow.fr/blog/posts/ajoutez-vos-propres-recettes-sur-jow
+- Auchan : https://www.auchan.fr/parcours-de-courses-jow/ep-parcours-de-courses-jow · CGU https://www.auchan.fr/cgu/ep-cgu · recherche vérifiée https://www.auchan.fr/recherche?text=blanc%20de%20poulet
 - Mealime (fermeture) : https://www.foodieprep.ai/blog/meal-planning-apps-with-builtin-grocery-lists-a-2026-sidebyside-review

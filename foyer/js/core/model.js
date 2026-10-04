@@ -2,9 +2,10 @@ import { isDate, isSlotKey } from './dates.js';
 import { AISLE } from './ingredients.js';
 import { UNIT } from './units.js';
 import { qFrom } from './rational.js';
+export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-    'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'watch.save',
+    'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v, max, min = 0) => typeof v === 'string' && v.length >= min && v.length <= max;
@@ -105,6 +106,8 @@ const P = {
         && !!AISLE[p['aisle']] && bool(p['checked']) && bool(p['removed']),
     'staple.set': p => isKey(p['key']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']] && bool(p['removed']),
     'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
+    'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
+        && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])),
     'watch.save': p => isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && (p['date'] === null || validDateDecl(p['date']))
         && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
     'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
@@ -127,6 +130,6 @@ export const defaultRhythm = (ids, midi, soir, weekendMidi = 'maison') => Array.
 }));
 export const emptyState = () => ({
     hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, watch: {}, tasks: {}, acked: new Set(),
+    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, watch: {}, tasks: {}, acked: new Set(),
 });
 export const current = (r) => r.versions[r.versions.length - 1];
