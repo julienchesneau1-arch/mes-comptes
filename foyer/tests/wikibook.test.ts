@@ -84,7 +84,7 @@ test('desserts et préparations de base non rangés en catégorie : reconnus au 
   assert.equal(why(parseWikiRecipe(page('Fondant au chocolat', ['200 g de chocolat', '4 œufs', '100 g de beurre']))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Gâteau simple', ['200 g de farine', '150 g de sucre', '3 œufs']))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Douceur du soir', ['200 g de farine', '150 g de sucre', '3 œufs']))), 'dessert ou préparation de base'); // au sucre
-  assert.equal(why(parseWikiRecipe(page('Gâteau au yaourt', ['1 pot de yaourt', '3 œufs', '2 pots de farine'], cat('Recettes de cuisine à base d\'œuf')))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Gâteau au yaourt', ['1 pot de yaourt', '3 œufs', '2 pots de farine'], cat('Recettes végétariennes', 'Recettes de cuisine à base d\'œuf')))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Tarte à la rhubarbe', ['500 g de rhubarbe', '1 pâte brisée', '2 œufs']))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Bouillon de légumes', ['2 carottes', '1 poireau', '2 l d\'eau']))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Pizza margherita', ['250 g de farine', '1 pincée de sucre', '200 g de mozzarella']))), 'gardé');
