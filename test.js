@@ -471,6 +471,54 @@ console.log('OK — rituels (série, rappels agenda, fusion)');
   console.log('OK — accueil (même date) et synchro par lien');
 })();
 
+// Fichiers CSV des autres banques (amis testeurs) : chaque format donne les bonnes dates, montants et libellés
+{
+  const N = '\n', banks = [
+    ['Crédit Agricole (libellé sur 2 lignes)', 'Compte de dépôt;12345678901\nDate;Libellé;Débit euros;Crédit euros;\n02/09/2026;"CARTE X1234\n01/09 CARREFOUR";23,45;;\n03/09/2026;"VIREMENT EN VOTRE FAVEUR\nACME";;1 500,00;\n', 'export.csv'],
+    ['BNP Paribas', 'Compte de chèques ****1234;;;Solde au 03/09/2026;1 234,56\nDate opération;Catégorie;Sous-catégorie;Libellé opération;Montant opération\n02/09/2026;Alimentation;Supermarché;FACTURE CARTE DU 01/09/26 CARREFOUR;-23,45\n03/09/2026;Revenus;Salaire;VIR SEPA RECU ACME;1500,00\n', 'E1234567.csv'],
+    ['Société Générale', '="000512345678";\nDate de l\'opération;Libellé;Détail de l\'écriture;Montant de l\'opération;Devise\n02/09/2026;CARTE X1234 01/09 CARREFOUR;CARTE X1234 01/09 CARREFOUR CB;-23,45;EUR\n03/09/2026;VIR RECU ACME;DE: ACME SA;1500,00;EUR\n', 'compte.csv'],
+    ['Crédit Mutuel / CIC', 'Date;Date de valeur;Débit;Crédit;Libellé;Solde\n02/09/2026;02/09/2026;-23,45;;PAIEMENT CB 0109 CARREFOUR;1000,00\n03/09/2026;03/09/2026;;1500,00;VIR ACME;2500,00\n', 'operations.csv'],
+    ['La Banque Postale', 'Numéro Compte;0123456A020\nType;CCP\nDate;Libellé;Montant(EUROS)\n02/09/2026;ACHAT CB CARREFOUR 01.09.26;-23,45\n03/09/2026;VIREMENT DE ACME;1500,00\n', 'CCP.csv'],
+    ['Fortuneo', 'Date opération;Date valeur;libellé;Débit;Crédit;\n02/09/2026;02/09/2026;CARTE 01/09 CARREFOUR;-23,45;;\n03/09/2026;03/09/2026;VIR ACME;;1500,00;\n', 'HistoriqueOperations.csv'],
+    ['Boursorama', 'dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance\n2026-09-02;2026-09-02;"CARTE 01/09/26 CARREFOUR CB*1234";"Alimentation";"Vie quotidienne";"carrefour";-23,45;;00040123456;"BOURSORAMA";1234,56\n2026-09-03;2026-09-03;"VIR ACME";"Salaire";"Revenus";"";1500,00;;00040123456;"BOURSORAMA";2734,56\n', 'export-operations.csv'],
+    ['Revolut', 'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\nCARD_PAYMENT,Current,2026-09-02 12:31:05,2026-09-03 09:12:44,Carrefour,-23.45,0.00,EUR,COMPLETED,1000.00\nTOPUP,Current,2026-09-03 08:00:00,2026-09-03 08:00:01,Payment from ACME,1500.00,0.00,EUR,COMPLETED,2500.00\nCARD_PAYMENT,Current,2026-09-04 10:00:00,,Amazon,-12.00,0.00,EUR,REVERTED,\nCARD_PAYMENT,Current,2026-09-05 10:00:00,2026-09-05 10:00:00,Shop NY,-10.00,0.00,USD,COMPLETED,\n', 'account-statement_2026-09-01_2026-09-30_fr-fr_abc.csv'],
+    ['N26', '"Booking Date","Value Date","Partner Name","Partner Iban","Type","Payment Reference","Account Name","Amount (EUR)","Original Amount","Original Currency","Exchange Rate"\n"2026-09-02","2026-09-02","Carrefour","","Presentment","","Compte principal","-23.45","","",""\n"2026-09-03","2026-09-03","ACME SA","FR7612345","Credit Transfer","Salaire septembre","Compte principal","1500.00","","",""\n', 'n26-csv-transactions.csv'],
+    ['LCL (sans titres)', '02/09/2026;-23,45;Carte;;CB CARREFOUR 01/09;;\n03/09/2026;1500,00;Virement;;VIR ACME SALAIRE;;\n04/09/2026;-9,99;Prélèvement;;PRLV NETFLIX;;\n', 'telechargement.csv'],
+  ];
+  for (const [bank, text, file] of banks) {
+    const p = C.parseCSV(text, file), rows = p.flatMap(x => x.rows);
+    const got = rows.slice(0, 2).map(r => [r.date, r.amount]);
+    assert.deepStrictEqual(got, [['2026-09-02', -23.45], ['2026-09-03', 1500]], bank + ' : ' + JSON.stringify(rows));
+    assert.ok(/CARREFOUR/i.test(rows[0].label + rows[0].detail) && /ACME/i.test(rows[1].label + rows[1].detail), bank + ' (libellés) : ' + JSON.stringify(rows.slice(0, 2)));
+  }
+  assert.strictEqual(C.parseCSV(banks[7][1], banks[7][2])[0].rows.length, 2);                 // Revolut : annulée et autre devise ignorées
+  assert.strictEqual(C.parseCSV(banks[6][1], banks[6][2])[0].account, '00040123456');         // Boursorama : numéro de compte lu
+  assert.strictEqual(C.parseCSV(banks[2][1], banks[2][2])[0].account, '000512345678');        // Société Générale : numéro en tête de fichier
+  assert.strictEqual(C.parseNumber('−23,45'), -23.45);                                     // « − » typographique
+  console.log('OK — CSV de 10 banques (Crédit Agricole, BNP, SG, Crédit Mutuel, Banque Postale, Fortuneo, Boursorama, Revolut, N26, LCL)');
+}
+
+// Même compte exporté deux fois sous des noms différents : rattaché au même compte, aucun doublon
+{
+  const head = 'Date;Libellé;Montant\n', sept = ['01/09/2026;CB BOULANGERIE;-4,20', '15/09/2026;VIR SALAIRE;1500,00', '28/09/2026;CB CARREFOUR;-54,10'];
+  const S = { accounts: {}, tx: [], rules: {} };
+  C.importParsed(S, C.parseCSV(head + sept.join('\n'), "Relevé d'opérations.csv"));
+  const p2 = C.parseCSV(head + [...sept, '02/10/2026;CB PHARMACIE;-12,00'].join('\n'), "Relevé d'opérations (1).csv");
+  assert.strictEqual(Object.values(S.accounts)[0].src, C.safeKey(p2[0].account));              // « (1) » : reconnu comme le même fichier
+  const p3 = C.parseCSV(head + [...sept, '02/10/2026;CB PHARMACIE;-12,00'].join('\n'), 'Téléchargement.csv');
+  assert.strictEqual(p3[0].weak, 'name');
+  const m = C.matchAccount(S, p3[0].rows); p3[0].account = m;                                    // nom différent : retrouvé par ses opérations
+  const r = C.importParsed(S, p3);
+  assert.deepStrictEqual([Object.keys(S.accounts).length, S.tx.length, r.added, r.dup], [1, 4, 1, 3]);
+  assert.strictEqual(C.matchAccount(S, [{ date: '2026-11-01', amount: -3 }]), null);              // rien en commun : on demandera
+  // Deux téléphones importent chacun « Relevé d'opérations.csv » pour deux comptes différents : la synchro ne les fusionne pas
+  const J = { accounts: {}, tx: [], rules: {} }, L = { accounts: {}, tx: [], rules: {} };
+  C.importParsed(J, C.parseCSV(head + sept.join('\n'), "Relevé d'opérations.csv"));
+  C.importParsed(L, C.parseCSV(head + '03/09/2026;CB MARCHE;-7,00\n04/09/2026;VIR LOYER;-800,00', "Relevé d'opérations.csv"));
+  const M = C.sanitizeState(C.mergeStates(J, C.sanitizeState(JSON.parse(JSON.stringify(L)))));
+  assert.deepStrictEqual([Object.keys(M.accounts).length, M.tx.length], [2, 5]);
+}
+
 // Garde-fou : un lien ou une sauvegarde piégés ne peuvent rien injecter ni faire planter
 {
   const evil = '"><img src=x onerror=alert(1)>';

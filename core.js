@@ -227,7 +227,7 @@ const categorize = (t, rules) => classify(t, rules).cat;
 
 function parseNumber(s) {
   if (s == null) return NaN;
-  s = String(s).replace(/[^\d,.+-]/g, '').replace(/^\+/, ''); // « € », « EUR », espaces insécables… disparaissent
+  s = String(s).replace(/\u2212/g, '-').replace(/[^\d,.+-]/g, '').replace(/^\+/, ''); // « € », « EUR », espaces insécables… disparaissent ; « − » typographique = moins
   if (!s) return NaN;
   s = /,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
   return parseFloat(s);
@@ -257,31 +257,66 @@ function splitLine(line, d) {
 const round2 = n => Math.round(n * 100) / 100;
 
 // CSV Banque Populaire / BPCE (et la plupart des CSV bancaires FR). Retourne [{account, rows}].
+// Lignes d'un CSV : un libellé entre guillemets peut contenir des retours à la ligne (Crédit Agricole…).
+function csvRecords(text) {
+  const out = []; let cur = '', q = false;
+  for (const ch of String(text).replace(/^﻿/, '')) {
+    if (ch === '"') q = !q;
+    if (!q && (ch === '\n' || ch === '\r')) { if (cur.trim()) out.push(cur); cur = ''; }
+    else cur += ch === '\n' || ch === '\r' ? ' ' : ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+// Fichier sans ligne de titres (LCL…) : les colonnes sont reconnues à leur contenu (date, montant, texte le plus long).
+function guessColumns(lines) {
+  const sample = lines.slice(0, 300), d = [';', '\t', ','].map(x => [x, splitLine(sample[0], x).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const R = sample.map(l => splitLine(l, d)), w = Math.max(...R.map(r => r.length));
+  const isDate = v => /^\s*\d{1,4}[\/.-]\d{1,2}[\/.-]\d{2,4}/.test(v || '') && !!parseDate(v);
+  const isAmt = v => /^\s*[-+−]?\s?\d{1,3}([ . ]?\d{3})*[.,]\d{2}\s?(€|EUR)?\s*$/.test(v || '') || /^\s*[-−]\s?\d+\s*$/.test(v || '');
+  const rate = f => Array.from({ length: w }, (_, i) => R.filter(r => f(r[i])).length / R.length);
+  const dates = rate(isDate), nums = rate(isAmt), filled = rate(v => (v || '').trim() !== '');
+  const iDate = dates.findIndex(x => x >= 0.6);
+  const money = nums.map((x, i) => [x, i]).filter(([x, i]) => i !== iDate && x >= 0.25 && x >= filled[i] * 0.9).map(([, i]) => i);
+  const letters = Array.from({ length: w }, (_, i) => i === iDate || money.includes(i) ? -1 : R.reduce((a, r) => a + ((r[i] || '').match(/[A-Za-zÀ-ÿ]/g) || []).length, 0));
+  const iLabel = letters.indexOf(Math.max(...letters));
+  if (iDate < 0 || !money.length || iLabel < 0) return null;
+  // Une seule colonne de montants (signés), ou deux qui se partagent les lignes : débit puis crédit
+  return { d, iDate, iLabel, ...(money.length === 1 || nums[money[0]] > 0.9 ? { iAmount: money[0] } : { iDebit: money[0], iCredit: money[1] }) };
+}
 function parseCSV(text, filename = '') {
-  const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
-  const hi = lines.findIndex(l => /DATE/.test(norm(l)) && /LIBELLE|MONTANT|DEBIT/.test(norm(l)));
-  if (hi < 0) throw new Error('fichier non reconnu (pas de colonnes Date / Libellé / Montant)');
-  const d = [';', '\t', ','].find(x => lines[hi].includes(x));
-  const H = splitLine(lines[hi], d).map(norm);
+  const lines = csvRecords(text);
+  const hi = lines.findIndex(l => /DATE|BOOKING/.test(norm(l)) && /LIBELLE|MONTANT|DEBIT|AMOUNT|LABEL|DESCRIPTION|PAYEE|PARTNER NAME/.test(norm(l)));
+  let d, H = [];
+  if (hi >= 0) { d = [';', '\t', ','].find(x => lines[hi].includes(x)) || ';'; H = splitLine(lines[hi], d).map(norm); }
   const col = (...res) => { for (const re of res) { const i = H.findIndex(h => re.test(h)); if (i >= 0) return i; } return -1; };
-  const iDate = col(/^DATE OPERATION/, /^DATE DE COMPTABILISATION/, /^DATE/);
+  // Titres des colonnes, banque par banque : BP/CE, Crédit Agricole, BNP, Société Générale, Crédit Mutuel, Banque Postale,
+  // Fortuneo, Boursorama (dateOp, label, amount), Revolut (Started Date, Description, Amount, Fee, State), N26 (Payee, Partner Name).
+  let iDate = col(/^DATE OPERATION/, /^DATE DE L ?OPERATION/, /^DATEOP$/, /^STARTED DATE/, /^BOOKING DATE/, /^DATE DE COMPTABILISATION/, /^DATE$/, /^DATE/);
   const iSimple = col(/^LIBELLE SIMPLIFIE/);
-  const iLabel = col(/^LIBELLE OPERATION/, /^LIBELLE/);
-  const iAmount = col(/^MONTANT/), iDebit = col(/^DEBIT/), iCredit = col(/^CREDIT/);
+  let iLabel = col(/^LIBELLE OPERATION/, /^LIBELLE/, /^LABEL$/, /^DESCRIPTION/, /^PARTNER NAME/, /^PAYEE/, /^BENEFICIAIRE/, /^INTITULE/);
+  let iAmount = col(/^MONTANT/, /^AMOUNT/), iDebit = col(/^DEBIT/), iCredit = col(/^CREDIT/);
+  const iDetail = col(/^DETAIL DE L ?ECRITURE/, /^PAYMENT REFERENCE/), iFee = col(/^FEE$/), iState = col(/^STATE$/), iCur = col(/^CURRENCY$/, /^DEVISE$/);
   const iSub = col(/^SOUS CATEGORIE/), iCat = col(/^CATEGORIE/);
-  const iBook = col(/^DATE DE COMPTABILISATION/, /^DATE COMPTA/), iAcc = col(/^COMPTE$/, /^NUMERO DE COMPTE/);
-  if (iDate < 0 || iLabel < 0) throw new Error('colonnes non reconnues : ' + H.join(' | '));
-
+  const iBook = col(/^DATE DE COMPTABILISATION/, /^DATE COMPTA/, /^COMPLETED DATE/), iAcc = col(/^COMPTE$/, /^NUMERO DE COMPTE/, /^ACCOUNTNUM$/);
+  if (hi < 0 || iDate < 0 || iLabel < 0) {
+    const g = guessColumns(lines);
+    if (!g) throw new Error(hi < 0 ? 'fichier non reconnu (pas de colonnes Date / Libellé / Montant)' : 'colonnes non reconnues : ' + H.join(' | '));
+    ({ d, iDate, iLabel } = g); iAmount = g.iAmount ?? -1; iDebit = g.iDebit ?? -1; iCredit = g.iCredit ?? -1;
+  }
   const rows = [], byAcc = {};
   for (const l of lines.slice(hi + 1)) {
     const c = splitLine(l, d);
     let date = parseDate(c[iDate]) || parseDate(c[iBook]); // « Date opération » parfois vide : la date de comptabilisation
     if (!date) continue;
+    if (iState >= 0 && c[iState] && !/^(COMPLETED|TERMINEE?|EFFECTUEE?)$/.test(norm(c[iState]))) continue; // annulée, refusée, en attente
+    if (iCur >= 0 && c[iCur] && norm(c[iCur]) !== 'EUR') continue;                                            // autre devise
     let amount = parseNumber(c[iAmount]);
     if (isNaN(amount)) {
       const db = parseNumber(c[iDebit]), cr = parseNumber(c[iCredit]);
       amount = (isNaN(cr) ? 0 : Math.abs(cr)) - (isNaN(db) ? 0 : Math.abs(db));
     }
+    const fee = parseNumber(c[iFee]); if (!isNaN(fee) && fee) amount -= Math.abs(fee);
     if (!amount) continue;
     let full = (c[iLabel] || '').replace(/\s+/g, ' ').trim(), simple = (c[iSimple] || '').replace(/\s+/g, ' ').trim(), card = '';
     // Carte : « 250521 CB****5217 RELAIS DU CHEVAL BLANC 51BAYE » → date d'achat et commerce, comme dans le relevé PDF
@@ -293,9 +328,10 @@ function parseCSV(text, filename = '') {
       card = `Carte ••${cb[4]}`; full = cb[5] || full;
       if (simple && /^(\d{6} )?CB\b|^PAIEMENT/i.test(simple)) simple = '';
     }
+    const extra = (c[iDetail] || '').replace(/\s+/g, ' ').trim();
     const row = {
       date, amount: round2(amount),
-      label: simple || full, detail: [simple && simple !== full ? full : '', card].filter(Boolean).join(' · '),
+      label: simple || full || extra || '—', detail: [simple && simple !== full ? full : '', extra !== (simple || full) ? extra : '', card].filter(Boolean).join(' · '),
       bpCat: [c[iSub], c[iCat]].filter(Boolean).join(' '),
     };
     const acc = iAcc >= 0 && /\d{6,}/.test(c[iAcc] || '') ? c[iAcc].replace(/\D/g, '') : '';
@@ -303,10 +339,26 @@ function parseCSV(text, filename = '') {
   }
   // Ancien format : le numéro de compte est dans une colonne (un fichier peut en contenir plusieurs)
   if (Object.keys(byAcc).length) return Object.entries(byAcc).map(([account, rows]) => ({ account, rows }));
-  const pre = lines.slice(0, hi).join(' ').match(/(\d{8,})/);
-  const fromName = filename.match(/\d{6,}/);
-  const account = (pre && pre[1]) || (fromName && fromName[0]) || filename.replace(/\.\w+$/, '') || 'Compte';
-  return [{ account, rows }];
+  const pre = lines.slice(0, Math.max(hi, 0)).join(' ').match(/(\d{8,})/);
+  if (pre) return [{ account: pre[1], rows }];
+  // Sans numéro dans le fichier : le nom du fichier n'est qu'un indice (« weak ») ; l'app retrouve le compte par ses opérations.
+  const fromName = filename.match(/\d{6,}/), base = filename.replace(/\.\w+$/, '').replace(/\s*\(\d+\)$/, '').trim();
+  if (fromName) return [{ account: fromName[0], rows, weak: 'digits' }];
+  return [{ account: base || 'Compte', name: base || 'Compte importé', rows, weak: 'name' }];
+}
+
+// Fichier sans numéro de compte : à quel compte connu appartient-il ? Les exports se chevauchent toujours de quelques jours ;
+// on compte ses opérations (date + montant, ce qui fait l'identité d'une opération) déjà présentes dans chaque compte.
+function matchAccount(state, rows) {
+  let best = null;
+  for (const [id, a] of Object.entries(state.accounts)) {
+    if (a.hist) continue;
+    const have = {};
+    for (const t of state.tx) if (t.acc === id && !t.auto && !t.pending) { const k = t.date + '|' + t.amount; have[k] = (have[k] || 0) + 1; }
+    let n = 0; for (const r of rows) { const k = r.date + '|' + r.amount; if (have[k] > 0) { have[k]--; n++; } }
+    if (n && (!best || n > best.n)) best = { id, n };
+  }
+  return best && best.n >= Math.min(3, rows.length) ? best.id : null;
 }
 
 // OFX (format « Money ») : gère plusieurs comptes dans le même fichier.
@@ -872,10 +924,15 @@ function importParsed(state, parsed, owner = null) {
   const seen = new Set(state.tx.map(t => t.id)), created = [];
   const done = [];
   for (const p of parsed) {
-    const { rows, savings } = p, account = safeKey(p.account); // le même identifiant qu'à la relecture
+    const { rows, savings } = p;
+    let account = safeKey(p.account); // le même identifiant qu'à la relecture
+    // Compte nommé d'après un fichier sans numéro : identifiant unique (deux téléphones peuvent importer « Relevé d'opérations.csv »
+    // pour deux comptes différents ; la synchro ne doit pas les fusionner). Le nom du fichier reste comme indice (src).
+    const src = p.weak === 'name' && !state.accounts[account] ? account : null;
+    if (src) account = src.slice(0, 50) + '-' + Math.random().toString(36).slice(2, 7);
     if (!state.accounts[account]) {
       state.accounts[account] = { name: p.name || (savings ? 'Livret ••' : 'Compte ••') + account.slice(-4), savings: !!savings,
-        owner: p.owner !== undefined ? p.owner : owner, ...(p.hist ? { hist: true } : {}) };
+        owner: p.owner !== undefined ? p.owner : owner, ...(p.hist ? { hist: true } : {}), ...(src ? { src } : {}) };
       created.push(account);
     }
     done.push(p);
@@ -1141,7 +1198,7 @@ function sanitizeState(d) {
     const k = safeKey(k0);
     if (!a || typeof a !== 'object') continue;
     const b = obj(a.balance), per = arr(a.periods).filter(x => x && date(x.from) && date(x.to));
-    accounts[k] = { ...(a.hist ? { hist: true } : {}), name: str(a.name, 60) || str(k0, 60), owner: owner(a.owner), savings: !!a.savings,
+    accounts[k] = { ...(a.hist ? { hist: true } : {}), ...(typeof a.src === 'string' && SAFE_ID.test(a.src) ? { src: a.src } : {}), name: str(a.name, 60) || str(k0, 60), owner: owner(a.owner), savings: !!a.savings,
       ...(date(b.date) ? { balance: { amount: num(b.amount), date: b.date } } : {}),
       ...(per.length ? { periods: per.map(x => ({ from: x.from, to: x.to, open: num(x.open), close: num(x.close) })) } : {}),
       ...(arr(a.gaps).length ? { gaps: arr(a.gaps).filter(g => g && date(g.from) && date(g.to)).map(g => ({ from: g.from, to: g.to })) } : {}),
@@ -1367,7 +1424,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 }
 
 if (typeof module !== 'undefined') module.exports = {
-  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
+  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
   CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

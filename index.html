@@ -234,9 +234,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=39"></script>
+<script src="core.js?v=40"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 39;
+const KEY = 'mescomptes-v1', VERSION = 40;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -587,7 +587,15 @@ const quickAcc = () => { const l = cardAccs(); return l.includes((S.quickAcc || 
 let askFn = null;
 function ask(q, yes, fn, danger) { askFn = fn; openSheet(`<h2 style="margin-top:0">${q}</h2><div class="chips"><button class="btn ${danger ? 'warnbtn' : ''}" style="flex:1" data-a="askYes">${yes}</button><button class="btn ghost" data-a="closeSheet">Annuler</button></div>`); }
 function openSheet(html) { const el = $('#sheet'); el.innerHTML = `<div role="dialog" aria-modal="true">${html}</div>`; el.hidden = false; }
+let pickRes = null;
+function pickAccount(fname, accs) {
+  return new Promise(res => { pickRes = res; openSheet(`<h2 style="margin-top:0">À quel compte est ce fichier ?</h2>
+    <p class="sm mute" style="margin-top:0">« ${esc(fname)} » ne contient pas de numéro de compte, et aucune de ses opérations n'est déjà connue. Touchez le bon compte :</p>
+    ${accs.map(([id, a]) => `<button class="choice" data-a="pickAcc" data-id="${esc(id)}"><span class="grow"><b>${esc(a.name)}</b><div class="sm mute">${a.owner && a.owner !== 'commun' ? esc(whoName(a.owner)) + ' · ' : a.owner === 'commun' ? 'Commun · ' : ''}${plural(S.tx.filter(t => t.acc === id).length, 'opération')}</div></span></button>`).join('')}
+    <button class="choice" data-a="pickAcc" data-id=""><span class="grow"><b>➕ Un autre compte</b><div class="sm mute">nouveau sur ce téléphone</div></span></button>`); });
+}
 function closeSheet() {
+  if (pickRes) { const r = pickRes; pickRes = null; r(null); } // fermée sans choisir : nouveau compte, l'import continue
   setTimeout(rememberUi, 0); $('#sheet').hidden = true; $('#sheet').innerHTML = ''; }
 function quickForm() {
   const accs = cardAccs();
@@ -748,8 +756,12 @@ function askCode(kind, text) {
     <div class="chips"><button class="btn" style="flex:1">Ouvrir</button><button type="button" class="btn ghost" data-a="closeSheet">Annuler</button></div></form>`);
   setTimeout(() => document.querySelector('[name=code]')?.focus(), 80);
 }
+const within = (pr, ms, what) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ' trop longue sur ce téléphone')), ms))]);
 async function sendSync() {
-  const link = location.origin + location.pathname + '#sync=' + await syncEncode(S, ui.who, myCode());
+  let link;
+  try { link = location.origin + location.pathname + '#sync=' + await within(syncEncode(S, ui.who, myCode()), 20000, 'préparation du lien'); }
+  catch (e) { jlog('ÉCHEC lien de synchro : ' + e.message); return toast('Lien impossible : ' + e.message); }
+  jlog(`lien de synchro prêt · ${S.tx.length} op. · ${Math.round(link.length / 1024)} Ko`);
   const text = `🔄 Mes Comptes : mes derniers chiffres (chiffrés).\nTouche le lien, ou sur iPhone : appui long → Copier, puis dans l'app ＋ → Synchro → Coller. La première fois, l'app demande le code du foyer.\n(Gardez ce message : il sert aussi de sauvegarde.)\n${link}`;
   try {
     if (navigator.share) await navigator.share({ title: 'Mes Comptes', text });
@@ -760,20 +772,22 @@ async function sendSync() {
 async function receiveSync(text, quiet, code) {
   endDemo(true);
   let d;
-  try { d = await syncDecode(text, code || S.code); }
-  catch (e) { if (e.needCode) return code ? toast('Code incorrect : vérifiez-le sur l\'autre téléphone') : askCode('sync', text); d = null; }
+  try { d = await within(syncDecode(text, code || S.code), 20000, 'lecture du lien'); }
+  catch (e) { if (e.needCode) return code ? toast('Code incorrect : vérifiez-le sur l\'autre téléphone') : askCode('sync', text); jlog('ÉCHEC lecture du lien : ' + e.message); d = null; }
   if (!d) return quiet || toast('Ce n\'est pas un lien de synchro Mes Comptes');
   if (code) { S.code = fmtCode(code); S.codeShown = true; } // le même code sur les deux téléphones, désormais
-  await snapshot('Avant la synchro');
+  snapshot('Avant la synchro'); // capturée tout de suite, ne retarde pas
   const before = S.tx.length;
   const keep = { code: S.code, codeShown: S.codeShown };
   S = migrate(mergeStates(S, migrate(d.state))); Object.assign(S, keep); S.lastRecv = new Date().toISOString(); save(); closeSheet(); render();
-  const n = S.tx.length - before;
+  const n = S.tx.length - before; jlog(`synchro reçue · +${n} op. · ${S.tx.length} au total`);
   toast(`🔄 Synchronisé avec ${esc(whoName(d.from))}${n > 0 ? ` · ${n} nouvelle${n > 1 ? 's' : ''} opération${n > 1 ? 's' : ''}` : ' · déjà à jour'}`);
 }
 // Sauvegarde éclair : le même lien, envoyé à soi-même (Notes, e-mail). Téléphone perdu → coller ce lien dans l'app réinstallée.
 async function selfBackup() {
-  const link = location.origin + location.pathname + '#sync=' + await syncEncode(S, ui.who, myCode());
+  let link;
+  try { link = location.origin + location.pathname + '#sync=' + await within(syncEncode(S, ui.who, myCode()), 20000, 'préparation de la sauvegarde'); }
+  catch (e) { jlog('ÉCHEC sauvegarde : ' + e.message); return toast('Sauvegarde impossible : ' + e.message); }
   const text = `💾 Sauvegarde Mes Comptes du ${new Date().toLocaleDateString('fr-FR')} (chiffrée).\nEn cas de perte : copier ce lien, puis dans l'app ＋ → Synchro → Coller le lien reçu, et taper votre code du foyer.\n${link}`;
   try {
     if (navigator.share) await navigator.share({ title: 'Sauvegarde Mes Comptes', text }); else { await navigator.clipboard.writeText(text); toast('Lien copié : collez-le dans vos Notes'); }
@@ -1567,6 +1581,7 @@ const A = {
   pasteSync: () => pasteSync(),
   heroInfo: () => heroInfo(),
   forgot: () => showLock('forgot'),
+  pickAcc: d => { const r = pickRes; pickRes = null; closeSheet(); if (r) r(d.id || null); },
   lockHere: () => showLock('here'),
   copyLink: () => navigator.clipboard.writeText(location.href).then(() => toast('Copié ✔ Ouvrez maintenant Mes Comptes depuis son icône'), () => toast('Copie impossible : appui long sur l\'adresse, puis Copier')),
   lockBack: () => showLock(),
@@ -1855,6 +1870,17 @@ async function importAll(files) {
           notes.push(`📱 Journal de paiements : ${plural(n, 'paiement')} ajouté${n > 1 ? 's' : ''} sur ${accName(acc)} (déjà connus ignorés)`);
           parsed = [];
         } else parsed = /OFXHEADER|<OFX>/i.test(txt) ? parseOFX(txt) : parseCSV(txt, f.name);
+      }
+      // Fichier sans numéro de compte : retrouvé par ses opérations déjà connues, sinon on demande (une fois)
+      for (const p of parsed) if (p.weak && p.rows.length) {
+        const m = matchAccount(S, p.rows);
+        if (m) { p.account = m; jlog(`fichier ${k || 1}/${files.length} : sans numéro de compte, rattaché par ses opérations`); }
+        else if (p.weak === 'name') {
+          const key = safeKey(p.account), accs = Object.entries(S.accounts).filter(([, a]) => !a.hist);
+          const same = accs.filter(([id, a]) => a.src === key || id === key); // même nom de fichier qu'avant, sur ce téléphone
+          if (same.length === 1) p.account = same[0][0];
+          else if (accs.length) { const c = await pickAccount(f.name, same.length ? same : accs); if (c) p.account = c; jlog(`fichier ${k || 1}/${files.length} : compte choisi (${c ? 'existant' : 'nouveau'})`); }
+        }
       }
       const r = importParsed(S, parsed, owner);
       jlog(`fichier ${k || 1}/${files.length} lu : +${r.added} (${r.dup} déjà connues)`);
