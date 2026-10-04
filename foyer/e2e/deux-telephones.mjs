@@ -1,6 +1,6 @@
 // Deux téléphones, un vrai lien chiffré ; « on a mangé » avec rendement réel ; déplacer avec aperçu ; clavier seul.
 import { chromium } from 'playwright-core';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 const SHOTS = process.env.SHOTS ?? 'captures';
 mkdirSync(SHOTS, { recursive: true });
 const URL = process.env.FOYER_URL ?? 'http://127.0.0.1:8765/';
@@ -14,6 +14,7 @@ const mute = route => {
 const mk = async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', permissions: ['clipboard-read', 'clipboard-write'] });
   await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, mute);
+  await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: readFileSync(new globalThis.URL('./catalogue-essai.json', import.meta.url), 'utf8') }));
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
   page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });

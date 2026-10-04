@@ -29,15 +29,15 @@ test('catalogue relu : entrée mal formée ignorée ; recherche par texte, par f
   assert.deepEqual(search(a.s, CAT, 'poulet', 'tout').map(r => r.title), ['Poulet yassa']); // déjà dans vos plats : masqué
 });
 
-test('aucun plat encore : la semaine se remplit de découvertes variées, jamais sans nombre de personnes', () => {
+test('aucun plat encore : 3 découvertes variées au plus, jamais sans nombre de personnes', () => {
   const { a } = household();
   const props = proposeWeek(a.s, MON, '2026-10-04', 12, CAT);
   const fresh = props.filter(p => p.dish?.kind === 'new').map(p => p.dish?.kind === 'new' ? p.dish.catalog : null) as CatalogRecipe[];
-  assert.ok(fresh.length >= 6, `${fresh.length} découvertes`);
+  assert.equal(fresh.length, 3); // au-delà : trop d'achats inhabituels, les autres repas restent à choisir
   assert.ok(!fresh.some(r => r.yield === null));                         // Ratatouille (personnes non indiquées) jamais proposée d'office
   assert.equal(new Set(fresh.map(r => r.id)).size, fresh.length);         // pas deux fois la même
-  // Varier : du lundi au jeudi soir, jamais la même famille (volaille, viande, poisson) deux soirs de suite.
-  const dinners = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'].map(d => { const p = props.find(x => x.slot === `${d}|soir`); return p?.dish?.kind === 'new' ? p.dish.catalog.main : 'absent'; });
+  // Varier : les trois premiers soirs, jamais la même famille (volaille, viande, poisson) deux soirs de suite.
+  const dinners = ['2026-10-05', '2026-10-06', '2026-10-07'].map(d => { const p = props.find(x => x.slot === `${d}|soir`); return p?.dish?.kind === 'new' ? p.dish.catalog.main : 'absent'; });
   for (let i = 1; i < dinners.length; i++) assert.ok(dinners[i] === null || dinners[i] !== dinners[i - 1], `soirs : ${dinners.join(', ')}`);
   assert.deepEqual(proposeWeek(a.s, MON, '2026-10-04', 12, CAT), props);  // déterministe
 });

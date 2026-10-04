@@ -11,6 +11,7 @@ const SRC = new URL('..', import.meta.url).pathname;
 const DIR = join(tmpdir(), 'foyer-relais-e2e');
 rmSync(DIR, { recursive: true, force: true }); mkdirSync(DIR, { recursive: true });
 for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
+cpSync(join(SRC, 'e2e/catalogue-essai.json'), join(DIR, 'catalogue.json')); // extrait fixe : résultats reproductibles
 writeFileSync(join(DIR, 'js/ui/config.js'), "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n");
 writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test"));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -109,8 +110,10 @@ await step('B coche un article ; A le voit coché sans rien faire d\'autre que r
   if (checked !== 1) throw new Error(`${checked} ligne(s) cochée(s) chez A, 1 attendue`);
 });
 await step('le relais ne contient aucun texte en clair', async () => {
-  const all = rows.map(r => r.blob).join('');
-  if (/Gratin|Alex|Sam|pommes/i.test(all)) throw new Error('fuite en clair');
+  // Un bloc chiffré n'est que du base64url ; du JSON en clair aurait des guillemets, espaces ou accolades.
+  // (Chercher « Sam » sans casse dans du base64 trouverait des coïncidences dès que les données grossissent.)
+  const bad = rows.filter(r => !/^[A-Za-z0-9_-]+$/.test(r.blob) || /Gratin dauphinois|"name"/.test(r.blob));
+  if (bad.length || !rows.length) throw new Error(`fuite en clair dans ${bad.length} bloc(s)`);
   console.log(`    ${rows.length} blocs chiffrés, ${calls} appels au relais`);
 });
 console.log('\n--- erreurs ---\n' + (errors.join('\n') || 'aucune'));

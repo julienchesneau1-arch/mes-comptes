@@ -139,8 +139,9 @@ export function nextDiscovery(s: State, cat: Catalog, slot: SlotKey, week: Local
 }
 
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
-// Avec le catalogue : vos plats d'abord ; une découverte quand il n'en reste plus, et au moins une par semaine
-// (à la place de la proposition la moins convaincante, hors plat dont dépend une boîte).
+// Avec le catalogue : vos plats d'abord ; une découverte quand il n'en reste plus (3 par semaine au plus : au-delà,
+// trop d'achats inhabituels), et au moins une par semaine (à la place de la proposition la moins convaincante).
+const MAX_NEW = 3;
 export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: number, cat: Catalog | null = null): Proposal[] {
   const out: Proposal[] = [];
   const used = new Set<string>(), usedNew = new Set<string>();
@@ -171,7 +172,7 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
     }
     const best = rank(s, k, today, used, proposed)[0];
     if (!best) {
-      const fresh = pickNew(k);
+      const fresh = usedNew.size < MAX_NEW ? pickNew(k) : null;
       if (fresh) { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 }); }
       continue;
     }

@@ -70,3 +70,14 @@ test('chaque bouton, champ et formulaire de l\'interface est relié à une actio
   }
   assert.ok(n > 80, `${n} actions seulement`);
 });
+
+test('catalogue publié : chaque recette lisible, attribuée à sa page Wikilivres, assez de plats proposables', async () => {
+  const { readCatalog } = await import('../src/core/catalog.ts');
+  const raw = JSON.parse(readFileSync(new URL('../catalogue.json', import.meta.url), 'utf8')) as { recipes: unknown[] };
+  const cat = readCatalog(raw);
+  assert.ok(cat);
+  assert.equal(cat.count, raw.recipes.length); // aucune entrée écartée à la relecture
+  assert.equal(cat.license, 'CC BY-SA 4.0');
+  assert.ok(cat.recipes.every(r => r.url.startsWith('https://fr.wikibooks.org/wiki/'))); // Livre de cuisine et livres liés, même licence
+  assert.ok(cat.recipes.filter(r => r.yield !== null).length >= 100, 'moins de 100 plats proposables');
+});
