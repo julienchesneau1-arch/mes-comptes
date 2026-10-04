@@ -10,6 +10,7 @@ const FILES = [
   'icon-180.png',
   'icon-192.png',
   'icon-512.png',
+  'catalogue.json',
   'js/core/catalog.js',
   'js/core/commands.js',
   'js/core/dates.js',
