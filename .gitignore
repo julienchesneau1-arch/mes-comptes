@@ -9,4 +9,5 @@ node_modules/
 !foyer/package-lock.json
 !foyer/tsconfig.json
 !foyer/tsconfig.test.json
+!foyer/catalogue.json
 captures/

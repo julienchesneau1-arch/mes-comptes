@@ -134,9 +134,10 @@ CLICK['pasteGo'] = () => {
   if (!pasted.trim()) { toast('Collez d\'abord le texte'); return; }
   showParsed(parseRecipeText(pasted), 'Lu', '');
 };
-function showParsed(r: ParsedRecipe, origin: string, source: string): void {
+// Recette lue (texte collé, page web, catalogue) : toujours relue avant d'entrer dans « Nos plats ».
+export function showParsed(r: ParsedRecipe, origin: string, source: string, tags: readonly string[] = []): void {
   const review = r.ingredients.filter(i => i.review || !i.line.qty).length;
-  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [], note: source ? `Source : ${source}` : '' },
+  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [...tags], note: source ? `Source : ${source}` : '' },
     `${origin} : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
   show();
 }

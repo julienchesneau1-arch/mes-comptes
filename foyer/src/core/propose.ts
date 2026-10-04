@@ -9,9 +9,12 @@ import { aisleOf } from './ingredients.ts';
 import { type Draft, newId } from './reduce.ts';
 import { wholeExtra } from './commands.ts';
 import { prepTitle } from './status.ts';
+import { type Catalog, discover, familiesOf, toContent } from './catalog.ts';
+import type { CatalogRecipe } from './wikibook.ts';
 
 export type ProposedDish =
   | { kind: 'cook'; recipe: string; extra: number }
+  | { kind: 'new'; catalog: CatalogRecipe; extra: number } // plat à découvrir : ajouté à « Nos plats » à l'acceptation
   | { kind: 'from'; source: SlotKey; prep: string | null }
   | { kind: 'outside'; note: string };
 export interface Proposal { slot: SlotKey; dish: ProposedDish | null; reason: string; presence: Record<string, Presence>; guests: number }
@@ -118,12 +121,41 @@ export const isUpcoming = (k: SlotKey, today: LocalDate, hour: number): boolean 
   return p.date > today || (p.date === today && (p.slot === 'soir' ? hour < 21 : hour < 14));
 };
 
+// Contexte d'un créneau pour une découverte : familles (volaille, poisson…) des jours voisins, produits frais de la semaine.
+function discoveryContext(s: State, slot: SlotKey, week: LocalDate, extra: Around, newFamilies: ReadonlyMap<LocalDate, string[]>, exclude: ReadonlySet<string>) {
+  const p = parseSlot(slot) as { date: LocalDate; slot: 'midi' | 'soir' };
+  const near = around(s, p.date, extra);
+  const days = [-1, 0, 1].map(dd => addDays(p.date, dd));
+  const neighbourFamilies = familiesOf(s, days.flatMap(d => near.get(d) ?? []));
+  for (const d of days) for (const f of newFamilies.get(d) ?? []) neighbourFamilies.add(f);
+  const weekFresh = new Map<string, string>();
+  for (const rs of near.values()) for (const r of rs) for (const [k, v] of fresh(s, r)) weekFresh.set(k, v);
+  return { week, weekend: weekday(p.date) >= 5, evening: p.slot === 'soir', neighbourFamilies, weekFresh, exclude };
+}
+
+// « Autre idée » sur une découverte : la suivante pour ce créneau, hors celles déjà vues ou proposées ailleurs.
+export function nextDiscovery(s: State, cat: Catalog, slot: SlotKey, week: LocalDate, exclude: ReadonlySet<string>) {
+  return discover(s, cat, discoveryContext(s, slot, week, new Map(), new Map(), exclude))[0];
+}
+
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
-export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: number): Proposal[] {
+// Avec le catalogue : vos plats d'abord ; une découverte quand il n'en reste plus, et au moins une par semaine
+// (à la place de la proposition la moins convaincante, hors plat dont dépend une boîte).
+export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: number, cat: Catalog | null = null): Proposal[] {
   const out: Proposal[] = [];
-  const used = new Set<string>();
+  const used = new Set<string>(), usedNew = new Set<string>();
+  const newFamilies = new Map<LocalDate, string[]>();
+  const scores = new Map<SlotKey, number>();
   const cooks = new Map<SlotKey, string | null>(); // créneau → préparation existante (null si seulement proposée)
   const proposed: Around = new Map();
+  const pickNew = (k: SlotKey) => {
+    const best = cat ? discover(s, cat, discoveryContext(s, k, week, proposed, newFamilies, usedNew))[0] : undefined;
+    if (!best) return null;
+    usedNew.add(best.recipe.id);
+    const d = parseSlot(k)?.date as LocalDate;
+    if (best.recipe.main) newFamilies.set(d, [...(newFamilies.get(d) ?? []), best.recipe.main]);
+    return best;
+  };
   for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
     const k = slotKey(addDays(week, i), sl);
     const d = s.slots[k]?.dish;
@@ -138,11 +170,21 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
       continue;
     }
     const best = rank(s, k, today, used, proposed)[0];
-    if (!best) continue;
+    if (!best) {
+      const fresh = pickNew(k);
+      if (fresh) { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 }); }
+      continue;
+    }
     used.add(best.recipe);
-    cooks.set(k, null);
+    cooks.set(k, null); scores.set(k, best.score);
     proposed.set(addDays(week, i), [...(proposed.get(addDays(week, i)) ?? []), best.recipe]);
     out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason: best.reason, presence: {}, guests: 0 });
+  }
+  if (cat && !out.some(p => p.dish?.kind === 'new')) {
+    const weakest = out.filter(p => p.dish?.kind === 'cook' && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
+      .sort((a, b) => (scores.get(a.slot) ?? 0) - (scores.get(b.slot) ?? 0) || (a.slot < b.slot ? -1 : 1))[0];
+    const fresh = weakest ? pickNew(weakest.slot) : null;
+    if (weakest && fresh) out[out.indexOf(weakest)] = { ...weakest, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason };
   }
   return out;
 }
@@ -181,6 +223,11 @@ export function acceptDrafts(s: State, proposals: readonly Proposal[]): Draft[] 
     for (const [m, pr] of Object.entries(p.presence)) drafts.push({ t: 'slot.presence', p: { slot: p.slot, member: m, presence: pr } });
     if (p.guests) drafts.push({ t: 'slot.guests', p: { slot: p.slot, guests: p.guests } });
     if (p.dish?.kind === 'cook') { const id = newId(); prepAt.set(p.slot, id); drafts.push({ t: 'slot.cook', p: { slot: p.slot, prep: id, recipe: p.dish.recipe, extra: p.dish.extra } }); }
+    if (p.dish?.kind === 'new') {
+      const recipe = newId(), id = newId();
+      prepAt.set(p.slot, id);
+      drafts.push({ t: 'recipe.save', p: { recipe, content: toContent(p.dish.catalog) } }, { t: 'slot.cook', p: { slot: p.slot, prep: id, recipe, extra: p.dish.extra } });
+    }
     if (p.dish?.kind === 'outside') drafts.push({ t: 'slot.outside', p: { slot: p.slot, note: p.dish.note } });
   }
   for (const p of proposals) {

@@ -159,9 +159,10 @@ CLICK['pasteGo'] = () => {
     }
     showParsed(parseRecipeText(pasted), 'Lu', '');
 };
-function showParsed(r, origin, source) {
+// Recette lue (texte collé, page web, catalogue) : toujours relue avant d'entrer dans « Nos plats ».
+export function showParsed(r, origin, source, tags = []) {
     const review = r.ingredients.filter(i => i.review || !i.line.qty).length;
-    draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [], note: source ? `Source : ${source}` : '' }, `${origin} : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
+    draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [...tags], note: source ? `Source : ${source}` : '' }, `${origin} : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
     show();
 }
 /* ---------- Mode cuisine : quantités pour les portions réellement prévues, étapes à cocher ---------- */

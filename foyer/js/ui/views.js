@@ -231,7 +231,7 @@ function platsList() {
     ${archived.length ? `<details><summary>Plats rangés (${archived.length})</summary><ul class="list">${archived.map(row).join('')}</ul></details>` : ''}`;
 }
 function platsView() {
-    return `<section class="card stack"><div class="actions"><button class="btn" data-a="newRecipe">Nouveau plat</button><button class="btn ghost" data-a="pasteRecipe">Coller une recette</button><button class="btn ghost" data-a="classics">Ajouter des classiques</button></div>
+    return `<section class="card stack"><div class="actions"><button class="btn" data-a="newRecipe">Nouveau plat</button><button class="btn ghost" data-a="pasteRecipe">Coller une recette</button><button class="btn ghost" data-a="classics">Ajouter des classiques</button><button class="btn ghost" data-a="discover">Découvrir des recettes</button></div>
     <label class="field">Chercher<input type="search" data-i="homeQ" value="${esc(A.ui.q)}" placeholder="Nom du plat" autocomplete="off"></label>
     <div id="plats-list">${platsList()}</div></section>`;
 }

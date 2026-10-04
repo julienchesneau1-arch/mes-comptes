@@ -52,8 +52,26 @@ test('recette retenue : personnes, ingrédients chiffrés, étapes, durée, fami
   assert.deepEqual(parseIngredient(a.recipe.ingredients[1] ?? '').line.unit, 'cs');
 });
 
-test('recettes écartées, avec la raison : sans nombre de personnes, dessert, accompagnement sans viande', () => {
-  assert.deepEqual(parseWikiRecipe(ROTI), { ok: false, why: 'nombre de personnes absent' });
+const HACHIS: WikiPage = { pageid: 18484, revid: 2, title: 'Livre de cuisine/Hachis parmentier', categories: cat("Recettes de cuisine à base d'œuf", 'Recettes de cuisine à base de bœuf', 'Recettes de cuisine à base de pomme de terre'),
+  content: "{{Livre de cuisine}}\n\nLe '''hachis parmentier''' est un plat.\n\n== Recette du hachis parmentier ==\n\n=== Ingrédients ===\nPour 4 personnes :\n* {{i|bœuf|Bœuf}} pour pot-au-feu, haché (600 g)\n* 1 {{i|'=oui|œuf}}\n* {{i|persil|Persil}} haché (2 cuillerées à soupe)\n* {{i|pomme de terre|pomme de terre}} « farineuses » (1 kg)\n* {{i|lait|Lait}} (1 quart de litre)\n* {{i|beurre|Beurre}} (100 grammes)\n\n=== Matériel ===\n* {{ustensile|Poêle}} pour faire cuire la viande\n\n=== Préparation ===\n# Préchauffer le four.\n# Faire gratiner au four (environ 25 minutes)." };
+const RATATOUILLE: WikiPage = { pageid: 14625, revid: 3, title: 'Livre de cuisine/Ratatouille', categories: cat('Cuisine provençale', 'Recettes de cuisine à base d\'aubergine', 'Recettes végétaliennes', 'Recettes végétariennes'),
+  content: "{{Livre de cuisine}}\n== Ingrédients ==\n* 3 {{i|'=oui|aubergine|aubergines}},\n* 2 {{i|courgette|courgettes}},\n* 400 g de {{i|tomate|tomates}},\n* sel, {{i|laurier}}.\n\n=== Préparation ===\n# Couper les aubergines.\n# Cuire 20 minutes." };
+
+test('quantité notée entre parenthèses remise en tête ; plat végétarien gardé ; sans nombre de personnes : à préciser', () => {
+  const h = parseWikiRecipe(HACHIS);
+  assert.ok(h.ok, h.ok ? '' : h.why);
+  if (!h.ok) return;
+  assert.equal(h.recipe.main, 'viande');
+  assert.deepEqual(h.recipe.ingredients.slice(0, 5), ['600 g Bœuf pour pot-au-feu (haché)', '1 œuf', '2 cuillerées à soupe Persil haché', '1 kg pomme de terre « farineuses »', 'Lait (1 quart de litre)']);
+  assert.deepEqual(parseIngredient(h.recipe.ingredients[0] ?? '').line, { name: 'Bœuf pour pot-au-feu', qty: '600', unit: 'g', form: null, note: 'haché' });
+  const r = parseWikiRecipe(RATATOUILLE);
+  assert.ok(r.ok && r.recipe.yield === null && r.recipe.tags.includes('végétarien') && r.recipe.main === null);
+  const roti = parseWikiRecipe(ROTI);
+  assert.ok(roti.ok && roti.recipe.yield === null);
+});
+
+test('recettes écartées, avec la raison : dessert, accompagnement, catégorie d\'ingrédient sans effet', () => {
+  assert.ok(parseWikiRecipe({ ...BASQUAISE, categories: [...BASQUAISE.categories, 'Catégorie:Recettes de cuisine à base de sucre glace'] }).ok); // ingrédient, pas type de plat
   assert.deepEqual(parseWikiRecipe({ ...BASQUAISE, categories: [...BASQUAISE.categories, 'Catégorie:Desserts'] }), { ok: false, why: 'dessert, boisson ou cuisine historique' });
   assert.deepEqual(parseWikiRecipe({ ...BASQUAISE, categories: cat('Accompagnements', 'Recettes de cuisine à base d\'œuf') }), { ok: false, why: 'pas un plat de repas' });
 });
