@@ -232,9 +232,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=33"></script>
+<script src="core.js?v=34"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 33;
+const KEY = 'mescomptes-v1', VERSION = 34;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -313,6 +313,10 @@ const lockMode = () => (vaultMeta() ? 'unlock' : lsGet(KEY) ? 'protect' : 'creat
 function lockMsg(m, ok) { const el = $('#lockMsg'); if (el) { el.textContent = m; el.className = 'sm ' + (ok ? 'mute' : 'warm'); } }
 function showLock(mode = lockMode()) {
   booted = false; VKEY = null; S = blank(); closeSheet();
+  // iPhone : Safari et l'icône de l'écran d'accueil ont chacun leur mémoire. Rien ici : les données sont (ou seront) dans l'app
+  // de l'icône. Proposer un code dans Safari fabriquerait une seconde app, vide, où l'on retaperait son code sans rien retrouver.
+  if (mode === 'here') mode = 'create';
+  else if (mode === 'create' && OS === 'ios' && !standalone()) mode = 'icon';
   document.body.classList.add('locked');
   const pin = (n, ph) => `<input class="f pin" name="${n}" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="12" placeholder="${ph}" aria-label="${ph}">`;
   const L = $('#lock'); L.hidden = false;
@@ -320,6 +324,12 @@ function showLock(mode = lockMode()) {
     ${mode === 'unlock' ? `<p class="mute" style="margin:0 0 16px">Entrez votre code</p>
       <form data-f="unlock">${pin('pin', 'Code')}<button class="btn" style="width:100%;margin-top:12px">Entrer</button></form>
       <p id="lockMsg" class="sm mute"></p><button class="btn sm ghost" data-a="forgot">Code oublié ?</button>`
+    : mode === 'icon' ? `<p style="margin:0 0 8px"><b>Sur iPhone, Mes Comptes s'ouvre depuis son icône</b></p>
+      <p class="sm mute" style="margin:0 0 14px">Safari et l'icône de l'écran d'accueil ont chacun leur propre mémoire : vos données sont dans l'app de l'icône.</p>
+      <p style="text-align:left;margin:0 0 8px"><b>Déjà installée ?</b> Fermez Safari et touchez l'icône <b>Mes Comptes</b>, puis votre code.</p>
+      <p style="text-align:left;margin:0 0 14px"><b>Pas encore ?</b> Touchez <b>Partager</b> ⬆︎ puis <b>« Sur l'écran d'accueil »</b>, et ouvrez l'app depuis l'icône.</p>
+      ${/sync=/.test(location.hash) ? '<button class="btn" style="width:100%" data-a="copyLink">Copier le lien reçu</button><p class="sm mute">puis dans l\'app : ＋ → Synchro → <b>Coller le lien reçu</b>.</p>' : ''}
+      <button class="btn sm ghost" data-a="demo">👀 Découvrir avec un exemple</button><button class="btn sm ghost" data-a="lockHere">Utiliser Safari quand même</button>`
     : mode === 'forgot' ? `<p style="margin:0 0 10px"><b>Personne ne peut retrouver votre code</b> : c'est ce qui rend vos données inviolables.</p>
       <p class="sm mute">Pour repartir : effacez ce téléphone, choisissez un nouveau code, puis collez votre dernier <b>lien de synchro ou de sauvegarde</b> (dans vos messages) avec votre <b>code du foyer</b>. Tout revient.</p>
       <form data-f="forgot"><input class="f" name="ok" autocomplete="off" placeholder="Tapez EFFACER" style="width:100%;text-align:center"><button class="btn warnbtn" style="width:100%;margin-top:10px">Effacer ce téléphone</button></form>
@@ -360,6 +370,8 @@ async function createPin(pin, pin2, mode) {
   lockMsg('Protection en cours…', true);
   VSALT = newSalt(); VKEY = await vaultKey(pin, VSALT);
   const data = mode === 'protect' ? legacyLoad() : blank();
+  // Des opérations en clair qu'on n'arrive pas à relire : on ne touche à rien plutôt que de protéger une copie vide.
+  if (mode === 'protect' && !data.tx.length && /"tx":\[\{/.test(lsGet(KEY) || '')) { VKEY = null; return lockMsg('Vos données n\'ont pas pu être relues : rien n\'a été changé ni effacé.'); }
   await writeVault(JSON.stringify(data), data.tx.length);
   // On relit le coffre avant d'effacer quoi que ce soit en clair : rien ne peut se perdre.
   const back = JSON.parse(await vaultOpen(vaultMeta().data, VKEY));
@@ -1521,6 +1533,8 @@ const A = {
   pasteSync: () => pasteSync(),
   heroInfo: () => heroInfo(),
   forgot: () => showLock('forgot'),
+  lockHere: () => showLock('here'),
+  copyLink: () => navigator.clipboard.writeText(location.href).then(() => toast('Copié ✔ Ouvrez maintenant Mes Comptes depuis son icône'), () => toast('Copie impossible : appui long sur l\'adresse, puis Copier')),
   lockBack: () => showLock(),
   lockNow: () => lockNow(),
   pinChange: () => openSheet(`<h2 style="margin-top:0">🔐 Changer mon code d'entrée</h2><form data-f="changepin" style="display:grid;gap:10px">
