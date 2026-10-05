@@ -73,16 +73,32 @@ await step('compléter le curry', async () => {
   await shot('04-recette'); await axe('recette');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
 });
-await step('proposer la semaine', async () => {
+await step('menu en cartes : autre idée, geste « je prends », tout garder, valider', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
-  await page.getByRole('button', { name: 'Proposer les repas vides' }).click();
-  await page.getByRole('heading', { name: /Proposer la semaine/ }).waitFor();
-  const n = await page.locator('dialog[open]').getByText(/^Nouveau : /).count();
-  if (n < 1 || n > 3) throw new Error(`${n} découverte(s) proposée(s), attendu 1 à 3`);
-  console.log('   découvertes :', (await page.locator('dialog[open]').getByText(/^Nouveau : /).allInnerTexts()).join(' · '));
+  await page.getByRole('button', { name: /Proposer le menu/ }).click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.getByText(/^Repas 1 sur \d+/).waitFor();
   await shot('05-propositions'); await axe('propositions');
-  await page.getByRole('button', { name: /Accepter \d+ proposition/ }).click();
-  await page.waitForTimeout(300);
+  const first = await sheet.locator('#deck-name').innerText();
+  await sheet.getByRole('button', { name: 'Autre idée' }).click();
+  await page.waitForTimeout(400);
+  const second = await sheet.locator('#deck-name').innerText();
+  if (second === first) throw new Error(`autre idée : toujours ${first}`);
+  // Geste : la carte glissée vers la droite = « je prends » → carte suivante.
+  const box = await sheet.locator('.deck-card:not(.behind)').boundingBox();
+  const y = box.y + box.height / 3, x = box.x + box.width / 2;
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + 90, y, { steps: 5 }); await shot('05a-geste');
+  await page.mouse.move(x + 230, y, { steps: 5 }); await page.mouse.up();
+  await sheet.getByText(/^Repas 2 sur \d+/).waitFor();
+  await sheet.getByRole('button', { name: /Garder tout le menu proposé/ }).click();
+  await sheet.getByRole('heading', { name: /Votre semaine est prête/ }).waitFor();
+  const n = await sheet.getByText(/✨ nouveau/).count();
+  if (n < 1 || n > 4) throw new Error(`${n} découverte(s), attendu 1 à 4`);
+  console.log('   menu :', `${first} → ${second} ;`, (await sheet.locator('.recap .title').allInnerTexts()).join(' · '));
+  await shot('05b-menu-pret'); await axe('menu-pret');
+  await sheet.getByRole('button', { name: 'Valider la semaine' }).click();
+  await page.waitForTimeout(400);
   await shot('06-semaine'); await axe('semaine');
 });
 await step('toute la semaine', async () => { await page.getByRole('button', { name: 'Toute la semaine' }).click(); await shot('07-semaine-liste'); });

@@ -4,9 +4,9 @@
 
 ## Tableau
 
-| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.6** |
+| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.7** |
 |---|---|---|---|---|---|---|
-| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC, jusqu'à 3 découvertes Wikilivres par semaine |
+| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC, jusqu'à 3 découvertes Wikilivres par semaine, menu en cartes à balayer (sans photos, contrairement à Jow) |
 | Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée |
 | Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout |
 | Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) ou texte |

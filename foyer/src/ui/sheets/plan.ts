@@ -1,7 +1,7 @@
 // Planifier en un geste : propositions à relire (« Autre idée », « Retirer »), reprise d'une semaine, préparation en avance.
 import { type LocalDate, type SlotKey, addDays, fmtDayShort, fmtSlot, slotKey, SLOTS } from '../../core/dates.ts';
 import { current } from '../../core/model.ts';
-import { type Proposal, proposeWeek, copyWeek, acceptDrafts, rank, nextDiscovery } from '../../core/propose.ts';
+import { type Proposal, copyWeek, acceptDrafts, rank, nextDiscovery } from '../../core/propose.ts';
 import { loadCatalog } from '../catalog.ts';
 import { weekPreps } from '../../core/shopping.ts';
 import { portions } from '../../core/plan.ts';
@@ -11,6 +11,7 @@ import { weekIcs, weekItems } from '../../core/ics.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast, saveFile } from '../dom.ts';
 import { CLICK, num } from '../registry.ts';
 import { openRecipe } from './recipe.ts';
+import { openWeekDeck } from './deck.ts';
 
 let props: Proposal[] = [];
 let tried = new Map<SlotKey, Set<string>>();
@@ -85,14 +86,8 @@ CLICK['propOk'] = () => {
   dispatch(drafts, { toast: `${n} repas prévu${n > 1 ? 's' : ''} · courses à jour` });
 };
 
-CLICK['propose'] = async d => {
-  const c = clock();
-  const week = d['week'] ?? thisWeek();
-  const cat = await loadCatalog(); // hors ligne sans catalogue : vos plats seulement
-  curWeek = week;
-  openProposals(`Proposer la semaine du ${fmtDayShort(week)}`, proposeWeek(S(), week, c.date, c.hour, cat),
-    cat ? '' : 'Catalogue de découvertes indisponible (hors ligne) : propositions tirées de vos plats seulement.');
-};
+// « Proposer » : le menu en cartes à balayer (sheets/deck.ts).
+CLICK['propose'] = async d => { const week = d['week'] ?? thisWeek(); curWeek = week; await openWeekDeck(week); };
 
 CLICK['copyWeek'] = d => {
   const target = d['week'] ?? thisWeek();

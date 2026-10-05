@@ -22,9 +22,20 @@ import { RELAY } from './config.ts';
 import { openLine } from './sheets/shop.ts';
 import { packsFor } from '../core/drive.ts';
 import { ingredientKey } from '../core/ingredients.ts';
+import { dishLook, type Look } from '../core/visual.ts';
 
 const VERSION = '1.0.0';
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n > 1 ? many : one}`;
+
+/* ---------- Visuel d'un repas ---------- */
+export function slotLook(v: SlotView): Look {
+  if (v.status === 'vide') return { emoji: '🤔', theme: 'cream' };
+  if (v.status === 'personne') return { emoji: '🌙', theme: 'none' };
+  if (v.status === 'exterieur') return { emoji: '🍽️', theme: 'grape' };
+  const r = v.recipe ? S().recipes[v.recipe] : undefined;
+  return dishLook(r ? current(r).name : v.title, r ? current(r).ingredients.map(l => l.name) : []);
+}
+const lookTile = (l: Look, cls = 'look'): string => `<span class="${cls} t-${l.theme}" aria-hidden="true">${l.emoji}</span>`;
 
 /* ---------- Aujourd'hui ---------- */
 function cardActions(v: SlotView): string {
@@ -32,7 +43,7 @@ function cardActions(v: SlotView): string {
   const p = v.prep;
   const more = `<button class="btn ghost" data-a="slot" data-k="${k}">Voir</button>`;
   switch (v.status) {
-    case 'vide': return `<button class="btn" data-a="pick" data-k="${k}">Choisir un plat</button><button class="btn ghost" data-a="outside" data-k="${k}">Repas extérieur</button>`;
+    case 'vide': return `<button class="btn" data-a="idea" data-k="${k}">✨ Trouver une idée</button><button class="btn ghost" data-a="pick" data-k="${k}">Choisir un plat</button><button class="btn ghost" data-a="outside" data-k="${k}">Repas extérieur</button>`;
     case 'personne': return `<button class="btn ghost" data-a="slot" data-k="${k}">Changer les présences</button>`;
     case 'a-cuisiner': case 'commence':
     {
@@ -50,22 +61,26 @@ export function todayView(): string {
   const t = deriveToday(A.r, A.now());
   const s = S();
   const n = unsent();
-  const cards = t.cards.map(c => {
-    const v = c.view;
-    const title = v.title || (v.status === 'personne' ? 'Personne à la maison' : 'Aucun repas prévu');
-    return `<article class="card meal" aria-labelledby="m-${v.key.replace('|', '-')}">
-      <div class="row"><span class="when grow">${esc(c.label)}</span><span class="chip s-${v.status}">${STATUS_LABEL[v.status]}</span></div>
-      <h3 id="m-${v.key.replace('|', '-')}">${esc(title)}</h3>
+  const cards = t.cards.map((c, i) => {
+    const v = c.view, look = slotLook(v), id = `m-${v.key.replace('|', '-')}`;
+    const title = v.title || (v.status === 'personne' ? 'Personne à la maison' : i === 0 ? 'On mange quoi\u00a0?' : 'Aucun repas prévu');
+    const head = i === 0
+      ? `<div class="hero-art t-${look.theme}"><span class="art-emoji" aria-hidden="true">${look.emoji}</span><span class="chip s-${v.status}">${STATUS_LABEL[v.status]}</span></div><div class="hero-body">
+        <span class="when">${esc(c.label)}</span>`
+      : `<div class="row">${lookTile(look)}<span class="when grow">${esc(c.label)}</span><span class="chip s-${v.status}">${STATUS_LABEL[v.status]}</span></div>`;
+    return `<article class="card meal${i === 0 ? ' hero' : ''}" aria-labelledby="${id}">${head}
+      <h3 id="${id}">${esc(title)}</h3>
       ${v.sub ? `<p class="muted small detail">${esc(v.sub)}</p>` : ''}
       ${c.detail ? `<p class="detail">${esc(c.detail)}</p>` : ''}
       ${v.link && v.status !== 'vide' && !c.detail?.startsWith('Préparer') ? `<p class="small muted detail">${esc(v.link)}</p>` : ''}
       ${v.incomplete ? '<p class="chip manque">Ingrédients non renseignés</p>' : ''}
-      <div class="actions">${cardActions(v)}</div></article>`;
+      <div class="actions">${cardActions(v)}</div>${i === 0 ? '</div>' : ''}</article>`;
   }).join('');
-  const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length) && t.cards[0] ? `<section class="card" aria-labelledby="ideas-h"><h2 id="ideas-h">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><ul class="list">
-      ${t.ideas.leftovers.map(x => `<li><button class="item-btn" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="grow"><span class="title">Restes : ${esc(x.name)}</span><br><span class="sub">${plural(x.free, 'portion libre', 'portions libres')} · préparé ${x.age === 0 ? 'aujourd\'hui' : x.age === 1 ? 'hier' : `il y a ${x.age} jours`} · rien à cuisiner</span></span></button></li>`).join('')}
-      ${t.ideas.recipes.map(x => `<li><button class="item-btn" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${esc(x.reason)}</span></span></button></li>`).join('')}
-    </ul></section>` : '';
+  const ideaLook = (id: string): Look => { const r = s.recipes[id]; return r ? dishLook(current(r).name, current(r).ingredients.map(l => l.name)) : { emoji: '🍲', theme: 'grape' }; };
+  const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length) && t.cards[0] ? `<section aria-labelledby="ideas-h"><h2 id="ideas-h" class="section-title">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><div class="carousel">
+      ${t.ideas.leftovers.map(x => { const l = ideaLook(s.preps[x.prep]?.recipe ?? ''); return `<button class="idea" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">Restes : ${esc(x.name)}</span><span class="sub">♻️ ${plural(x.free, 'portion libre', 'portions libres')} · rien à cuisiner</span></span></button>`; }).join('')}
+      ${t.ideas.recipes.map(x => { const l = ideaLook(x.recipe); return `<button class="idea" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(x.name)}</span><span class="sub">${esc(x.reason)}</span></span></button>`; }).join('')}
+    </div></section>` : '';
   const tasks = t.tasks.length ? `<section class="card" aria-labelledby="todo-h"><h2 id="todo-h">À faire</h2><ul class="list">${t.tasks.map(x => `<li class="${x.done ? 'done-line' : ''}"><div class="item">
       <label class="check"><input type="checkbox" data-c="task" data-key="${esc(x.key)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.text)} : fait"><span></span></label>
       <span class="grow"><span class="title">${esc(x.text)}</span><br><span class="sub">${esc(x.hint)}</span></span></div></li>`).join('')}</ul>
@@ -76,7 +91,7 @@ export function todayView(): string {
       <span class="chip ${p.level}">${p.level === 'conflit' ? 'À résoudre' : p.level === 'attention' ? 'Attention' : 'À compléter'}</span><span class="grow">${esc(p.text)}</span>
       ${p.event ? `<button class="btn small-btn ghost" data-a="ack" data-id="${p.event}">Vu</button>` : p.slot ? `<button class="btn small-btn ghost" data-a="slot" data-k="${p.slot}">Ouvrir</button>` : p.watch ? `<button class="btn small-btn ghost" data-a="watch" data-id="${p.watch}">Ouvrir</button>` : ''}</div></li>`).join('')}</ul></section>` : '';
   const plan = t.empty || t.nextWeekEmpty ? `<section class="card stack" aria-labelledby="plan-h"><h2 id="plan-h">À décider</h2>
-      ${t.empty ? `<p>${plural(t.empty, 'repas', 'repas')} pas encore prévu${t.empty > 1 ? 's' : ''} cette semaine.</p><button class="btn soft" data-a="propose">Proposer à partir de nos plats</button>` : ''}
+      ${t.empty ? `<p>${plural(t.empty, 'repas', 'repas')} pas encore prévu${t.empty > 1 ? 's' : ''} cette semaine.</p><button class="btn" data-a="propose">✨ Proposer le menu</button>` : ''}
       ${t.nextWeekEmpty ? `<p>La semaine prochaine est vide.</p><div class="actions"><button class="btn soft" data-a="propose" data-week="${addDays(weekOf(t.date, s.settings.weekStart), 7)}">Proposer la semaine prochaine</button><button class="btn ghost" data-a="copyWeek" data-week="${addDays(weekOf(t.date, s.settings.weekStart), 7)}">Reprendre une semaine</button></div>` : ''}</section>` : '';
   const partnerJoined = A.log.some(e => e.dev !== A.device.dev);
   const sync = A.demo || s.members.length < 2 ? '' : autoOn()
@@ -89,7 +104,9 @@ export function todayView(): string {
   const decide = toDecide();
   const agenda = decide && !A.demo ? `<div class="banner info"><p class="grow"><strong>L'agenda change ${plural(decide, 'repas', 'repas')}.</strong> Une décision par événement ; ensuite, Foyer fait pareil tout seul.</p><button class="btn small-btn" data-a="agendaOpen">Voir</button></div>` : '';
   const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
-  return `<div class="top"><h1>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
+  const who = s.members.find(m => m.id === A.device.me)?.name;
+  const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
+  return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
     <div class="cols"><div class="stack">${cards}${ideas}</div><div class="stack">${guide}${checks}${tasks}${toBuy}${plan}</div></div></main>`;
 }
@@ -100,7 +117,7 @@ function slotButton(k: SlotKey, label: string): string {
   const v = slotView(S(), k, c.date, c.hour);
   const title = v.title || (v.status === 'personne' ? 'Personne' : '+ Ajouter');
   const aria = `${capital(fmtSlot(k, c.date))} : ${title}${v.servings ? `, ${v.servings} portions` : ''}, ${STATUS_LABEL[v.status]}`;
-  return `<button class="slot s-${v.status}" data-a="slot" data-k="${k}" aria-label="${esc(aria)}">
+  return `<button class="slot s-${v.status}" data-a="slot" data-k="${k}" aria-label="${esc(aria)}">${lookTile(slotLook(v))}
     <span class="lbl">${label}</span><span class="t">${esc(title)}</span>
     ${v.status !== 'personne' && v.status !== 'vide' ? `<span class="p">${v.servings} portion${v.servings > 1 ? 's' : ''}${v.sub ? ` · ${esc(v.sub)}` : ''}</span>` : v.status === 'vide' ? `<span class="p">${esc(v.sub)}</span>` : ''}
     ${v.link ? `<span class="p">${esc(v.link)}</span>` : ''}
@@ -117,7 +134,8 @@ export function weekView(): string {
   const head = `<div class="weeknav"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
     <h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
     </div>${week !== thisWeek() ? `<button class="btn small-btn quiet" data-a="wk" data-d="0">${week > thisWeek() && week === addDays(thisWeek(), 7) ? 'Revenir à la semaine en cours' : 'Cette semaine'}</button>` : ''}
-    <div class="actions"><button class="btn soft small-btn" data-a="propose" data-week="${week}">Proposer les repas vides</button><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div>`;
+    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>
+      <details class="more"><summary class="btn ghost">Plus d'options</summary><div class="actions"><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div></details></div>`;
   let body: string;
   if (wide) {
     body = `<div class="grid7">${days.map(d => `<section aria-labelledby="d-${d}"><h3 id="d-${d}" class="${d === c.date ? 'today' : ''}">${esc(dayShort(d))} ${dayNumber(d)}</h3>
@@ -225,7 +243,7 @@ function platsList(): string {
   const row = (x: typeof all[number]) => {
     const info = [x.c.yield ? `pour ${x.c.yield}` : '', x.c.ingredients.length ? plural(x.c.ingredients.length, 'ingrédient') : '', x.c.tags.join(', ')].filter(Boolean).join(' · ');
     const missing = !x.c.ingredients.length ? 'ingrédients à compléter' : x.c.ingredients.some(l => l.qty) && !x.c.yield ? 'rendement à compléter' : '';
-    return `<li><button class="item-btn" data-a="recipe" data-id="${x.r.id}"><span class="grow"><span class="title">${esc(x.c.name)}</span><br><span class="sub">${esc(info || 'nom seul')}</span></span>${missing ? `<span class="chip manque">${missing}</span>` : ''}</button></li>`;
+    return `<li><button class="item-btn" data-a="recipe" data-id="${x.r.id}">${lookTile(dishLook(x.c.name, x.c.ingredients.map(l => l.name)))}<span class="grow"><span class="title">${esc(x.c.name)}</span><br><span class="sub">${esc(info || 'nom seul')}</span></span>${missing ? `<span class="chip manque">${missing}</span>` : ''}</button></li>`;
   };
   const active = all.filter(x => !x.r.archived), archived = all.filter(x => x.r.archived);
   return `${active.length ? `<ul class="list">${active.map(row).join('')}</ul>` : `<p class="empty"><strong>${q ? 'Aucun plat trouvé' : 'Aucun plat pour l\'instant'}</strong>${q ? '' : 'Commencez par vos classiques : un nom suffit, les ingrédients peuvent venir plus tard.'}</p>`}

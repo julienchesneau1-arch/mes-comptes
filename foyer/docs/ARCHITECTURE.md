@@ -28,6 +28,8 @@
 
 **ADR-13 — Agenda du mois → repas, par règles fixes et décisions mémorisées.** Une app web ne lit pas le Calendrier de l'iPhone ; elle lit une adresse iCal (Google : adresse secrète ; iCloud : calendrier public ; Outlook : lien publié). Le navigateur ne peut pas la télécharger (CORS) : la fonction `foyer-agenda` la télécharge (fournisseurs connus seulement), la lit avec `ical.ts` (copie exacte, testée) et ne renvoie que les occurrences du mois ; le téléphone les garde en cache local (jamais dans le journal). `agenda.ts` en déduit, sans IA, les présences à changer (mots du titre, chevauchement des heures de repas) ; un seul événement gagne par repas et par personne ; tout changement est une proposition tant que le foyer n'a pas décidé « pareil les prochaines fois » (`agenda.rule`). Les présences posées d'après l'agenda (`agenda.mark`) gardent leur occurrence d'origine : retirées si l'événement disparaît (seulement après une lecture réussie), figées si quelqu'un les modifie à la main. Rejeté : connexion OAuth à Google (validation de l'application, jetons expirant au bout de 7 jours en mode test, rien pour iCloud) ; lecture sur le serveur sans le téléphone (le serveur devrait garder l'adresse et lire les repas : contraire au chiffrement de bout en bout).
 
+**ADR-14 — Une identité visuelle sans images téléchargées.** Chaque plat reçoit un emoji et un fond coloré par règles fixes (`visual.ts`) : rendu immédiat, hors ligne, identique sur les deux téléphones, aucune requête externe (CSP inchangée), aucun droit d'image à gérer. Police Nunito (OFL) servie par l'app. Propositions en cartes (`sheets/deck.ts`) : gestes par événements de pointeur, boutons équivalents pour le clavier et VoiceOver, aucune animation si l'appareil demande moins de mouvement, aucune transparence dans les animations d'entrée (le contraste reste mesurable). Rejeté pour l'instant : photos de plats (pas de source libre fiable pour vos propres plats).
+
 ## Carte des modules
 
 ```
@@ -61,7 +63,9 @@ src/core/            logique pure, sans DOM, testée sous Node
   ical.ts            lecture iCalendar : récurrences, exceptions, fuseaux (copié dans la fonction foyer-agenda)
   agenda.ts          agenda → repas : classement des événements, propositions, automatismes, retour arrière, plat décalé
   feries.ts          jours fériés français (Pâques calculé)
-src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts)
+  visual.ts          visuel d'un plat (emoji + fond par famille)
+  classics.ts        plats classiques proposés au démarrage
+src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts)
 supabase/            migrations (relais, rappels) et fonctions foyer-import, foyer-push et foyer-agenda (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```

@@ -15,20 +15,15 @@ let preset = null;
 const picks = new Set();
 let custom = '';
 let joinText = '';
-// Noms seuls, sans quantités : ce ne sont pas des recettes validées, juste un raccourci pour constituer votre liste.
-export const CLASSICS = ['Pâtes bolognaise', 'Curry de poulet', 'Chili con carne', 'Lasagnes', 'Gratin dauphinois', 'Quiche lorraine', 'Croque-monsieur',
-    'Omelette', 'Soupe de légumes', 'Salade composée', 'Tartiflette', 'Hachis parmentier', 'Poulet rôti', 'Pizza maison', 'Tacos', 'Burgers maison', 'Risotto',
-    'Pâtes carbonara', 'Saumon et légumes', 'Wok de légumes', 'Dahl de lentilles', 'Riz cantonais', 'Ratatouille', 'Blanquette de veau', 'Couscous', 'Crêpes salées',
-    'Steak et haricots verts', 'Poisson pané et purée'];
-const mark = `<svg class="hero-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#fde8d7"/><circle cx="400" cy="124" r="42" fill="#c2580e"/>
-  <path d="M200 196c-18-28 18-40 0-76M256 196c-18-28 18-40 0-76M312 196c-18-28 18-40 0-76" stroke="#3b6449" stroke-width="20" fill="none" stroke-linecap="round"/>
-  <rect x="80" y="232" width="352" height="30" rx="15" fill="#2a231c"/><path d="M104 262h304a152 152 0 0 1-304 0Z" fill="#2a231c"/></svg>`;
+import { CLASSICS } from '../core/classics.js';
+export { CLASSICS };
 export function onboardingView() {
     const dots = (n) => `<p class="muted small">Étape ${n} sur 3</p>`;
     switch (step) {
-        case 'welcome': return `<main id="main" class="onb" tabindex="-1">${mark}<h1>Foyer</h1>
-      <p><strong>Une semaine visible. Des courses utiles. Moins de décisions le soir.</strong></p>
-      <p class="muted">Vos repas de la semaine, la liste de courses calculée toute seule, les restes et les boîtes du midi. Sur vos deux téléphones, sans compte : ce que vous notez reste chez vous, et ne voyage que chiffré.</p>
+        case 'welcome': return `<main id="main" class="onb" tabindex="-1"><div class="onb-hero" aria-hidden="true"><span class="art-emoji e1">🍲</span><span class="art-emoji e2">🥕</span>
+      <span class="art-emoji e3">🍝</span><span class="art-emoji e4">🧀</span><span class="art-emoji e5">🥦</span></div><h1>Fini le «\u00a0on mange quoi ce soir\u00a0?\u00a0»</h1>
+      <p><strong>Foyer vous propose le menu, calcule les courses et s'occupe des restes.</strong></p>
+      <p class="muted">À deux, sur vos téléphones, sans compte : ce que vous notez reste chez vous, et ne voyage que chiffré.</p>
       <button class="btn block" data-a="onb" data-s="names">Créer notre foyer</button>
       <button class="btn ghost block" data-a="onb" data-s="join">L'autre téléphone a déjà Foyer</button>
       <button class="btn quiet block" data-a="demo">Découvrir avec un exemple</button></main>`;
