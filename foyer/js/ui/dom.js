@@ -51,6 +51,26 @@ export function closeSheet() { const d = $('#sheet'); if (d?.open)
 export const sheetOpen = (id) => !!current && (!id || current.id === id);
 export const sheetHead = (title, sub = '') => `<div class="sheet-head"><div class="grow"><h2 id="sheet-title" tabindex="-1">${title}</h2>${sub ? `<p class="muted small sub-head">${sub}</p>` : ''}</div>
   <button class="icon-btn" data-a="close" aria-label="Fermer">✕</button></div>`;
+/* ---------- Fête : confettis (rien si l'appareil demande moins d'animations) ---------- */
+const COLORS = ['#ff5a2a', '#ffc233', '#2fd38a', '#4da3ff', '#ff5c9a', '#8b5cf6'];
+export function confetti(n = 48) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches)
+        return;
+    const box = document.createElement('div');
+    box.className = 'confetti';
+    box.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < n; i++) {
+        const p = document.createElement('i');
+        p.style.left = `${Math.random() * 100}%`;
+        p.style.background = COLORS[i % COLORS.length];
+        p.style.animationDelay = `${Math.random() * .35}s`;
+        p.style.animationDuration = `${1.2 + Math.random() * .9}s`;
+        p.style.transform = `rotate(${Math.random() * 360}deg)`;
+        box.append(p);
+    }
+    document.body.append(box);
+    window.setTimeout(() => box.remove(), 2600);
+}
 /* ---------- Message bref ---------- */
 let toastTimer = 0;
 export function toast(text, undo, ms = 6000) {

@@ -84,6 +84,17 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 | Prise en main | **livré** | « Premiers pas » sur Aujourd'hui (gestes cochés d'après l'état réel), « Comment ça marche » (8 explications), libellés clarifiés (« Restes à venir », « Préparé »), accueil corrigé (« sans serveur » n'était plus vrai) ; navigateur + axe : 0 défaut |
 | Lire l'agenda de l'iPhone directement | **non fait, impossible** | Une app web n'a pas accès au Calendrier de l'iPhone : il faut l'adresse iCal (Google) ou le lien « Calendrier public » (iCloud) |
 
+### V2.7 (refonte visuelle ; propositions en cartes à la Jow)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Direction artistique vive | **livré** | Palette tomate / soleil / basilic / océan, police ronde Nunito (OFL, 39 Ko, servie par l'app : CSP inchangée), barre d'onglets flottante, nouvelle icône. Contraste du texte ≥ 4,5:1 vérifié par test en clair et en sombre ; axe : 0 défaut en clair et en sombre (Aujourd'hui, Semaine, cartes, Courses) |
+| Visuel de chaque plat | **livré** | Emoji + fond coloré par famille de plat, choisi par règles fixes (nom puis ingrédients), sans photo ni téléchargement ; test : les classiques ont un visuel parlant, stable |
+| Propositions en cartes | **livré** | « Proposer le menu » : une carte par repas ; glisser à droite / ❤ = je prends, à gauche / ↻ = autre idée (vos plats puis les découvertes), ✕ = pas de plat ; « Garder tout le menu » ; récapitulatif (plats, restes, nombre d'articles de courses) puis « Valider la semaine » et confettis. Navigateur : autre idée change le plat, geste de la souris vers la droite → carte suivante, validation ; flèches du clavier ; animations coupées si l'appareil le demande |
+| Aujourd'hui en 10 secondes | **livré** | Grande carte illustrée pour le prochain repas, une action principale (« ✨ Trouver une idée » si rien n'est prévu : une carte d'idée à la fois), idées en carrousel, « Bonjour/Bonsoir » ; actions secondaires de la semaine rangées sous « Plus d'options » |
+| Défauts trouvés et corrigés | **livré** | Bouton « Pas de plat » invisible (classe en collision avec le lien d'évitement) ; style écrit dans le HTML refusé par la CSP (barre de progression) ; animations d'entrée avec transparence qui faussaient le contrôle de contraste ; police absente d'un scénario de test (copie de fichiers incomplète) |
+| Photos de plats | **non fait** | Pas de source de photos libre et fiable pour vos propres plats ; possible plus tard avec vos photos (stockées sur le téléphone) |
+
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 3. Plan concret pour la suite
@@ -110,6 +121,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 10 | VoiceOver (triple clic sur le bouton latéral si activé) : parcourir Aujourd'hui | Chaque bouton est annoncé avec un nom clair |
 | 11 | Maison › Réglages › « Activer les rappels » → Autoriser, puis « Envoyer un rappel d'essai », verrouiller le téléphone | « 🔔 Essai Foyer » arrive en moins de 6 minutes (si « Un rappel pour vos repas : ouvrez Foyer » arrive à la place : envoyer le Diagnostic) |
 | 12 | Maison › Réglages › Agendas › « Brancher un agenda » avec l'adresse iCal (Google) ou le lien « Calendrier public » (iCloud) | « Agenda de … branché : N événements » ; un événement du soir apparaît dans « Ce que l'agenda change » |
+| 13 | Semaine › « ✨ Proposer le menu », glisser une carte vers la droite puis vers la gauche | La carte suit le doigt, « MIAM » / « AUTRE » apparaît, la carte suivante (ou une autre idée) s'affiche |
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -172,5 +184,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Vérification réelle | Rappels : dépôt, doublon ignoré, autre foyer refusé, abonnement interdit refusé, envoi + abonnement expiré retiré, exécution planifiée 200 | livré | Avertissement `pg_net` dans `public` (correction manuelle) |
 | 2026-10-04 | Livraison | PR fusionnée dans `main` (V2.2 à V2.5) ; nettoyage SQL destructif bloqué côté outil, laissé à faire dans l'éditeur SQL | livré | Ligne d'essai et extension `http` encore présentes |
 | 2026-10-04 | V2.6 | Agenda du mois → repas : lecteur iCalendar, fonction `foyer-agenda`, règles, décisions, retour arrière, plat décalé, jours fériés | livré | iPhone non testé ; règles par mots-clés |
+| 2026-10-05 | V2.7 | Refonte visuelle (palette vive, police ronde, visuels de plats, icône), menu en cartes à balayer, Aujourd'hui en carte héros ; 4 défauts trouvés par les tests navigateur et corrigés | livré | Gestes non testés sur un vrai iPhone |
 | 2026-10-04 | Performance | Lecteur d'agenda : 23 s → 0,5 s sur un agenda chargé (dates hors fenêtre écartées sans calcul d'heure, récurrences sautées jusqu'au mois utile) ; fonction redéployée | livré | — |
 | 2026-10-04 | Prise en main | Premiers pas, « Comment ça marche », libellés clarifiés, phrase d'accueil rendue exacte | livré | Pas de test avec une personne novice réelle |

@@ -190,4 +190,17 @@ Demande : « que l'app ait accès à nos emplois du temps sur le mois entier et 
 
 Prise en main : « Premiers pas » (gestes cochés d'après l'état réel), « Comment ça marche », libellés clarifiés ; la phrase d'accueil « sans compte ni serveur » corrigée (le relais existe, même s'il ne lit rien).
 
-Fin du PRD V2.1 (révisions V2.2 à V2.6 incluses).
+## 13. V2.7 — une app belle, ludique et comprise en 10 secondes (5 octobre 2026)
+
+Demande : « couleurs vives, DA moderne et attractive comme les meilleurs ; des propositions comme Jow, pas une liste à cliquer ; hyper ludique ; compréhensible en 10 s ».
+
+| Règle | Contenu |
+|---|---|
+| Un écran, une action | Aujourd'hui : une grande carte pour le prochain repas et un bouton principal ; Semaine : « ✨ Proposer le menu », le reste sous « Plus d'options » |
+| Propositions | Une carte à la fois : je prends / autre idée / pas de plat ; « Garder tout le menu » pour aller vite ; récapitulatif avant d'enregistrer |
+| Ludique sans piège | Confettis à la validation, tampons « MIAM / AUTRE », cases qui « claquent » ; rien n'est enregistré sans « Valider » ; tout est annulable |
+| Accessible | Contraste AA vérifié en clair et en sombre ; gestes doublés de boutons ; mouvements coupés sur demande de l'appareil |
+
+Limite assumée : visuels par emoji, pas de photos de plats.
+
+Fin du PRD V2.1 (révisions V2.2 à V2.7 incluses).

@@ -10,15 +10,26 @@ import { tmpdir } from 'node:os';
 const SRC = new URL('..', import.meta.url).pathname;
 const DIR = join(tmpdir(), 'foyer-relais-e2e');
 rmSync(DIR, { recursive: true, force: true }); mkdirSync(DIR, { recursive: true });
-for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
+for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js', 'fonts']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
 cpSync(join(SRC, 'e2e/catalogue-essai.json'), join(DIR, 'catalogue.json')); // extrait fixe : résultats reproductibles
 writeFileSync(join(DIR, 'js/ui/config.js'), "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n");
 writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test"));
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const TYPES = { '.woff2': 'font/woff2', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const p = join(DIR, decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/\/$/, '/index.html'));
   try { const b = readFileSync(p); res.writeHead(200, { 'Content-Type': TYPES[extname(p)] ?? 'application/octet-stream' }); res.end(b); } catch { res.writeHead(404); res.end(); }
 });
+
+// Accepter le menu proposé en cartes (tout garder, ou la seule carte), puis valider.
+async function acceptMenu(P) {
+  await P.getByRole('button', { name: /Proposer le menu/ }).click();
+  const s = P.locator('dialog[open]');
+  await s.locator('#deck-name').waitFor();
+  const all = s.getByRole('button', { name: /Garder tout le menu/ });
+  if (await all.count()) await all.click(); else await s.getByRole('button', { name: 'Je prends ce plat' }).click();
+  await s.getByRole('button', { name: 'Valider la semaine' }).click();
+}
+
 await new Promise(r => server.listen(8767, '127.0.0.1', r));
 
 // Relais simulé, partagé par les deux téléphones.
@@ -82,8 +93,7 @@ await step('A importe une recette depuis une adresse web, la relit et l\'enregis
   await A.getByRole('button', { name: 'plat entier' }).click();
   await A.getByRole('button', { name: 'Enregistrer' }).click();
   await A.getByRole('link', { name: 'Semaine', exact: true }).click();
-  await A.getByRole('button', { name: 'Proposer les repas vides' }).click();
-  await A.getByRole('button', { name: /Accepter/ }).click();
+  await acceptMenu(A);
   await A.waitForTimeout(1500);
 });
 await step('B rejoint avec le seul code (aucun lien à copier)', async () => {

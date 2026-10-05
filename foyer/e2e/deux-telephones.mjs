@@ -34,6 +34,17 @@ const sendLink = async p => {
   await p.locator('dialog[open]').waitFor({ state: 'detached' });
 };
 
+
+// Accepter le menu proposé en cartes (tout garder, ou la seule carte), puis valider.
+async function acceptMenu(P) {
+  await P.getByRole('button', { name: /Proposer le menu/ }).click();
+  const s = P.locator('dialog[open]');
+  await s.locator('#deck-name').waitFor();
+  const all = s.getByRole('button', { name: /Garder tout le menu/ });
+  if (await all.count()) await all.click(); else await s.getByRole('button', { name: 'Je prends ce plat' }).click();
+  await s.getByRole('button', { name: 'Valider la semaine' }).click();
+}
+
 await step('A crée le foyer avec un plat complet', async () => {
   await A.goto(URL);
   await A.getByRole('button', { name: 'Créer notre foyer' }).click();
@@ -50,8 +61,7 @@ await step('A crée le foyer avec un plat complet', async () => {
   await A.getByText(/Lu : 3 ingrédient/).waitFor();
   await A.getByRole('button', { name: 'Enregistrer' }).click();
   await A.getByRole('link', { name: 'Semaine', exact: true }).click();
-  await A.getByRole('button', { name: 'Proposer les repas vides' }).click();
-  await A.getByRole('button', { name: /Accepter/ }).click();
+  await acceptMenu(A);
 });
 let code = '';
 await step('A envoie un lien chiffré (presse-papiers)', async () => {
