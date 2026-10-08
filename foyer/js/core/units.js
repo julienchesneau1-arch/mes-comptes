@@ -56,10 +56,11 @@ export function showQty(base, dim, unitHint) {
         return cmp(base, q(1000)) >= 0 ? `${showQ(div(base, q(1000)), 3)} kg` : `${showQ(base, 1)} g`;
     if (dim === 'volume')
         return cmp(base, q(1000)) >= 0 ? `${showQ(div(base, q(1000)), 3)} l` : `${showQ(base, 1)} ml`;
+    // Accord français : pluriel à partir de 2 (« 1,5 pièce », « 2 pièces »).
     if (dim === 'piece')
-        return `${showQ(base, 2)} ${cmp(base, q(1)) > 0 ? 'pièces' : 'pièce'}`;
+        return `${showQ(base, 2)} ${cmp(base, q(2)) >= 0 ? 'pièces' : 'pièce'}`;
     const unit = unitHint ?? UNIT[dim];
     if (!unit)
         return showQ(base, 2);
-    return `${showQ(base, 2)} ${cmp(base, q(1)) > 0 ? unit.many : unit.one}`;
+    return `${showQ(base, 2)} ${cmp(base, q(2)) >= 0 ? unit.many : unit.one}`;
 }

@@ -93,8 +93,10 @@ await step('menu en cartes : autre idée, geste « je prends », tout garder, va
   await sheet.getByText(/^Repas 2 sur \d+/).waitFor();
   await sheet.getByRole('button', { name: /Garder tout le menu proposé/ }).click();
   await sheet.getByRole('heading', { name: /Votre semaine est prête/ }).waitFor();
+  // Recette nouvelle sans nombre de personnes : le foyer le choisit ici (jamais deviné).
+  if (await sheet.getByRole('radio', { name: '4 personnes' }).count()) await sheet.getByRole('radio', { name: '4 personnes' }).first().check();
   const n = await sheet.getByText(/✨ nouveau/).count();
-  if (n < 1 || n > 4) throw new Error(`${n} découverte(s), attendu 1 à 4`);
+  if (n < 1) throw new Error(`${n} découverte, attendu au moins 1 (réglage par défaut : maximum de nouveautés)`);
   console.log('   menu :', `${first} → ${second} ;`, (await sheet.locator('.recap .title').allInnerTexts()).join(' · '));
   await shot('05b-menu-pret'); await axe('menu-pret');
   await sheet.getByRole('button', { name: 'Valider la semaine' }).click();
@@ -120,7 +122,7 @@ await step('ajout manuel + coche', async () => {
   await shot('09-courses-coche');
 });
 await step('drive Auchan assisté (aucune page Auchan ouverte pendant le test)', async () => {
-  await page.getByRole('button', { name: 'Commander chez Auchan' }).click();
+  await page.getByRole('button', { name: /Commander au drive/ }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByText(/Article 1 sur/).waitFor();
   const total = /Article 1 sur (\d+)/.exec(await dlg.innerText())?.[1];
@@ -152,21 +154,19 @@ await step('découvrir des recettes (catalogue) et en ajouter une après relectu
   await dlg.getByText('Salade niçoise', { exact: true }).waitFor();  // seul poisson de l'extrait
   if (await dlg.getByText('Ratatouille', { exact: true }).count()) throw new Error('filtre Poisson sans effet');
   await dlg.getByRole('button', { name: 'Tout', exact: true }).click();
-  await dlg.getByLabel('Chercher un plat ou un ingrédient').fill('ratatouille'); // sans nombre de personnes : jamais proposée d'office
-  await dlg.getByText('Ratatouille', { exact: true }).waitFor();
+  // Les recettes déjà gardées dans le menu (maximum de nouveautés) ne sont plus « à découvrir » : on cherche celle qui reste.
+  if (await dlg.getByText('Ratatouille', { exact: true }).count()) throw new Error('Ratatouille déjà dans nos plats : ne doit plus apparaître');
+  await dlg.getByLabel('Chercher un plat ou un ingrédient').fill('niçoise');
+  await dlg.getByText('Salade niçoise', { exact: true }).waitFor();
   const first = dlg.locator('[data-a="discoverOpen"]').first();
   const title = (await first.locator('.title').innerText()).trim();
   await first.click();
   await dlg.getByRole('button', { name: /Ajouter à nos plats/ }).waitFor();
-  await dlg.getByText('nombre de personnes à préciser').waitFor();
   await axe('decouvrir-recette'); await shot('09c-decouvrir');
   await dlg.getByRole('button', { name: /Ajouter à nos plats/ }).click();
-  await dlg.getByText(/Wikilivres : \d+ ingrédient.*rendement non trouvé/).waitFor();
+  await dlg.getByText(/Wikilivres : \d+ ingrédient/).waitFor();
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
-  await page.getByText(/Indiquez pour combien de portions/).waitFor(); // refusé tant que le nombre manque : jamais de quantité sans base
-  await dlg.locator('input[name="yield"]').fill('4');
-  await dlg.getByRole('button', { name: 'Enregistrer' }).click();
-  await page.getByText(`${title} enregistré`).waitFor();
+  await page.getByText(`${title} ajouté à vos plats (pas encore au menu)`).waitFor();
   await page.getByRole('button', { name: 'Nos plats' }).click().catch(() => {});
   await page.getByText(title, { exact: true }).first().waitFor();
   console.log('   ajouté :', title);
@@ -188,7 +188,7 @@ await step('aujourd\'hui', async () => {
 });
 await step('feuille créneau', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
-  await page.locator('button.slot').filter({ hasText: /Curry|Lasagnes|Omelette|Soupe/ }).first().click();
+  await page.locator('button.slot.s-a-cuisiner').first().click(); // un repas prévu (nouveautés ou nos plats)
   await page.locator('dialog[open]').waitFor();
   await shot('11-creneau'); await axe('creneau');
   await page.keyboard.press('Escape');
@@ -250,7 +250,7 @@ await step('mode découverte', async () => {
   await shot('13-demo-aujourdhui'); await axe('demo');
   await page.getByRole('link', { name: 'Courses', exact: true }).click(); await shot('14-demo-courses');
   await page.getByRole('link', { name: 'Semaine', exact: true }).click(); await shot('15-demo-semaine');
-  await page.getByRole('link', { name: 'Maison', exact: true }).click(); await page.getByRole('button', { name: 'Portions', exact: true }).click(); await shot('16-demo-portions');
+  await page.getByRole('link', { name: 'Maison', exact: true }).click(); await page.getByRole('button', { name: 'Restes', exact: true }).click(); await shot('16-demo-portions');
   await page.getByRole('button', { name: 'À surveiller', exact: true }).click(); await shot('17-demo-surveiller');
   await page.getByRole('button', { name: 'Quitter' }).click();
 });

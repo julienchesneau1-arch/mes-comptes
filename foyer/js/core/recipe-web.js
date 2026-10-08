@@ -2,6 +2,14 @@
 // publiées par la plupart des sites de recettes pour les moteurs de recherche. Lecture déterministe, sans IA :
 // le texte des ingrédients est rendu tel quel, puis analysé et relu par le foyer avant tout enregistrement.
 // Fichier sans dépendance : copié tel quel dans la fonction serveur d'import (supabase/functions/foyer-import).
+// Durée ISO 8601 de schema.org (« PT1H30M », « P0DT20M ») → minutes ; autre chose → null.
+export function isoMinutes(v) {
+    const m = typeof v === 'string' ? /^P(?:(\d{1,2})D)?(?:T(?:(\d{1,3})H)?(?:(\d{1,4})M)?(?:\d{1,5}S)?)?$/i.exec(v.trim()) : null;
+    if (!m || (!m[1] && !m[2] && !m[3]))
+        return null;
+    const n = Number(m[1] ?? 0) * 1440 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
+    return n <= 1440 ? n : null;
+}
 const NAMED = {
     amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', eacute: 'é', egrave: 'è', ecirc: 'ê', euml: 'ë', agrave: 'à', acirc: 'â',
     ccedil: 'ç', ocirc: 'ô', ucirc: 'û', ugrave: 'ù', icirc: 'î', iuml: 'ï', oelig: 'œ', OElig: 'Œ', Eacute: 'É', Egrave: 'È', Agrave: 'À',
@@ -104,7 +112,8 @@ function fromMicrodata(html) {
         const end = html.indexOf(`</${tagName}`, start);
         return end > start ? html.slice(start, end) : '';
     });
-    return { name: prop('name')[0] ?? '', recipeYield: prop('recipeYield')[0] ?? '', recipeIngredient: [...prop('recipeIngredient'), ...prop('ingredients')], recipeInstructions: prop('recipeInstructions') };
+    return { name: prop('name')[0] ?? '', recipeYield: prop('recipeYield')[0] ?? '', recipeIngredient: [...prop('recipeIngredient'), ...prop('ingredients')], recipeInstructions: prop('recipeInstructions'),
+        prepTime: prop('prepTime')[0] ?? '', cookTime: prop('cookTime')[0] ?? '' };
 }
 export function extractRecipe(html, source = '') {
     const r = fromJsonLd(html) ?? fromMicrodata(html);
@@ -113,6 +122,7 @@ export function extractRecipe(html, source = '') {
     const ingr = (Array.isArray(r['recipeIngredient']) ? r['recipeIngredient'] : Array.isArray(r['ingredients']) ? r['ingredients'] : [r['recipeIngredient'] ?? r['ingredients']])
         .map(clean).flatMap(x => x.split('\n')).map(x => x.trim()).filter(Boolean);
     const out = { name: clean(r['name']).slice(0, 80), yieldText: yieldText(r['recipeYield'] ?? r['yield']).slice(0, 60), ingredients: ingr.slice(0, 60).map(x => x.slice(0, 200)),
-        steps: steps(r['recipeInstructions']).slice(0, 40).map(x => x.slice(0, 500)), source: source.slice(0, 300) };
+        steps: steps(r['recipeInstructions']).slice(0, 40).map(x => x.slice(0, 500)), source: source.slice(0, 300),
+        prepMin: isoMinutes(r['prepTime']), cookMin: isoMinutes(r['cookTime']) };
     return out.name || out.ingredients.length ? out : null;
 }

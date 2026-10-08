@@ -2,19 +2,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractRecipe, decode } from '../src/core/recipe-web.ts';
+import { extractRecipe, decode, isoMinutes } from '../src/core/recipe-web.ts';
 import { fromWeb } from '../src/core/recipe-text.ts';
 
 const page = (ld: string) => `<!doctype html><html><head><title>x</title><script type="application/ld+json">${ld}</script></head><body><h1>Recette</h1></body></html>`;
 
 test('JSON-LD simple : nom, rendement, ingrédients, étapes HowToStep', () => {
-  const r = extractRecipe(page(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Curry de poulet', recipeYield: '4 personnes',
+  const r = extractRecipe(page(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Curry de poulet', recipeYield: '4 personnes', prepTime: 'PT15M', cookTime: 'PT1H5M',
     recipeIngredient: ['600 g de blanc de poulet', '1 oignon', '40 cl de lait de coco'],
     recipeInstructions: [{ '@type': 'HowToStep', text: 'Émincer l\'oignon.' }, { '@type': 'HowToStep', text: 'Cuire le poulet.' }] })), 'https://exemple.fr/curry');
   assert.deepEqual(r, { name: 'Curry de poulet', yieldText: '4 personnes', ingredients: ['600 g de blanc de poulet', '1 oignon', '40 cl de lait de coco'],
-    steps: ['Émincer l\'oignon.', 'Cuire le poulet.'], source: 'https://exemple.fr/curry' });
+    steps: ['Émincer l\'oignon.', 'Cuire le poulet.'], source: 'https://exemple.fr/curry', prepMin: 15, cookMin: 65 });
   const p = fromWeb(r!);
   assert.equal(p.yield, 4);
+  assert.deepEqual([p.prepMin, p.cookMin], [15, 65]); // durées de la page, gardées pour ordonner le batch
   assert.deepEqual(p.ingredients.map(i => [i.line.name, i.line.qty, i.line.unit]), [['Blanc de poulet', '600', 'g'], ['Oignon', '1', 'piece'], ['Lait de coco', '40', 'cl']]);
 });
 
@@ -41,7 +42,8 @@ test('étapes en un seul texte numéroté ; JSON avec virgule finale ; plusieurs
 test('repli microdonnées ; page sans recette → rien', () => {
   const html = `<div itemscope itemtype="https://schema.org/Recipe"><h1 itemprop="name">Soupe</h1><meta itemprop="recipeYield" content="4">
     <li itemprop="recipeIngredient">1 kg de carottes</li><li itemprop="recipeIngredient">2 poireaux</li><div itemprop="recipeInstructions">Tout cuire.</div></div>`;
-  assert.deepEqual(extractRecipe(html), { name: 'Soupe', yieldText: '4', ingredients: ['1 kg de carottes', '2 poireaux'], steps: ['Tout cuire.'], source: '' });
+  assert.deepEqual(extractRecipe(html), { name: 'Soupe', yieldText: '4', ingredients: ['1 kg de carottes', '2 poireaux'], steps: ['Tout cuire.'], source: '', prepMin: null, cookMin: null });
+  assert.deepEqual(['PT20M', 'PT1H', 'P0DT45M', 'PT0S', 'PT2H30M15S', '20 min', 'P3D'].map(isoMinutes), [20, 60, 45, null, 150, null, null]);
   assert.equal(extractRecipe('<html><body>Bonjour</body></html>'), null);
   assert.equal(extractRecipe(page('{"@type":"Article","name":"Pas une recette"}')), null);
   assert.equal(decode('&#x2F;&frac12;&inconnu;'), '/½&inconnu;');

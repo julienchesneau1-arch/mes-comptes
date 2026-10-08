@@ -44,6 +44,7 @@ export function syncSoon(delay = 800): void {
 export async function syncNow(): Promise<void> {
   if (!enabled() || !RELAY) { sync.status = 'off'; return; }
   if (running) { again = true; return running; }
+  const shown = statusLabel(); // l'écran n'est redessiné que si ce qu'il affiche change (sinon les sections ouvertes se referment)
   running = (async () => {
     sync.status = 'busy';
     const conf = RELAY as NonNullable<typeof RELAY>;
@@ -72,7 +73,7 @@ export async function syncNow(): Promise<void> {
       if (e instanceof SyncError && e.code === 'foyer') sync.error = 'Le relais contient un autre foyer pour ce code';
     } finally {
       running = null;
-      A.render();
+      if (statusLabel() !== shown) A.render();
       if (again) { again = false; syncSoon(1500); }
     }
   })();
@@ -101,7 +102,9 @@ export function startAutoSync(): void {
   void syncNow();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void syncNow(); });
   addEventListener('online', () => { void syncNow(); });
-  window.setInterval(() => { if (!document.hidden) void syncNow(); }, 20000);
+  // Toutes les 20 s ; toutes les 5 s en mode magasin (deux personnes cochent la même liste en même temps).
+  let tick = 0;
+  window.setInterval(() => { tick++; if (!document.hidden && (A.ui.store || tick % 4 === 0)) void syncNow(); }, 5000);
 }
 
 export function statusLabel(): string {

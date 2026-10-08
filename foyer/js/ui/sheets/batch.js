@@ -2,7 +2,7 @@
 // cartes d'Aujourd'hui (jour des courses, jour du batch) et budget de la semaine.
 import { addDays, fmtDay, fmtDayShort, fmtSlot, fmtRelDay, parseSlot, daysBetween } from '../../core/dates.js';
 import { current } from '../../core/model.js';
-import { DEFAULT_RITUAL, ANSES_FROID, batchView, batchDrafts, batchDayFor, defaultIn, miseEnPlace, sharedIngredients, batchStreak } from '../../core/batch.js';
+import { DEFAULT_RITUAL, ANSES_FROID, batchView, batchDrafts, batchDayFor, defaultIn, miseEnPlace, sharedIngredients, batchStreak, batchOrder, hm, weekRange } from '../../core/batch.js';
 import { declarePrepared } from '../../core/commands.js';
 import { deriveShopping } from '../../core/shopping.js';
 import { cartEstimate } from '../../core/budget.js';
@@ -76,7 +76,7 @@ const widths = (root) => { for (const el of root.querySelectorAll('[data-pct]'))
     el.style.width = `${el.dataset['pct'] ?? 0}%`; }; // CSP : pas de style dans le HTML
 export function openBatch(day) { openSheet({ id: `batch:${day}`, render: () => batchHtml(day), mount: widths }); }
 CLICK['batchOpen'] = d => openBatch(d['day'] ?? '');
-const serveText = (x, today) => `${capital(fmtSlot(x.slot, today))} · ${x.n} portion${x.n > 1 ? 's' : ''}${x.boxes.length ? ` (boîte ${x.boxes.join(', ')})` : ''} · J+${x.offset}`;
+const serveText = (x, today) => `${capital(fmtSlot(x.slot, today))} · ${x.n} portion${x.n > 1 ? 's' : ''}${x.boxes.length ? ` (boîte à emporter : ${x.boxes.join(', ')})` : ''}`;
 function dishRow(d, day, mode) {
     const s = S(), today = clock().date, r = s.recipes[d.prep.recipe], c = r ? current(r) : null;
     const look = dishLook(d.name, c?.ingredients.map(l => l.name) ?? []);
@@ -87,7 +87,7 @@ function dishRow(d, day, mode) {
         : mode === 'plan'
             ? `${d.done ? '' : `<button class="btn small-btn quiet" data-a="batchOut" data-id="${d.prep.id}" data-day="${day}">Retirer</button>`}`
             : d.done ? '<span class="chip s-pret">Prêt</span>'
-                : `<button class="btn small-btn" data-a="batchDone" data-id="${d.prep.id}" data-day="${day}">C'est prêt · ${d.portions}</button>${c?.steps.length ? `<button class="btn small-btn ghost" data-a="cook" data-id="${d.prep.id}">Recette</button>` : ''}<button class="btn small-btn quiet" data-a="prepared" data-id="${d.prep.id}" data-k="${d.prep.slot ?? ''}">Autre nombre</button>`;
+                : `<button class="btn small-btn" data-a="batchDone" data-id="${d.prep.id}" data-day="${day}">Prêt : ${plural(d.portions, 'portion')}</button>${c?.steps.length ? `<button class="btn small-btn ghost" data-a="cook" data-id="${d.prep.id}">Recette</button>` : ''}<button class="btn small-btn quiet" data-a="prepared" data-id="${d.prep.id}" data-k="${d.prep.slot ?? ''}">J'en ai fait plus ou moins</button>`;
     return `<li class="${d.done ? 'done-line' : ''}"><div class="item top-align"><span class="look t-${look.theme}" aria-hidden="true">${look.emoji}</span>
     <span class="grow"><span class="title">${esc(d.name)} · ${plural(d.portions, 'portion')}</span>
     <ul class="serves">${serves}</ul>${missing ? `<span class="chip manque">${missing}</span>` : ''}
@@ -101,7 +101,7 @@ function batchHtml(day) {
     if (!v.dishes.length && !v.candidates.length) {
         return `${sheetHead(esc(title), esc(sub))}<div class="celebrate"><span class="big-emoji" aria-hidden="true">🗓️</span><h3>Pas encore de menu</h3>
       <p class="muted">Aucun plat à cuisiner entre le ${esc(fmtDayShort(day))} et le ${esc(fmtDayShort(addDays(day, 6)))}.</p>
-      <button class="btn big" data-a="propose" data-week="${v.week}">✨ Proposer le menu</button></div>`;
+      <button class="btn big" data-a="propose" data-week="${v.week}">✨ Choisir les repas ${esc(weekRange(v.week))}</button></div>`;
     }
     const all = v.dishes.length && v.done === v.dishes.length;
     if (all && session && celebrated !== day) {
@@ -116,7 +116,8 @@ function batchHtml(day) {
   <div class="stats" role="list">
     <span role="listitem"><strong>${v.dishes.length}</strong>${v.dishes.length > 1 ? 'plats' : 'plat'}</span>
     <span role="listitem"><strong>${v.portions}</strong>portions</span>
-    <span role="listitem"><strong>${v.containers}</strong>boîtes à remplir</span>
+    ${v.boxes ? `<span role="listitem"><strong>${v.boxes}</strong>boîte${v.boxes > 1 ? 's' : ''} déjeuner</span>` : ''}
+    ${v.dishesToKeep ? `<span role="listitem"><strong>${v.dishesToKeep}</strong>plat${v.dishesToKeep > 1 ? 's' : ''} à garder</span>` : ''}
     ${session && v.dishes.length ? `<span role="listitem"><strong>${v.done}/${v.dishes.length}</strong>prêts</span>` : ''}
   </div>
   ${session && v.dishes.length && !all ? `<div class="deck-progress" role="progressbar" aria-label="Plats prêts" aria-valuemin="0" aria-valuemax="${v.dishes.length}" aria-valuenow="${v.done}"><span data-pct="${Math.round(100 * v.done / v.dishes.length)}"></span></div>` : ''}
@@ -125,13 +126,26 @@ function batchHtml(day) {
   ${v.candidates.length && !all ? `<section class="card"><div class="row"><h3 class="section-title grow">${v.dishes.length ? 'À ajouter ?' : 'Plats de la semaine'}</h3>
       ${defaults.length > 1 ? `<button class="btn small-btn" data-a="batchAll" data-day="${day}">Ajouter les ${defaults.length} de la semaine</button>` : ''}</div>
       <ul class="list">${v.candidates.map(d => dishRow(d, day, 'candidate')).join('')}</ul></section>` : ''}
-  ${mep.length ? `<section class="card"><h3 class="section-title">Mise en place commune</h3><p class="small muted">Laver, éplucher, couper en une fois pour tous les plats.</p>
+  ${orderHtml(v.dishes)}
+  ${mep.length ? `<section class="card"><h3 class="section-title">À préparer en une fois</h3><p class="small muted">Laver, éplucher, couper pour tous les plats d'un coup.</p>
       <ul class="list">${mep.map(l => `<li><div class="item"><span class="grow"><span class="title">${esc(l.name)}</span><br><span class="sub">${esc(l.dishes.join(', '))}</span></span><span class="qty">${esc(l.qty || '?')}</span></div></li>`).join('')}</ul></section>` : ''}
   ${shared.length ? `<p class="banner ok"><span><strong>Malin :</strong> ${esc(shared.slice(0, 4).join(', '))} ${shared.length > 1 ? 'servent' : 'sert'} dans plusieurs plats : moins de restes, moins d'achats.</span></p>` : ''}
   ${!session || !v.dishes.length ? `<section class="card stack"><h3 class="section-title">Courses du batch</h3>
-      <p>${list.remaining ? `${plural(list.remaining, 'article')} à prendre` : 'Liste traitée'}${cart.priced ? ` · panier estimé ${cart.partial ? '≥\u00a0' : ''}${esc(eur(cart.cents))}${cart.unpriced ? ` (${cart.unpriced} sans prix)` : ''}` : ''}</p>
+      <p>${list.remaining ? `${plural(list.remaining, 'article')} à prendre` : 'Liste traitée'}${cart.reliable ? ` · panier estimé : ${cart.partial ? 'au moins ' : ''}${esc(eur(cart.cents))}` : ''}</p>
       <div class="actions"><button class="btn soft" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button></div></section>` : ''}
-  <p class="small muted">J+n = jours entre le batch et le repas. Foyer n'évalue pas la conservation : frigo ou congélateur, c'est vous qui décidez. Repères officiels : <a href="${ANSES_FROID}" target="_blank" rel="noopener noreferrer">ANSES, conserver ses aliments</a>.</p>`;
+  <p class="small muted">Frigo ou congélateur selon le jour du repas : c'est vous qui décidez, Foyer n'évalue pas la conservation. Repères officiels : <a href="${ANSES_FROID}" target="_blank" rel="noopener noreferrer">ANSES, conserver ses aliments</a>.</p>`;
+}
+// Par quoi commencer (durées déclarées dans les recettes) ; sinon, ce qui manque pour le savoir.
+function orderHtml(dishes) {
+    const o = batchOrder(S(), dishes);
+    if (o.steps.length < 2)
+        return '';
+    if (o.missing.length === o.steps.length)
+        return `<p class="small muted">Pour savoir par quoi commencer, notez la durée de préparation et de cuisson dans vos recettes (Maison › Nos plats).</p>`;
+    return `<section class="card stack"><h3 class="section-title">Par quoi commencer</h3><ol class="order">${o.steps.map(x => `<li><span class="title">${esc(x.name)}</span>
+    <span class="sub">${x.start !== null ? `à ${esc(hm(x.start))} du début · ` : ''}${x.prepMin !== null ? `préparation ${esc(hm(x.prepMin))}` : 'préparation ?'} · ${x.cookMin !== null ? `cuisson ${esc(hm(x.cookMin))}` : 'cuisson ?'}</span></li>`).join('')}</ol>
+    ${o.total !== null ? `<p><strong>Fin vers ${esc(hm(o.total))} après le début</strong>, si les cuissons peuvent se faire en même temps (feux, four).</p>`
+        : `<p class="small muted">Durées à compléter : ${esc(o.missing.join(', '))}. La cuisson la plus longue passe en premier.</p>`}</section>`;
 }
 CLICK['batchIn'] = d => { const day = d['day'] ?? ''; dispatch(batchDrafts(S(), day, [d['id'] ?? ''], true), { toast: `Ajouté au batch du ${fmtDayShort(day)}` }); };
 CLICK['batchOut'] = d => { const day = d['day'] ?? ''; dispatch(batchDrafts(S(), day, [d['id'] ?? ''], false), { toast: 'Retiré du batch : cuisiné le jour du repas' }); };
@@ -161,13 +175,13 @@ export function ritualCard(rn) {
     }
     if (rn.kind === 'courses') {
         if (rn.menuEmpty)
-            return card('sun', '🗓️', `Rituel · courses ${hourText(r.shopAt)}`, 'D\'abord, le menu', esc(`Le batch est ${when} : choisissez les repas, la liste de courses suit.`), `<button class="btn" data-a="propose" data-week="${v.week}">✨ Proposer le menu</button>`);
+            return card('sun', '🗓️', `Rituel · courses ${hourText(r.shopAt)}`, 'D\'abord, le menu', esc(`Le batch est ${when} : choisissez les repas, la liste de courses suit.`), `<button class="btn" data-a="propose" data-week="${v.week}">✨ Choisir les repas ${esc(weekRange(v.week))}</button>`);
         const list = deriveShopping(s, v.week), cart = cartEstimate(s, list);
-        return card('ocean', '🛒', `Rituel · courses ${hourText(r.shopAt)}`, 'Jour des courses', esc(`${list.remaining ? plural(list.remaining, 'article') + ' à commander' : 'Liste traitée'}${cart.priced ? ` · panier estimé ${cart.partial ? '≥\u00a0' : ''}${eur(cart.cents)}` : ''} · batch ${when}${v.dishes.length ? ` (${plural(v.dishes.length, 'plat')})` : ''}`), `<button class="btn" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button>${v.dishes.length ? '' : `<button class="btn ghost" data-a="batchOpen" data-day="${v.day}">Plats du batch</button>`}`);
+        return card('ocean', '🛒', `Rituel · courses ${hourText(r.shopAt)}`, 'Jour des courses', esc(`${list.remaining ? plural(list.remaining, 'article') + ' à commander' : 'Liste traitée'}${cart.reliable ? ` · panier estimé : ${cart.partial ? 'au moins ' : ''}${eur(cart.cents)}` : ''} · batch ${when}${v.dishes.length ? ` (${plural(v.dishes.length, 'plat')})` : ''}`), `<button class="btn" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button>${v.dishes.length ? '' : `<button class="btn ghost" data-a="batchOpen" data-day="${v.day}">Plats du batch</button>`}`);
     }
     if (rn.kind === 'choose')
         return card('basil', '🥘', 'Rituel · batch', `Batch ${when} : quels plats ?`, esc(`${plural(v.candidates.length, 'plat prévu', 'plats prévus')} cette semaine. Choisissez ceux à cuisiner à l'avance.`), `<button class="btn" data-a="batchOpen" data-day="${v.day}">Choisir les plats</button>`);
-    return card('sun', '🗓️', 'Rituel · menu', `Batch ${when} : le menu d'abord`, 'Choisissez les repas de la semaine : la liste de courses et le batch suivent.', `<button class="btn" data-a="propose" data-week="${v.week}">✨ Proposer le menu</button>`);
+    return card('sun', '🗓️', 'Rituel · menu', `Batch ${when} : le menu d'abord`, 'Choisissez les repas de la semaine : la liste de courses et le batch suivent.', `<button class="btn" data-a="propose" data-week="${v.week}">✨ Choisir les repas ${esc(weekRange(v.week))}</button>`);
 }
 // Le rituel jamais réglé : on le présente une fois, discrètement.
 export function ritualPromo() {
@@ -175,7 +189,7 @@ export function ritualPromo() {
     if (A.demo || s.settings.ritual !== undefined || !A.device.ritualHint)
         return '';
     return `<section class="card promo stack" aria-labelledby="promo-h"><div class="row"><span class="look t-tomato" aria-hidden="true">👩‍🍳</span><h2 id="promo-h" class="grow">Batch cooking le dimanche ?</h2></div>
-    <p>Menu choisi en cartes, liste finale le samedi, drive le dimanche matin, cuisine l'après-midi : Foyer orchestre et rappelle chaque étape.</p>
+    <p>Menu choisi en cartes, liste finale le samedi, drive le dimanche matin, cuisine l'après-midi : Foyer prépare et rappelle chaque étape.</p>
     <div class="actions"><button class="btn" data-a="ritual">Découvrir le rituel</button><button class="btn quiet" data-a="ritualLater">Plus tard</button></div></section>`;
 }
 CLICK['ritualLater'] = () => { setDevice({ ritualHint: false }); A.render(); };

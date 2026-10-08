@@ -44,6 +44,8 @@ test('saisie d\'ingrédient sans IA, rien de deviné en silence', () => {
   assert.deepEqual(p('2 cuillères à café de cumin'), { name: 'Cumin', qty: '2', unit: 'cc', form: null, note: '' });
   assert.deepEqual(p('1 cuillère de miel'), { name: 'Miel', qty: '1', unit: 'cuillere', form: null, note: '' });
   assert.deepEqual(p('3 gousses d\'ail'), { name: 'Ail', qty: '3', unit: 'gousse', form: null, note: '' });
+  assert.deepEqual(p('2 gousses d’ail'), { name: 'Ail', qty: '2', unit: 'gousse', form: null, note: '' }); // apostrophe typographique (catalogue)
+  assert.equal(p('2 cl d’huile d’olive').name, 'Huile d’olive');
   assert.deepEqual(p('- 1 boîte de tomates concassées (400 g)'), { name: 'Tomates concassées', qty: '1', unit: 'boite', form: null, note: '400 g' });
   assert.deepEqual(p('½ citron'), { name: 'Citron', qty: '1/2', unit: 'piece', form: null, note: '' });
   assert.deepEqual(p('Sel'), { name: 'Sel', qty: null, unit: null, form: null, note: '' });

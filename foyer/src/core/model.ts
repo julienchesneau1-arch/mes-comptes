@@ -18,7 +18,12 @@ export interface Settings {
   holidays?: boolean;            // fériés (absent = oui)
   ritual?: Ritual | null;        // absent ou null = pas de rituel
   budget?: number | null;        // budget courses par semaine, en centimes, choisi par le foyer
+  variety?: Variety;             // part de recettes nouvelles dans les propositions (absent = « max »)
 }
+// « max » : des recettes nouvelles partout où c'est possible ; « equilibre » : 1 à 3 par semaine ; « mes-plats » : vos plats d'abord.
+export type Variety = 'max' | 'equilibre' | 'mes-plats';
+export const VARIETIES: readonly Variety[] = ['max', 'equilibre', 'mes-plats'];
+const isVariety = (v: unknown): v is Variety => typeof v === 'string' && (VARIETIES as readonly string[]).includes(v);
 
 export interface AheadTask { label: string; when: 'veille' | 'matin' }
 export interface RecipeContent {
@@ -29,6 +34,8 @@ export interface RecipeContent {
   ahead: AheadTask[];           // « sortir le poulet du congélateur » : déclaré par le foyer, jamais déduit
   tags: string[];               // « rapide », « week-end », « favori »…
   note: string;
+  prepMin?: number | null;      // durées déclarées (minutes) : préparation et cuisson ; servent à ordonner la séance de batch
+  cookMin?: number | null;
 }
 export interface Recipe { id: string; versions: RecipeContent[]; archived: boolean }
 
@@ -79,7 +86,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -149,6 +156,7 @@ const STATES = new Set(['ferme', 'ouvert', 'congele', 'decongele', 'prepare', 'i
 const NEED_RE = /^(na|-?\d{1,12}(\/\d{1,12})?)(\+\d{1,3})?$/;
 const isNeed = (v: unknown): v is string => typeof v === 'string' && NEED_RE.test(v);
 const isQty = (v: unknown): v is string => typeof v === 'string' && qFrom(v) !== null && (qFrom(v)?.n ?? 0) > 0;
+const optMin = (v: unknown): boolean => v === undefined || v === null || int(v, 0, 1440);
 const isHHMM = (v: unknown): v is string => typeof v === 'string' && /^([01]\d|2[0-3])[0-5]\d$/.test(v);
 export const validRitual = (v: unknown): v is Ritual => isObj(v) && int(v['shop'], 0, 6) && int(v['cook'], 0, 6) && isHHMM(v['shopAt']) && isHHMM(v['cookAt']);
 const optRitual = (v: unknown): boolean => v === undefined || v === null || validRitual(v);
@@ -170,7 +178,7 @@ export function validRhythm(v: unknown): v is RhythmDay[] {
 const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v: unknown): v is Settings {
   return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
-    && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS);
+    && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']));
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -186,7 +194,7 @@ export function validContent(v: unknown): v is RecipeContent {
     && Array.isArray(v['ahead']) && v['ahead'].length <= 10
     && v['ahead'].every(a => isObj(a) && str(a['label'], 120, 1) && (a['when'] === 'veille' || a['when'] === 'matin'))
     && Array.isArray(v['tags']) && v['tags'].length <= 10 && v['tags'].every(t => str(t, 24, 1))
-    && str(v['note'], 1000);
+    && str(v['note'], 1000) && optMin(v['prepMin']) && optMin(v['cookMin']);
 }
 function validDateDecl(v: unknown): v is DateDecl {
   if (!isObj(v)) return false;
@@ -203,7 +211,8 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'members.set': p => validMembers(p['members']),
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
     && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
-    && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS),
+    && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
+    && (p['variety'] === undefined || isVariety(p['variety'])),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),

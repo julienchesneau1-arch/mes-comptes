@@ -130,7 +130,7 @@ export function deriveToday(r: Replay, now: Date): Today {
   const first = cards[0];
   const near = new Set(Object.values(s.preps).filter(p => { const d = p.slot ? parseSlot(p.slot)?.date : undefined; return d && d >= addDays(today, -2) && d <= addDays(today, 6); }).map(p => p.recipe));
   const ideas = first && !first.view.prep && first.view.status === 'vide'
-    ? { leftovers: leftovers(s, today), recipes: rank(s, first.view.key, today, near).slice(0, 3) }
+    ? { leftovers: leftovers(s, today), recipes: (() => { const fresh = rank(s, first.view.key, today, near, new Map(), { noRepeat: true }); return (fresh.length ? fresh : rank(s, first.view.key, today, near)).slice(0, 3); })() }
     : null;
 
   return { date: today, hour, cards, tasks, toBuy, checks, empty, nextWeekEmpty, ideas, ritual: ritualNow(s, today) };

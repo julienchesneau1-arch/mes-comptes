@@ -1,6 +1,6 @@
 // Rituel batch, horloge fixée : samedi 10 octobre 2026 (jour des courses) puis dimanche 11 (jour du batch).
 // Rituel activé depuis Aujourd'hui, menu en cartes avec plats « Batch », drive avec prix noté, budget, montant payé, bilan,
-// puis séance de batch (mise en place commune, « C'est prêt », célébration). axe WCAG 2.2 AA clair et sombre.
+// puis séance de batch (à préparer en une fois, « Prêt », célébration). axe WCAG 2.2 AA clair et sombre.
 // Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -56,9 +56,11 @@ await step('foyer créé (samedi)', async () => {
 });
 await step('rituel présenté sur Aujourd\'hui, activé en un geste', async () => {
   await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
-  await page.getByRole('heading', { name: /Batch cooking le dimanche/ }).waitFor();
+  await page.locator('#guide-h').waitFor(); // « Premiers pas » : une seule étape visible, la liste complète repliée
+  await page.getByText('Toutes les étapes').click();
+  await page.getByText('Choisir notre rituel : courses le samedi, batch le dimanche').waitFor();
   await shot('r01-promo'); await axe('promo');
-  await page.getByRole('button', { name: 'Découvrir le rituel' }).click();
+  await page.locator('section[aria-labelledby="guide-h"] [data-a="ritual"]').click();
   await dlg.getByRole('button', { name: /Activer : courses le samedi, batch le dimanche/ }).click();
   await dlg.getByRole('heading', { name: 'Quand ?' }).waitFor();
   await shot('r02-rituel'); await axe('rituel');
@@ -67,7 +69,7 @@ await step('rituel présenté sur Aujourd\'hui, activé en un geste', async () =
   await shot('r03-samedi-menu');
 });
 await step('menu en cartes : plats marqués « Batch », un retiré, semaine validée', async () => {
-  await page.getByRole('button', { name: /Proposer le menu/ }).first().click();
+  await page.getByRole('button', { name: /Choisir les repas du 12 au 18 oct\./ }).first().click();
   await dlg.getByText(/^Repas 1 sur \d+/).waitFor();
   if (!(await dlg.locator('.badge', { hasText: 'Batch' }).count())) throw new Error('badge « Batch » absent de la première carte');
   await shot('r04-carte-batch');
@@ -92,8 +94,8 @@ await step('feuille du batch (samedi) : programme, à ajouter, mise en place, co
   await page.getByRole('button', { name: /Batch du dim\. 11 oct\./ }).click();
   await dlg.getByRole('heading', { name: 'Au programme' }).waitFor();
   const t = await text(dlg);
-  if (!/J\+1/.test(t)) throw new Error('J+n absent');
-  if (!/Mise en place commune/.test(t)) throw new Error('mise en place absente');
+  if (!/boîte à emporter/.test(t)) throw new Error('boîtes absentes');
+  if (!/À préparer en une fois/.test(t)) throw new Error('mise en place absente');
   console.log('   batch :', t.slice(0, 260));
   await shot('r07-batch-samedi'); await axe('batch-samedi');
   await page.keyboard.press('Escape');
@@ -104,7 +106,8 @@ await step('jour des courses : drive avec prix noté, panier estimé', async () 
   await shot('r08-samedi-courses'); await axe('samedi-courses');
   await page.getByRole('button', { name: 'Commander au drive' }).first().click();
   await dlg.getByText(/Article 1 sur/).waitFor();
-  for (let i = 0; i < 40 && (await dlg.locator('h3').first().innerText()).trim() !== 'Oignons'; i++) await dlg.getByRole('button', { name: 'Passer' }).click();
+  // Un article compté en pièces (oignon, poivron…) : contenance « 1 », le nombre de paquets se calcule.
+  for (let i = 0; i < 40 && !/Besoin : \d+(,\d+)? pièces?/.test(await dlg.locator('section').first().innerText()); i++) await dlg.getByRole('button', { name: 'Passer' }).click();
   await dlg.locator('summary', { hasText: 'Retenir le produit choisi' }).click();
   await dlg.getByLabel('Lien du produit chez Auchan').fill('https://www.auchan.fr/auchan-produit-essai/pr-C1000009');
   await dlg.getByLabel(/Contenance d'un paquet/).fill('1');
@@ -145,8 +148,8 @@ await step('dimanche : séance de batch jusqu\'à la célébration', async () =>
   await page.getByRole('button', { name: 'Lancer la session' }).click();
   await dlg.getByRole('heading', { name: 'En cuisine' }).waitFor();
   await shot('r12-session'); await axe('session');
-  for (let i = 0; i < 8 && await dlg.getByRole('button', { name: /^C'est prêt/ }).count(); i++) {
-    await dlg.getByRole('button', { name: /^C'est prêt/ }).first().click();
+  for (let i = 0; i < 8 && await dlg.getByRole('button', { name: /^Prêt :/ }).count(); i++) {
+    await dlg.getByRole('button', { name: /^Prêt :/ }).first().click();
     await page.waitForTimeout(150);
   }
   await dlg.getByRole('heading', { name: /Batch terminé/ }).waitFor();

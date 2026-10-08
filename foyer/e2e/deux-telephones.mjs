@@ -61,6 +61,9 @@ await step('A crée le foyer avec un plat complet', async () => {
   await A.getByRole('button', { name: 'Analyser' }).click();
   await A.getByText(/Lu : 3 ingrédient/).waitFor();
   await A.getByRole('button', { name: 'Enregistrer' }).click();
+  // Ce scénario porte sur la synchro autour du curry : propositions « surtout nos plats » (réglage éprouvé au passage).
+  await A.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await A.getByRole('radio', { name: 'Surtout nos plats' }).check();
   await A.getByRole('link', { name: 'Semaine', exact: true }).click();
   await acceptMenu(A);
 });

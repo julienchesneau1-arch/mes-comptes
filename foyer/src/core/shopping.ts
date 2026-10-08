@@ -141,11 +141,22 @@ const minQ = (a: Q, b: Q): Q => (cmp(a, b) <= 0 ? a : b);
 
 /* ---------- Présentation ---------- */
 
+// Ce qui s'achète à l'unité (oignons, poulet, boîtes, paquets…) : arrondi à l'unité supérieure, le besoin exact entre parenthèses.
+const BUY_WHOLE = new Set(['piece', 'tranche', 'boite', 'sachet', 'botte', 'paquet', 'pot', 'filet', 'cube', 'bouquet', 'barquette', 'bocal', 'brique', 'bouteille', 'rouleau', 'pave', 'tablette']);
 export const lineQty = (l: ShopLine, which: 'need' | 'toBuy' = 'toBuy'): string => {
   const v = which === 'need' ? l.need : l.toBuy;
   if (!v || !l.dim) return '';
   const hint = l.sources.find(x => x.line.unit && UNIT[x.line.unit]?.dim === l.dim)?.line.unit;
-  return showQty(v, l.dim, hint ? UNIT[hint] : undefined);
+  const unit = hint ? UNIT[hint] : undefined;
+  if (which === 'toBuy' && BUY_WHOLE.has(l.dim) && v.d !== 1 && v.n > 0) return showQty(q(Math.ceil(v.n / v.d)), l.dim, unit);
+  return showQty(v, l.dim, unit);
+};
+// Besoin exact quand la quantité à acheter a été arrondie à l'unité (« il en faut 1,5 pièce »).
+export const exactNeed = (l: ShopLine): string => {
+  const v = l.toBuy;
+  if (!v || !l.dim || !BUY_WHOLE.has(l.dim) || v.d === 1 || v.n <= 0) return '';
+  const hint = l.sources.find(x => x.line.unit && UNIT[x.line.unit]?.dim === l.dim)?.line.unit;
+  return `il en faut ${showQty(v, l.dim, hint ? UNIT[hint] : undefined)}`;
 };
 
 // Calcul détaillé d'une ligne, pour « toucher affiche calcul et repas sources ».

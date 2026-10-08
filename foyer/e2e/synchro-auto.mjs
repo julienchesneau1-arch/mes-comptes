@@ -92,6 +92,9 @@ await step('A importe une recette depuis une adresse web, la relit et l\'enregis
   await A.getByText(/Importé de www.exemple-recettes.fr : 3 ingrédient/).waitFor();
   await A.getByRole('button', { name: 'plat entier' }).click();
   await A.getByRole('button', { name: 'Enregistrer' }).click();
+  // Scénario centré sur la recette importée : propositions « surtout nos plats ».
+  await A.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await A.getByRole('radio', { name: 'Surtout nos plats' }).check();
   await A.getByRole('link', { name: 'Semaine', exact: true }).click();
   await acceptMenu(A);
   await A.waitForTimeout(1500);
@@ -107,7 +110,7 @@ await step('B rejoint avec le seul code (aucun lien à copier)', async () => {
 });
 await step('mêmes courses sur les deux téléphones', async () => {
   const a = await courses(A), b = await courses(B);
-  if (a !== b || !/Pommes de terre/.test(a)) throw new Error(`A: ${a.slice(0, 160)}\nB: ${b.slice(0, 160)}`);
+  if (a !== b || !/Pommes de terre/.test(a)) { let i = 0; while (i < a.length && a[i] === b[i]) i++; throw new Error(`différence à ${i} (A ${a.length}, B ${b.length}) — B suite : ${b.slice(i, i + 200)}`); }
   console.log('   ', a.slice(0, 140));
 });
 await step('B coche un article ; A le voit coché sans rien faire d\'autre que revenir dans l\'app', async () => {

@@ -398,3 +398,10 @@ table.report th, table.report td { text-align: right; padding: .5rem .375rem; bo
 table.report th:first-child, table.report td:first-child { text-align: left; }
 table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .table-wrap { overflow-x: auto; }
+
+/* ---------- Équilibre de la semaine ---------- */
+.balance { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.balance li { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.balance .chip { min-width: 3.75rem; justify-content: center; }
+.order { margin: 0; padding-left: 1.25rem; display: grid; gap: .5rem; }
+.order li .sub { display: block; color: var(--ink-2); font-size: .875rem; }

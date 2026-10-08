@@ -216,4 +216,19 @@ Demande : « se mettre au batch cooking le dimanche, choix des courses finales l
 
 [ANOMALIE_LOGIQUE corrigée] Un plat déjà déclaré préparé faisait encore apparaître ses ingrédients dans « Pas encore pris » : ils sont désormais ignorés.
 
-Fin du PRD V2.1 (révisions V2.2 à V2.8 incluses).
+## 15. V2.9 — aucune redondance, un maximum de nouveautés, moins de charge mentale (8 octobre 2026)
+
+Demande : « aucune redondance dans les recettes proposées, un maximum de nouveau ; l'app est-elle facile à comprendre et assez pratique pour enlever de la charge mentale ? »
+
+| Règle | Contenu |
+|---|---|
+| Nouveau par défaut | Une recette jamais cuisinée à chaque repas tant que le catalogue en a ; vos plats complètent. Réglable (Équilibré, Surtout nos plats) dans Réglages et depuis le menu en cartes |
+| Aucune redondance | Jamais deux fois le même plat dans la semaine ; pas un plat prévu il y a moins de 2 semaines s'il reste autre chose ; pas deux plats du même genre ; une découverte déjà montrée passe en dernier. La règle cède plutôt que de laisser un repas vide |
+| Équilibré sans moraliser | Repères officiels comptés sur les plats prévus, par personne, source en lien ; les propositions comblent ; aucun score, aucune interdiction |
+| Une action à la fois | Aujourd'hui : ce soir, ce qu'il reste à faire, une seule action pour la semaine, une seule étape des premiers pas ; les mots du batch sont ceux de la cuisine (« boîte à emporter », « Prêt »), plus de J+n |
+| Ce qui dépend d'une donnée absente ne s'affiche pas | Ordre du batch sans durées, panier estimé sans 80 % des prix, grammes sans quantité : rien d'inventé, le manque est dit |
+
+[ANOMALIE_LOGIQUE corrigée] Un plat cuisiné au batch dimanche restait marqué « À cuisiner » le jour où il est mangé : il est affiché « 👩‍🍳 Cuisiné au batch dim. ».
+[ANOMALIE_LOGIQUE corrigée] Après le montant payé, les articles restaient « Pas encore acheté » tant qu'ils n'étaient pas cochés un par un : « Tout est arrivé du drive ? Oui, tout cocher ».
+
+Fin du PRD V2.1 (révisions V2.2 à V2.9 incluses).

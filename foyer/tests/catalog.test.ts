@@ -29,8 +29,9 @@ test('catalogue relu : entrée mal formée ignorée ; recherche par texte, par f
   assert.deepEqual(search(a.s, CAT, 'poulet', 'tout').map(r => r.title), ['Poulet yassa']); // déjà dans vos plats : masqué
 });
 
-test('aucun plat encore : 3 découvertes variées au plus, jamais sans nombre de personnes', () => {
+test('réglage « équilibré », aucun plat encore : 3 découvertes variées au plus, jamais sans nombre de personnes', () => {
   const { a } = household();
+  a.emit({ t: 'settings.set', p: { variety: 'equilibre' } });
   const props = proposeWeek(a.s, MON, '2026-10-04', 12, CAT);
   const fresh = props.filter(p => p.dish?.kind === 'new').map(p => p.dish?.kind === 'new' ? p.dish.catalog : null) as CatalogRecipe[];
   assert.equal(fresh.length, 3); // au-delà : trop d'achats inhabituels, les autres repas restent à choisir
@@ -42,8 +43,9 @@ test('aucun plat encore : 3 découvertes variées au plus, jamais sans nombre de
   assert.deepEqual(proposeWeek(a.s, MON, '2026-10-04', 12, CAT), props);  // déterministe
 });
 
-test('avec vos plats : une seule découverte par semaine, à la place de la proposition la moins convaincante', () => {
+test('réglage « équilibré », avec vos plats : une seule découverte par semaine, à la place de la proposition la moins convaincante', () => {
   const { a } = household();
+  a.emit({ t: 'settings.set', p: { variety: 'equilibre' } });
   const names = ['Curry', 'Lasagnes', 'Omelette', 'Gratin', 'Tarte poireaux', 'Chili', 'Risotto', 'Quiche', 'Soupe', 'Pâtes bolo'];
   a.emit(...names.map((n, i) => ({ t: 'recipe.save' as const, p: { recipe: `rec${String(i).padStart(4, '0')}`, content: i === 0 ? CURRY : content(n, 4, ['500 g de légumes']) } })));
   const props = proposeWeek(a.s, MON, '2026-10-04', 12, CAT);

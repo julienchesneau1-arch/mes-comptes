@@ -1,7 +1,7 @@
 // Rituel batch : courses finales un jour (drive), cuisine en une séance un autre jour, repas de la semaine prêts.
 // Tout vient de ce que le foyer a déclaré (rituel, plats, portions). Foyer n'estime ni durée ni conservation :
 // il montre seulement combien de jours séparent le batch de chaque repas (J+n).
-import { addDays, daysBetween, parseSlot, slotOrder, weekday, weekOf } from './dates.js';
+import { addDays, daysBetween, parseSlot, slotOrder, weekday, weekOf, fmtDayShort } from './dates.js';
 import { current } from './model.js';
 import {} from './reduce.js';
 import { users, servings, eaters, portions } from './plan.js';
@@ -9,7 +9,9 @@ import { prepTitle } from './status.js';
 import { ZERO, q, add, mul, div, qFrom } from './rational.js';
 import { UNIT, toBase, showQty } from './units.js';
 import { aisleOf, ingredientKey } from './ingredients.js';
-export const DEFAULT_RITUAL = { shop: 5, shopAt: '1700', cook: 6, cookAt: '0900' }; // samedi 17 h, dimanche 9 h
+export const DEFAULT_RITUAL = { shop: 5, shopAt: '1700', cook: 6, cookAt: '1400' }; // liste finale samedi 17 h, drive dimanche matin, cuisine à 14 h
+// « du 12 au 18 oct. »
+export const weekRange = (w) => `du ${Number(w.slice(8, 10))} au ${fmtDayShort(addDays(w, 6)).replace(/^\S+ /, '')}`;
 export const ANSES_FROID = 'https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid';
 // Prochaine occurrence d'un jour de la semaine (aujourd'hui compris) ; dernière occurrence au plus tard tel jour.
 export const nextWeekday = (from, wd) => addDays(from, (wd - weekday(from) + 7) % 7);
@@ -51,6 +53,8 @@ export function batchView(s, day) {
         portions: dishes.reduce((n, x) => n + x.portions, 0),
         containers: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0).reduce((m, v) => m + v.containers, 0) + (x.extra ? 1 : 0), 0),
         done: dishes.filter(x => x.done).length,
+        boxes: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0).reduce((m, v) => m + v.boxes.length, 0), 0),
+        dishesToKeep: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0 && v.n > v.boxes.length).length + (x.extra ? 1 : 0), 0),
     };
 }
 // Mettre des plats dans un batch, ou les en sortir.
@@ -129,3 +133,23 @@ export function batchStreak(s, today) {
     }
     return n;
 }
+export function batchOrder(s, dishes) {
+    const raw = dishes.filter(d => !d.done).map(d => {
+        const r = s.recipes[d.prep.recipe], c = r ? current(r) : null;
+        return { prep: d.prep.id, name: d.name, prepMin: c?.prepMin ?? null, cookMin: c?.cookMin ?? null };
+    });
+    const sorted = [...raw].sort((a, b) => (b.cookMin ?? -1) - (a.cookMin ?? -1) || a.name.localeCompare(b.name, 'fr'));
+    const missing = sorted.filter(x => x.prepMin === null || x.cookMin === null).map(x => x.name);
+    let t = 0, total = missing.length ? null : 0;
+    const steps = sorted.map(x => {
+        if (missing.length || x.prepMin === null || x.cookMin === null)
+            return { ...x, start: null, end: null };
+        const start = t;
+        t += x.prepMin;
+        const end = t + x.cookMin;
+        total = Math.max(total ?? 0, end);
+        return { ...x, start, end };
+    });
+    return { steps, total, missing };
+}
+export const hm = (min) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}`);

@@ -10,13 +10,12 @@ const packsLine = (it) => {
     if (!it.product || !it.packs)
         return '';
     const price = it.product.price;
-    return it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong>${price ? ` · ${it.packs.n} × ${esc(eur(price))} = <strong>${esc(eur(it.packs.n * price))}</strong>` : ''}</p>`
-        : `<p class="small muted">Nombre de paquets : ${esc(it.packs.why)}.</p>`;
+    return it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong>${price ? ` · ${it.packs.n} × ${esc(eur(price))} = <strong>${esc(eur(it.packs.n * price))}</strong>` : ''}</p>` : '';
 };
 // Prix vu sur Auchan, noté une fois : il sert au panier estimé (jamais lu sur le site).
-const priceForm = (it) => !it.product ? '' : `<form data-f="priceSet" data-key="${esc(it.productKey)}" class="price-row">
+const priceForm = (it) => !it.product ? '' : `<details><summary>${it.product.price ? `Prix noté : ${esc(eur(it.product.price))} · changer` : 'Noter le prix (facultatif)'}</summary><form data-f="priceSet" data-key="${esc(it.productKey)}" class="price-row">
   <label class="field">Prix d'un paquet vu chez Auchan (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 4,99" value="${it.product.price ? esc(eur(it.product.price).replace(/\s?€$/, '').replace(/\u202f/g, '')) : ''}"></label>
-  <button class="btn ghost">${it.product.price ? 'Mettre à jour' : 'Noter le prix'}</button></form>`;
+  <button class="btn ghost">${it.product.price ? 'Mettre à jour' : 'Noter le prix'}</button></form></details>`;
 const openLink = (it, cls = 'btn block') => `<a class="${cls}" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(`${it.product ? 'Ouvrir le produit' : 'Chercher'} ${it.name} chez Auchan (nouvelle page)`)}">${it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}</a>`;
 // Bloc « produit retenu » : partagé par la commande guidée et le détail d'une ligne de courses.
 export function productForm(productKey, name, product) {

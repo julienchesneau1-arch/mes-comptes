@@ -95,6 +95,8 @@ function apply(s, e) {
                 s.settings.ritual = e.p.ritual ? { ...e.p.ritual } : null;
             if (e.p.budget !== undefined)
                 s.settings.budget = e.p.budget;
+            if (e.p.variety !== undefined)
+                s.settings.variety = e.p.variety;
             return;
         }
         case 'recipe.save': {

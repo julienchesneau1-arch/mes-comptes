@@ -38,6 +38,12 @@ const match = (text: string): Look | null => {
   return null;
 };
 
+// Type de plat (pizza, curry, soupe, gratin, pâtes…) : sert aussi à varier la semaine. null = type non reconnu.
+export function dishType(name: string, ingredients: readonly string[] = []): string | null {
+  const m = match(name) ?? ingredients.slice(0, 4).map(match).find(Boolean) ?? null;
+  return m ? m.emoji : null;
+}
+
 // Nom d'abord ; sinon les premiers ingrédients ; sinon un visuel stable tiré du nom (le même plat garde toujours le sien).
 export function dishLook(name: string, ingredients: readonly string[] = []): Look {
   const byName = match(name);
