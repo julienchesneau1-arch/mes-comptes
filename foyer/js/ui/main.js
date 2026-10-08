@@ -15,6 +15,7 @@ import { startAutoSync } from './autosync.js';
 import { startReminders } from './push.js';
 import { startAgenda } from './agenda.js';
 import './sheets/agenda.js';
+import './sheets/batch.js';
 import './sheets/help.js';
 import './sheets/slot.js';
 import './sheets/recipe.js';
@@ -49,6 +50,8 @@ function render() {
         nav.hidden = false;
     const tab = A.ui.tab;
     app.innerHTML = demo + (tab === 'semaine' ? weekView() : tab === 'courses' ? shopView() : tab === 'maison' ? homeView() : todayView());
+    for (const el of $$('[data-pct]', app))
+        el.style.width = `${el.dataset['pct'] ?? 0}%`; // jauges : CSP sans style écrit dans le HTML
     for (const a of $$('#tabs a')) {
         if (a.getAttribute('href') === `#${tab}`)
             a.setAttribute('aria-current', 'page');

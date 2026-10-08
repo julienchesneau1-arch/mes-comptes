@@ -33,6 +33,9 @@ export function demoLog(now) {
         { t: 'watch.save', p: { id: 'wcreme', name: 'Crème fraîche', qty: '20 cl', date: { kind: 'DLC', value: addDays(today, 4) }, state: 'ouvert', slot: null } },
         { t: 'staple.set', p: { key: 'cafe', name: 'Café', qty: '1 paquet', aisle: 'sucre', removed: false } },
         { t: 'staple.set', p: { key: 'papier toilette', name: 'Papier toilette', qty: '', aisle: 'maison', removed: false } },
+        // Rituel batch (courses le samedi, batch le dimanche), budget et un prix noté au drive.
+        { t: 'settings.set', p: { ritual: { shop: 5, shopAt: '1700', cook: 6, cookAt: '0900' }, budget: 9000 } },
+        { t: 'product.set', p: { key: 'blanc de poulet', url: 'https://www.auchan.fr/auchan-filet-de-poulet/pr-C1000003', label: 'Auchan filet de poulet', size: '300', unit: 'g', price: 499 } },
     ];
     return stamp({ dev: 'demo0000', by: 'alex', lc: 0, now }, d);
 }

@@ -14,6 +14,8 @@ Adresse (après publication de `main`) : `https://julienchesneau1-arch.github.io
 - **Maison** : vos plats (un nom suffit pour commencer ; une recette se colle en texte, s'importe depuis son adresse web ou se choisit dans « Découvrir des recettes »), les portions déclarées, les produits dont la date compte, les réglages et la synchro.
 - **À deux** : synchro automatique chiffrée de bout en bout (le second téléphone tape juste le code du foyer), « qui cuisine » par repas, glisser-déposer dans la semaine, rappels en notification (« sortir le poulet » la veille à 19 h, la boîte à préparer, la semaine suivante vide ; Réglages › « Activer les rappels ») ou dans l'agenda, mode magasin (écran allumé).
 - **Agenda** : vos agendas Google, iCloud ou Outlook branchés une fois (Réglages › Agendas) ; le foot du mardi, un resto, le télétravail, les vacances et les jours fériés ajustent les repas du mois. Une décision par événement, ensuite c'est automatique ; un plat que plus personne ne mange est décalé.
+- **Rituel batch** : courses finales le samedi (commande au drive), batch cooking le dimanche (Maison › Réglages › Rituel batch). Le menu en cartes marque les plats « 👩‍🍳 Batch » ; la feuille du batch liste les plats, les boîtes à remplir avec leur J+n et les légumes à préparer en une fois ; « C'est prêt » d'un geste. Rappels le jour des courses et le jour du batch.
+- **Budget** : prix d'un paquet noté une fois au drive → panier estimé et coût par portion ; budget de la semaine avec jauge ; montant payé après le drive ; Maison › Bilan suit les semaines (payé, €/portion, jetés, batchs d'affilée).
 - **Prise en main** : « Premiers pas » sur Aujourd'hui et « Comment ça marche » dans Réglages.
 
 ## Installer sur iPhone (iOS 16.4 ou plus récent)
@@ -26,14 +28,14 @@ Sur iPhone, un lien reçu s'ouvre dans Safari, pas dans l'app : appui long → C
 
 ## Ce que Foyer ne fait pas, volontairement
 
-Pas d'inventaire du frigo, pas d'IA, pas de prix, pas de durée de conservation calculée, aucun repas confirmé parce que l'heure est passée. Les seuls contrôles de date : DLC dépassée, date manquante, produit ouvert ([fiche DGCCRF](https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/date-limite-de-consommation-et-date-de-durabilite-minimale-ce-que-vous-devez-savoir)).
+Pas d'inventaire du frigo, pas d'IA, aucun prix lu sur un site (seulement ceux que vous notez), pas de durée de conservation calculée, aucun repas confirmé parce que l'heure est passée. Les seuls contrôles de date : DLC dépassée, date manquante, produit ouvert ([fiche DGCCRF](https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/date-limite-de-consommation-et-date-de-durabilite-minimale-ce-que-vous-devez-savoir)).
 
 ## Développement
 
 ```
 cd foyer
 npm ci
-npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 83 tests
+npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 94 tests
 ```
 
 Sources dans `src/`, JavaScript publié dans `js/` (à recompiler et versionner après chaque modification ; la CI le vérifie). La liste hors ligne de `sw.js` est régénérée à chaque compilation.

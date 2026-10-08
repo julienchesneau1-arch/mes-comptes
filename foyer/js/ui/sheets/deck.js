@@ -1,6 +1,7 @@
 // Propositions en cartes, à la Jow : un repas à la fois. Glisser à droite (ou ❤) = « je prends », à gauche (ou ↻) = « autre idée »,
 // « pas de plat » = ce repas reste libre. Rien n'est enregistré avant « Valider » ; les boutons font tout ce que font les gestes.
-import { fmtSlot, weekOf } from '../../core/dates.js';
+import { fmtSlot, fmtDay, weekOf, parseSlot } from '../../core/dates.js';
+import { batchDayFor, defaultIn, inWindow } from '../../core/batch.js';
 import { current } from '../../core/model.js';
 import { proposeWeek, acceptDrafts, rank, nextDiscovery } from '../../core/propose.js';
 import { dishLook } from '../../core/visual.js';
@@ -21,10 +22,10 @@ export function cardInfo(p, all = []) {
     if (d?.kind === 'cook') {
         const r = s.recipes[d.recipe], c = r ? current(r) : null;
         const name = c?.name ?? 'Plat';
-        return { look: dishLook(name, c?.ingredients.map(l => l.name) ?? []), name, badges: c?.tags.includes('rapide') ? ['⚡ Rapide'] : [], link: null };
+        return { look: dishLook(name, c?.ingredients.map(l => l.name) ?? []), name, badges: [...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : []), ...(c?.tags.includes('rapide') ? ['⚡ Rapide'] : [])], link: null };
     }
     if (d?.kind === 'new')
-        return { look: dishLook(d.catalog.title, d.catalog.ingredients), name: d.catalog.title, badges: ['✨ Nouveau'], link: d.catalog.url };
+        return { look: dishLook(d.catalog.title, d.catalog.ingredients), name: d.catalog.title, badges: ['✨ Nouveau', ...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : [])], link: d.catalog.url };
     if (d?.kind === 'from') {
         const src = all.find(x => x.slot === d.source);
         const base = src ? cardInfo(src) : null;
@@ -70,7 +71,7 @@ function cardHtml(p, behind = false) {
     const n = eaters(p);
     return `<article class="deck-card" aria-labelledby="deck-name">
     <div class="deck-art t-${info.look.theme}"><span class="art-emoji" aria-hidden="true">${info.look.emoji}</span>
-      <span class="badge">${esc(capital(fmtSlot(p.slot, today)))}</span>${info.badges.map(b => `<span class="badge new">${esc(b)}</span>`).slice(0, 1).join('')}
+      <span class="badge">${esc(capital(fmtSlot(p.slot, today)))}</span>${info.badges.length ? `<span class="badges">${info.badges.slice(0, 2).map(b => `<span class="badge new">${esc(b)}</span>`).join('')}</span>` : ''}
       <span class="stamp yes" aria-hidden="true">MIAM ❤</span><span class="stamp no" aria-hidden="true">AUTRE ↻</span></div>
     <div class="deck-body"><h3 id="deck-name">${esc(info.name)}</h3>
       <p class="why">${esc(capital(p.reason))}${n ? ` · pour ${n}` : ''}</p>
@@ -117,6 +118,8 @@ function summaryHtml() {
         shop = 0;
     }
     const cooks = kept.filter(p => p.dish?.kind === 'cook' || p.dish?.kind === 'new').length;
+    const bd = D.batchDay, canBatch = (p) => !!bd && (p.dish?.kind === 'cook' || p.dish?.kind === 'new') && inWindow(bd, parseSlot(p.slot)?.date ?? '');
+    const inBatch = kept.filter(p => canBatch(p) && D?.batch.has(p.slot)).length;
     return `${sheetHead(esc(D.title))}
   <div class="celebrate"><span class="big-emoji" aria-hidden="true">${kept.length ? '🎉' : '🙂'}</span>
     <h3>${kept.length ? 'Votre semaine est prête\u00a0!' : 'Rien de retenu'}</h3>
@@ -124,8 +127,10 @@ function summaryHtml() {
   ${kept.length ? `<ul class="list recap">${kept.map(p => {
         const info = cardInfo(p, D?.props ?? []);
         return `<li><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}</span>
-    <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(capital(fmtSlot(p.slot, today)))}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}</span></span></div></li>`;
+    <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(capital(fmtSlot(p.slot, today)))}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}</span></span>
+    ${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${!!D?.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}</div></li>`;
     }).join('')}</ul>` : ''}
+  ${bd && kept.some(canBatch) ? `<p class="banner info"><span><strong>👩‍🍳 Batch du ${esc(fmtDay(bd))} :</strong> ${inBatch ? `${inBatch} plat${inBatch > 1 ? 's' : ''} cuisiné${inBatch > 1 ? 's' : ''} à l'avance` : 'aucun plat pour l\'instant'}. Touchez « Batch » pour changer.</span></p>` : ''}
   <div class="actions">${kept.length ? `<button class="btn big block" data-a="deckOk">Valider la semaine</button>` : ''}<button class="btn ghost block" data-a="deckAgain">Recommencer</button></div>`;
 }
 // Geste : la carte suit le doigt, se tamponne « MIAM » ou « AUTRE », part au-delà de 100 px.
@@ -235,10 +240,22 @@ function finish() {
     closeSheet();
     if (!kept.length)
         return;
-    dispatch(acceptDrafts(S(), kept), { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0]).name}` : `${kept.length} repas prévus · courses à jour` });
+    const drafts = acceptDrafts(S(), kept);
+    // Rituel : les plats cochés « Batch » sont cuisinés le jour du batch (événement juste après leur création).
+    const bd = D.batchDay, toBatch = [];
+    if (bd)
+        for (const x of drafts)
+            if (x.t === 'slot.cook' && D.batch.has(x.p.slot) && inWindow(bd, parseSlot(x.p.slot)?.date ?? ''))
+                toBatch.push({ t: 'prep.batch', p: { prep: x.p.prep, day: bd } });
+    dispatch([...drafts, ...toBatch], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0]).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
     confetti();
     D = null;
 }
+CLICK['deckBatch'] = d => { if (!D)
+    return; const k = d['k'] ?? ''; if (D.batch.has(k))
+    D.batch.delete(k);
+else
+    D.batch.add(k); render(); };
 CLICK['deckYes'] = () => act('yes');
 CLICK['deckOther'] = () => act('other');
 CLICK['deckSkip'] = () => act('skip');
@@ -251,8 +268,10 @@ CLICK['deckAgain'] = async () => { if (D)
 export async function openWeekDeck(week) {
     const c = clock(), cat = await loadCatalog(); // hors ligne sans catalogue : vos plats seulement
     const props = proposeWeek(S(), week, c.date, c.hour, cat);
+    const r = S().settings.ritual, bd = r ? batchDayFor(r, week) : null, batchDay = bd && bd >= c.date ? bd : null; // un batch passé ne prépare plus rien
+    const batch = new Set(batchDay ? props.filter(p => (p.dish?.kind === 'cook' || p.dish?.kind === 'new') && defaultIn(batchDay, parseSlot(p.slot)?.date ?? '')).map(p => p.slot) : []);
     D = { props, i: 0, kept: new Set(), tried: new Map(props.map(p => [p.slot, new Set([idOf(p)].filter(Boolean))])), title: week === thisWeek() ? 'Le menu de la semaine' : 'Le menu de la semaine prochaine',
-        week, single: false, note: cat ? '' : 'Découvertes indisponibles hors ligne : vos plats seulement.', cat };
+        week, single: false, note: cat ? '' : 'Découvertes indisponibles hors ligne : vos plats seulement.', cat, batchDay, batch };
     render();
 }
 // « Ce soir, on mange quoi ? » : une carte pour un seul repas, on fait défiler les idées.
@@ -264,7 +283,7 @@ export async function openIdea(slot) {
         p = own ? { slot, dish: { kind: 'cook', recipe: own.recipe, extra: 0 }, reason: own.reason, presence: {}, guests: 0 }
             : fresh ? { slot, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 } : undefined;
     }
-    D = { props: p ? [p] : [], i: 0, kept: new Set(), tried: new Map(p ? [[slot, new Set([idOf(p)])]] : []), title: `${capital(fmtSlot(slot, c.date))}, on mange quoi\u00a0?`, week, single: true, note: '', cat };
+    D = { props: p ? [p] : [], i: 0, kept: new Set(), tried: new Map(p ? [[slot, new Set([idOf(p)])]] : []), title: `${capital(fmtSlot(slot, c.date))}, on mange quoi\u00a0?`, week, single: true, note: '', cat, batchDay: null, batch: new Set() };
     render();
 }
 CLICK['idea'] = d => { void openIdea(d['k'] ?? ''); };

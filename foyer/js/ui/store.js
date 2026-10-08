@@ -58,6 +58,7 @@ export function loadDevice(newId) {
         push: d.push === true,
         pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
         guide: d.guide !== false,
+        ritualHint: d.ritualHint !== false,
     };
     saveDevice(dev);
     return dev;

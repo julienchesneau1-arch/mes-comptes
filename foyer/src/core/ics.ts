@@ -30,10 +30,10 @@ export function weekItems(s: State, week: LocalDate, withMeals: boolean, from = 
         text: [d.kind === 'cook' ? `${n} portion${n > 1 ? 's' : ''} à préparer` : '', chef ? `Cuisine : ${chef}` : ''].filter(Boolean).join(' · '), alarm: false });
     }
     if (d.kind === 'cook' && !prep.done) {
-      const r = s.recipes[prep.recipe];
+      const r = s.recipes[prep.recipe], cook = prep.batch ?? day;
       (r ? current(r).ahead : []).forEach((a, j) => out.push({
-        uid: `tache-${prep.id}-${j}`, day: a.when === 'veille' ? addDays(day, -1) : day, time: a.when === 'veille' ? '1900' : '0800', minutes: 10,
-        title: `⏰ ${a.label}`, text: `Pour ${name} (${fmtDayShort(day)} ${sl})`, alarm: true }));
+        uid: `tache-${prep.id}-${j}`, day: a.when === 'veille' ? addDays(cook, -1) : cook, time: a.when === 'veille' ? '1900' : '0800', minutes: 10,
+        title: `⏰ ${a.label}`, text: `Pour ${name} (${prep.batch ? `batch du ${fmtDayShort(cook)}` : `${fmtDayShort(day)} ${sl}`})`, alarm: true }));
     }
     for (const e of eaters(s, k).filter(x => x.presence === 'boite')) {
       out.push({ uid: `boite-${k}-${e.id}`, day: sl === 'midi' ? addDays(day, -1) : day, time: sl === 'midi' ? '2100' : '1700', minutes: 10,

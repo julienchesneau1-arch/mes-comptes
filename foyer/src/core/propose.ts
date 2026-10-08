@@ -11,6 +11,7 @@ import { wholeExtra } from './commands.ts';
 import { prepTitle } from './status.ts';
 import { type Catalog, discover, familiesOf, toContent } from './catalog.ts';
 import type { CatalogRecipe } from './wikibook.ts';
+import { defaultIn, lastWeekday } from './batch.ts';
 
 export type ProposedDish =
   | { kind: 'cook'; recipe: string; extra: number }
@@ -19,7 +20,7 @@ export type ProposedDish =
   | { kind: 'outside'; note: string };
 export interface Proposal { slot: SlotKey; dish: ProposedDish | null; reason: string; presence: Record<string, Presence>; guests: number }
 
-export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien'] as const;
+export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien', 'batch'] as const;
 
 // Dernier jour où chaque plat a été prévu (cuisiné).
 export function lastPlanned(s: State): Map<string, LocalDate> {
@@ -81,6 +82,7 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
   for (const rs of near.values()) for (const r of rs) for (const [k, v] of fresh(s, r)) weekFresh.set(k, v);
   const last = lastPlanned(s);
   const weekend = weekday(p.date) >= 5, evening = p.slot === 'soir';
+  const rit = s.settings.ritual, batchSlot = !!rit && defaultIn(lastWeekday(addDays(p.date, -1), rit.cook), p.date);
   const exp = expiring(s, p.date);
   const out: Ranked[] = [];
   for (const r of Object.values(s.recipes)) {
@@ -96,6 +98,7 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
     if (tags.has('rapide') && !weekend && evening) { score += 10; why.push('rapide'); }
     if (tags.has('week-end') && weekend) { score += 10; why.push('plat du week-end'); }
     if (tags.has('favori')) { score += 8; why.push('favori'); }
+    if (tags.has('batch') && batchSlot) { score += 10; why.push('se prépare à l\'avance'); }
     // Réutiliser un produit frais déjà acheté pour un autre plat de la semaine : moins de restes de crème ou de coriandre.
     const shared = [...fresh(s, r.id)].filter(([k]) => weekFresh.has(k)).map(([, v]) => v);
     if (shared.length) { score += Math.min(12, 4 * shared.length); why.push(`réutilise ${shared.slice(0, 2).join(', ')}`); }

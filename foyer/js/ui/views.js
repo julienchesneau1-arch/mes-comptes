@@ -1,5 +1,5 @@
 // Les quatre écrans : Aujourd'hui, Semaine, Courses, Maison. HTML calculé depuis l'état ; tout texte est échappé.
-import { addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, weekOf, weekday, parseSlot, fmtSlot, paris } from '../core/dates.js';
+import { addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, weekOf, weekday, parseSlot, fmtSlot, fmtRelDay, paris } from '../core/dates.js';
 import { current } from '../core/model.js';
 import { deriveToday } from '../core/today.js';
 import { slotView, STATUS_LABEL, prepTitle, capital } from '../core/status.js';
@@ -18,6 +18,8 @@ import { pushOn } from './push.js';
 import { toDecide } from './agenda.js';
 import { agendaSection } from './sheets/agenda.js';
 import { guideCard } from './sheets/help.js';
+import { ritualCard, ritualPromo, weekBatchButton, ritualSection } from './sheets/batch.js';
+import { budgetCard, reportView } from './sheets/budget.js';
 import { RELAY } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { packsFor } from '../core/drive.js';
@@ -74,6 +76,7 @@ export function todayView() {
       <h3 id="${id}">${esc(title)}</h3>
       ${v.sub ? `<p class="muted small detail">${esc(v.sub)}</p>` : ''}
       ${c.detail ? `<p class="detail">${esc(c.detail)}</p>` : ''}
+      ${v.batch ? `<p class="chip info plain">👩‍🍳 Cuisiné au batch ${esc(v.batch === t.date ? 'd\'aujourd\'hui' : `de ${fmtRelDay(v.batch, t.date)}`)}</p>` : ''}
       ${v.link && v.status !== 'vide' && !c.detail?.startsWith('Préparer') ? `<p class="small muted detail">${esc(v.link)}</p>` : ''}
       ${v.incomplete ? '<p class="chip manque">Ingrédients non renseignés</p>' : ''}
       <div class="actions">${cardActions(v)}</div>${i === 0 ? '</div>' : ''}</article>`;
@@ -87,7 +90,7 @@ export function todayView() {
       <label class="check"><input type="checkbox" data-c="task" data-key="${esc(x.key)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.text)} : fait"><span></span></label>
       <span class="grow"><span class="title">${esc(x.text)}</span><br><span class="sub">${esc(x.hint)}</span></span></div></li>`).join('')}</ul>
       ${t.tasks.every(x => x.done) ? '<p class="small muted">Aucune autre tâche enregistrée aujourd\'hui.</p>' : ''}</section>` : '';
-    const toBuy = t.toBuy.length ? `<section class="card" aria-labelledby="buy-h"><h2 id="buy-h">Pas encore pris</h2>${t.toBuy.map(x => `<p><strong>${esc(capital(fmtSlot(x.slot, t.date)))} :</strong> ${esc(x.names.join(', '))}</p>`).join('')}
+    const toBuy = t.toBuy.length ? `<section class="card" aria-labelledby="buy-h"><h2 id="buy-h">Pas encore pris</h2>${t.toBuy.map(x => `<p><strong>${esc(x.label)} :</strong> ${esc(x.names.join(', '))}</p>`).join('')}
       <a class="btn ghost" href="#courses">Voir les courses</a></section>` : '';
     const checks = t.checks.length ? `<section class="card" aria-labelledby="chk-h"><h2 id="chk-h">À vérifier</h2><ul class="list">${t.checks.map(p => `<li><div class="item">
       <span class="chip ${p.level}">${p.level === 'conflit' ? 'À résoudre' : p.level === 'attention' ? 'Attention' : 'À compléter'}</span><span class="grow">${esc(p.text)}</span>
@@ -110,7 +113,7 @@ export function todayView() {
     const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
     return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
-    <div class="cols"><div class="stack">${cards}${ideas}</div><div class="stack">${guide}${checks}${tasks}${toBuy}${plan}</div></div></main>`;
+    <div class="cols"><div class="stack">${ritualCard(t.ritual)}${cards}${ideas}</div><div class="stack">${guide}${ritualPromo()}${checks}${tasks}${toBuy}${plan}</div></div></main>`;
 }
 /* ---------- Semaine ---------- */
 function slotButton(k, label) {
@@ -122,7 +125,7 @@ function slotButton(k, label) {
     <span class="lbl">${label}</span><span class="t">${esc(title)}</span>
     ${v.status !== 'personne' && v.status !== 'vide' ? `<span class="p">${v.servings} portion${v.servings > 1 ? 's' : ''}${v.sub ? ` · ${esc(v.sub)}` : ''}</span>` : v.status === 'vide' ? `<span class="p">${esc(v.sub)}</span>` : ''}
     ${v.link ? `<span class="p">${esc(v.link)}</span>` : ''}
-    ${v.status !== 'vide' && v.status !== 'personne' ? `<span class="chip s-${v.status}">${STATUS_LABEL[v.status]}</span>` : ''}</button>`;
+    ${v.status !== 'vide' && v.status !== 'personne' ? `<span class="chip s-${v.status}">${STATUS_LABEL[v.status]}</span>` : ''}${v.batch ? `<span class="chip info plain">👩‍🍳 batch ${esc(dayShort(v.batch))}</span>` : ''}</button>`;
 }
 export function weekView() {
     const s = S(), c = clock();
@@ -135,7 +138,7 @@ export function weekView() {
     const head = `<div class="weeknav"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
     <h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
     </div>${week !== thisWeek() ? `<button class="btn small-btn quiet" data-a="wk" data-d="0">${week > thisWeek() && week === addDays(thisWeek(), 7) ? 'Revenir à la semaine en cours' : 'Cette semaine'}</button>` : ''}
-    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>
+    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>${weekBatchButton(week)}
       <details class="more"><summary class="btn ghost">Plus d'options</summary><div class="actions"><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div></details></div>`;
     let body;
     if (wide) {
@@ -216,7 +219,7 @@ export function shopView() {
     return `<div class="top"><h1>Courses</h1><button class="btn small-btn ${A.ui.store ? '' : 'ghost'}" data-a="storeMode" aria-pressed="${A.ui.store}">Mode magasin</button><button class="btn small-btn ghost" data-a="shareList" data-week="${week}">Partager</button></div>
   <main id="main" tabindex="-1">
     <div class="weeknav"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><h2>Pour la semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
-    ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner}
+    ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner + budgetCard(week, list)}
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
@@ -225,7 +228,7 @@ export function shopView() {
     ${sections}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}</ul></details>` : ''}
     <div class="actions"><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
-    <p class="small muted">Cocher = traité pour ces courses. Cela ne crée ni stock, ni date, ni prix.</p></main>`;
+    <p class="small muted">Cocher = traité pour ces courses. Cela ne crée ni stock ni date ; les prix sont ceux que vous notez.</p></main>`;
 }
 CLICK['shopWk'] = d => { A.ui.shopWeek = addDays(d['w'] ?? thisWeek(), Number(d['d'])); A.render(); };
 CLICK['toggleDone'] = () => { A.ui.showDone = !A.ui.showDone; A.render(); };
@@ -238,9 +241,9 @@ CLICK['storeMode'] = async () => {
 /* ---------- Maison ---------- */
 export function homeView() {
     const sec = A.ui.home;
-    const tabs = [['plats', 'Nos plats'], ['portions', 'Portions'], ['surveiller', 'À surveiller'], ['reglages', 'Réglages']]
+    const tabs = [['plats', 'Nos plats'], ['portions', 'Portions'], ['surveiller', 'À surveiller'], ['bilan', 'Bilan'], ['reglages', 'Réglages']]
         .map(([id, label]) => `<button class="tag" data-a="homeSec" data-s="${id}" aria-pressed="${sec === id}">${label}</button>`).join('');
-    const body = sec === 'plats' ? platsView() : sec === 'portions' ? portionsView() : sec === 'surveiller' ? watchListView() : settingsView();
+    const body = sec === 'plats' ? platsView() : sec === 'portions' ? portionsView() : sec === 'surveiller' ? watchListView() : sec === 'bilan' ? reportView() : settingsView();
     return `<div class="top"><h1>Maison</h1></div><main id="main" tabindex="-1"><div class="chips" role="group" aria-label="Sections">${tabs}</div>${body}</main>`;
 }
 CLICK['homeSec'] = d => { A.ui.home = (d['s'] ?? 'plats'); A.render(); };
@@ -291,16 +294,17 @@ function settingsView() {
       <div class="actions"><button class="btn" data-a="sync">Synchro avec ${esc(otherNames())}</button><button class="btn ghost" data-a="exportBackup">Exporter une sauvegarde</button>
       <label class="btn ghost">Importer une sauvegarde<input type="file" accept="application/json,.json" data-c="importBackup" class="sr-only"></label><button class="btn ghost" data-a="snapshots">Copies de secours</button></div></section>
     ${RELAY ? `<section class="card stack"><h2>Rappels sur ce téléphone</h2>
-      <p>${pushOn() ? '<strong>Activés.</strong> ' : ''}La veille à 19 h « sortir le poulet », la boîte à préparer, et le dimanche à 18 h si la semaine suivante est vide.</p>
+      <p>${pushOn() ? '<strong>Activés.</strong> ' : ''}La veille à 19 h « sortir le poulet », la boîte à préparer, et ${S().settings.ritual ? 'le rituel : la liste à commander le jour des courses, la séance du batch à son heure' : 'le dimanche à 18 h si la semaine suivante est vide'}.</p>
       <p class="small muted">Le serveur ne voit que l'heure et un bloc chiffré ; le texte est déchiffré sur le téléphone. Sur iPhone : Foyer installé sur l'écran d'accueil, iOS 16.4 ou plus.</p>
       <div class="actions">${pushOn() ? '<button class="btn ghost" data-a="pushTest">Envoyer un rappel d\'essai</button><button class="btn quiet" data-a="pushOff">Désactiver</button>' : '<button class="btn" data-a="pushOn">Activer les rappels</button>'}</div></section>` : ''}
+    ${ritualSection()}
     ${agendaSection()}
     <section class="card stack"><h2>Affichage</h2><label class="field">Thème<select data-c="theme"><option value="auto" ${A.device.theme === 'auto' ? 'selected' : ''}>Comme le téléphone</option><option value="light" ${A.device.theme === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${A.device.theme === 'dark' ? 'selected' : ''}>Sombre</option></select></label>
       <button class="btn ghost" data-a="demo">Mode découverte (exemple, rien n'est enregistré)</button></section>
     <section class="card stack"><h2>Ce que fait Foyer, et ce qu'il ne fait pas</h2>
       <ul class="parsed"><li>Calcule les courses à partir de vos plats et du nombre de portions : quantités exactes, sources visibles.</li>
       <li>Ne tient pas d'inventaire : « on en a déjà » vaut pour une liste, pas pour toujours.</li>
-      <li>N'utilise aucune IA, ne devine ni prix, ni durée, ni conservation.</li>
+      <li>N'utilise aucune IA, ne devine ni prix, ni durée, ni conservation : les prix viennent de vous.</li>
       <li>Ne confirme jamais un repas parce que l'heure est passée.</li>
       <li>Données sur vos téléphones uniquement ; la synchro est chiffrée de bout en bout.</li></ul>
       <p class="small muted">Version ${VERSION} · <a href="${DGCCRF_URL}" target="_blank" rel="noopener">DLC et DDM (DGCCRF)</a></p>

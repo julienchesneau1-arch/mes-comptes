@@ -1,11 +1,13 @@
 // Écran « Aujourd'hui » : le prochain repas, l'action suivante, les tâches courtes, et seulement les problèmes utiles à ces repas.
-import { slotKey, addDays, parseSlot, fmtSlot, weekOf, weekday, SLOTS, paris } from './dates.js';
+import { slotKey, addDays, parseSlot, fmtSlot, fmtRelDay, weekOf, weekday, SLOTS, paris } from './dates.js';
 import { current } from './model.js';
 import { portions, servings, eaters, dependents } from './plan.js';
 import {} from './reduce.js';
 import { slotView, problems, prepTitle } from './status.js';
 import { deriveShopping } from './shopping.js';
 import { rank, leftovers, isUpcoming } from './propose.js';
+import { ritualNow } from './batch.js';
+const capitalFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const who = (s, k) => {
     const boxes = eaters(s, k).filter(e => e.presence === 'boite').map(e => e.name);
     return boxes.length ? ` (boîte ${boxes.join(', ')})` : '';
@@ -51,7 +53,9 @@ export function deriveToday(r, now) {
     }
     // Tâches renseignées : « à faire la veille » / « le matin », et les boîtes à préparer.
     const tasks = [];
-    const cookAt = (d) => SLOTS.map(sl => slotKey(d, sl)).map(x => ({ k: x, d: s.slots[x]?.dish })).filter(x => x.d?.kind === 'cook');
+    // Plats cuisinés tel jour : le jour du repas, ou le jour du batch s'ils y sont prévus.
+    const cookAt = (d) => Object.values(s.preps).filter(p => !p.done && p.slot && (p.batch ?? parseSlot(p.slot)?.date) === d)
+        .map(p => ({ k: p.slot, d: { kind: 'cook', prep: p.id } }));
     const addAhead = (slotK, prepId, when, hint) => {
         const prep = s.preps[prepId];
         if (!prep || prep.done || s.slots[slotK]?.eaten)
@@ -63,7 +67,7 @@ export function deriveToday(r, now) {
             if (a.when !== when)
                 return;
             const key = `ahead:${prepId}:${i}:${a.label}`;
-            tasks.push({ key, text: a.label, done: !!s.tasks[key]?.done, hint: `${hint} · ${current(rc).name} ${fmtSlot(slotK, today)}` });
+            tasks.push({ key, text: a.label, done: !!s.tasks[key]?.done, hint: `${hint} · ${current(rc).name} ${prep.batch ? `· batch ${fmtRelDay(prep.batch, today)}` : fmtSlot(slotK, today)}` });
         });
     };
     for (const x of cookAt(tomorrow))
@@ -86,20 +90,27 @@ export function deriveToday(r, now) {
     }
     // Courses pas encore prises pour les repas d'aujourd'hui et demain.
     const soon = new Set([slotKey(today, 'midi'), slotKey(today, 'soir'), slotKey(tomorrow, 'midi'), slotKey(tomorrow, 'soir')].filter(x => isUpcoming(x, today, hour)));
-    const weeks = [...new Set([...soon].map(x => weekOf(parseSlot(x)?.date ?? today, s.settings.weekStart)))];
-    const bySlot = new Map();
+    // Plat du batch d'aujourd'hui ou de demain : ses ingrédients sont nécessaires dès le batch, pas au repas.
+    const batchSoon = new Map(Object.values(s.preps).filter(p => !p.done && p.batch && (p.batch === today || p.batch === tomorrow)).map(p => [p.id, p.batch]));
+    const weeks = [...new Set([...soon].map(x => weekOf(parseSlot(x)?.date ?? today, s.settings.weekStart))
+            .concat(Object.values(s.preps).filter(p => batchSoon.has(p.id) && p.slot).map(p => weekOf(parseSlot(p.slot)?.date ?? today, s.settings.weekStart))))];
+    const byWhen = new Map();
+    const put = (label, name) => { const set = byWhen.get(label) ?? new Set(); set.add(name); byWhen.set(label, set); };
     for (const w of weeks)
         for (const l of deriveShopping(s, w).lines) {
             if (l.done)
                 continue;
-            for (const src of l.sources)
-                if (soon.has(src.slot)) {
-                    const set = bySlot.get(src.slot) ?? new Set();
-                    set.add(l.name);
-                    bySlot.set(src.slot, set);
-                }
+            for (const src of l.sources) {
+                if (s.preps[src.prep]?.done)
+                    continue; // déjà préparé : ses ingrédients ont forcément été pris
+                const b = batchSoon.get(src.prep);
+                if (b)
+                    put(`Batch ${b === today ? 'd\'aujourd\'hui' : 'de demain'}`, l.name);
+                else if (soon.has(src.slot))
+                    put(capitalFirst(fmtSlot(src.slot, today)), l.name);
+            }
         }
-    const toBuy = [...bySlot.entries()].map(([slot, names]) => ({ slot, names: [...names] }));
+    const toBuy = [...byWhen.entries()].map(([label, names]) => ({ label, names: [...names] }));
     // À vérifier : problèmes liés aux repas affichés, produits dont la DLC arrive, conflits de synchro.
     const shown = new Set(cards.map(c => c.view.key));
     const shownPreps = new Set(cards.map(c => c.view.prep?.id).filter(Boolean));
@@ -120,5 +131,5 @@ export function deriveToday(r, now) {
     const ideas = first && !first.view.prep && first.view.status === 'vide'
         ? { leftovers: leftovers(s, today), recipes: rank(s, first.view.key, today, near).slice(0, 3) }
         : null;
-    return { date: today, hour, cards, tasks, toBuy, checks, empty, nextWeekEmpty, ideas };
+    return { date: today, hour, cards, tasks, toBuy, checks, empty, nextWeekEmpty, ideas, ritual: ritualNow(s, today) };
 }
