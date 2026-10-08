@@ -12,7 +12,8 @@ export function firstSteps() {
     const dishes = Object.values(s.recipes).filter(r => !r.archived).length;
     const steps = [
         { done: dishes >= 5, text: 'Noter 5 plats que vous faites souvent', why: 'Un nom suffit. Foyer propose ensuite les repas à partir d\'eux.', action: '<button class="btn small-btn ghost" data-a="classics">Choisir</button>' },
-        { done: planned, text: 'Prévoir la semaine', why: 'Foyer remplit les repas vides ; vous validez ligne par ligne.', action: '<button class="btn small-btn ghost" data-a="propose">Proposer</button>' },
+        { done: planned, text: 'Prévoir la semaine', why: 'Des cartes à balayer : je prends, autre idée. Les courses suivent.', action: '<button class="btn small-btn ghost" data-a="propose">Proposer</button>' },
+        { done: s.settings.ritual !== undefined, text: 'Choisir notre rituel : courses le samedi, batch le dimanche', why: 'Foyer prépare chaque étape et la rappelle au bon moment.', action: '<button class="btn small-btn ghost" data-a="ritual">Découvrir</button>' },
     ];
     if (s.members.length > 1)
         steps.push({ done: A.log.some(e => e.dev !== A.device.dev), text: `Installer Foyer sur le téléphone de ${otherNames()}`, why: 'Avec le code du foyer : ensuite, tout se synchronise seul.', action: '<button class="btn small-btn ghost" data-a="sync">Comment</button>' });
@@ -24,15 +25,18 @@ export function firstSteps() {
         steps.push({ done: standalone(), text: 'Mettre Foyer sur l\'écran d\'accueil', why: 'Safari › Partager › « Sur l\'écran d\'accueil » : l\'app garde vos données et reçoit les rappels.', action: '' });
     return steps;
 }
-export function guideCard() {
+export function guideCard(partnerShown = false) {
     if (A.demo || !A.device.guide)
         return '';
     const steps = firstSteps(), done = steps.filter(x => x.done).length;
     if (done === steps.length)
         return '';
+    // Une seule prochaine étape visible ; la liste complète est repliée (Aujourd'hui doit rester lisible en 10 secondes).
+    const next = steps.find(x => !x.done && !(partnerShown && x.text.startsWith('Installer Foyer sur le téléphone'))) ?? steps.find(x => !x.done);
     return `<section class="card stack" aria-labelledby="guide-h"><h2 id="guide-h">Premiers pas · ${done} sur ${steps.length}</h2>
-    <ul class="list">${steps.map(x => `<li${x.done ? ' class="done-line"' : ''}><div class="item"><span aria-hidden="true">${x.done ? '✓' : '○'}</span>
-      <span class="grow"><span class="title">${esc(x.text)}</span>${x.done ? '<span class="sr-only"> : fait</span>' : `<br><span class="sub">${esc(x.why)}</span>`}</span>${x.done ? '' : x.action}</div></li>`).join('')}</ul>
+    <div class="item"><span aria-hidden="true">○</span><span class="grow"><span class="title">${esc(next.text)}</span><br><span class="sub">${esc(next.why)}</span></span>${next.action}</div>
+    <details><summary>Toutes les étapes</summary><ul class="list">${steps.map(x => `<li${x.done ? ' class="done-line"' : ''}><div class="item"><span aria-hidden="true">${x.done ? '✓' : '○'}</span>
+      <span class="grow"><span class="title">${esc(x.text)}</span>${x.done ? '<span class="sr-only"> : fait</span>' : `<br><span class="sub">${esc(x.why)}</span>`}</span>${x.done ? '' : x.action}</div></li>`).join('')}</ul></details>
     <div class="actions"><button class="btn ghost" data-a="help">Comment ça marche</button><button class="btn quiet" data-a="guideHide">Masquer</button></div></section>`;
 }
 CLICK['guideHide'] = () => { setDevice({ guide: false }); A.render(); };

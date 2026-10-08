@@ -14,7 +14,11 @@ import { presence } from '../../core/plan.ts';
 import { loadCatalog } from '../catalog.ts';
 import { A, S, clock, dispatch, thisWeek } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.ts';
-import { CLICK } from '../registry.ts';
+import { CLICK, CHANGE } from '../registry.ts';
+import { seenSet, markSeen } from '../seen.ts';
+import type { Variety } from '../../core/model.ts';
+
+const VARIETY_LABEL: Record<Variety, string> = { max: 'maximum de nouveautés', equilibre: 'équilibré', 'mes-plats': 'surtout nos plats' };
 
 interface Deck {
   props: Proposal[]; i: number; kept: Set<SlotKey>; tried: Map<SlotKey, Set<string>>; title: string; week: LocalDate; single: boolean; note: string; cat: Catalog | null;
@@ -45,19 +49,28 @@ export function cardInfo(p: Proposal, all: readonly Proposal[] = []): { look: Lo
   return { look: { emoji: '🤔', theme: 'cream' }, name: 'Pas d\'idée pour ce repas', badges: [], link: null };
 }
 
-// Autre idée pour un repas : vos plats d'abord, puis le catalogue de découvertes ; null quand tout a été vu.
+// Autre idée pour un repas, sans jamais revenir sur une idée déjà vue : en mode « maximum », les découvertes d'abord ;
+// sinon vos plats (pas un plat prévu à moins de 2 semaines), puis les découvertes, puis vos plats récents. null quand tout a été vu.
 function alternative(p: Proposal): Proposal | null {
   if (!D || (p.dish?.kind !== 'cook' && p.dish?.kind !== 'new')) return null;
-  const tried = D.tried.get(p.slot) ?? new Set<string>([idOf(p)]);
-  const others = new Set(D.props.filter(x => x !== p).map(idOf).filter(Boolean));
-  const own = rank(S(), p.slot, clock().date, new Set([...others, ...[...tried].filter(t => !t.startsWith('n:'))]))[0];
-  if (own) { tried.add(own.recipe); D.tried.set(p.slot, tried); return { ...p, dish: { kind: 'cook', recipe: own.recipe, extra: 0 }, reason: own.reason }; }
-  if (D.cat) {
+  const d = D, tried = d.tried.get(p.slot) ?? new Set<string>([idOf(p)]);
+  const others = new Set(d.props.filter(x => x !== p).map(idOf).filter(Boolean));
+  const ownEx = new Set([...others, ...[...tried].filter(t => !t.startsWith('n:'))]);
+  const own = (noRepeat: boolean): Proposal | null => {
+    const r = rank(S(), p.slot, clock().date, ownEx, new Map(), { noRepeat })[0];
+    if (!r) return null;
+    tried.add(r.recipe); d.tried.set(p.slot, tried);
+    return { ...p, dish: { kind: 'cook', recipe: r.recipe, extra: 0 }, reason: r.reason };
+  };
+  const fresh = (): Proposal | null => {
+    if (!d.cat) return null;
     const ex = new Set([...[...others, ...tried].filter(t => t.startsWith('n:')).map(t => t.slice(2))]);
-    const fresh = nextDiscovery(S(), D.cat, p.slot, D.week, ex);
-    if (fresh) { tried.add(`n:${fresh.recipe.id}`); D.tried.set(p.slot, tried); return { ...p, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason }; }
-  }
-  return null;
+    const f = nextDiscovery(S(), d.cat, p.slot, d.week, ex, seenSet());
+    if (!f) return null;
+    tried.add(`n:${f.recipe.id}`); d.tried.set(p.slot, tried);
+    return { ...p, dish: { kind: 'new', catalog: f.recipe, extra: 0 }, reason: f.reason };
+  };
+  return (S().settings.variety ?? 'max') === 'max' ? fresh() ?? own(true) ?? own(false) : own(true) ?? fresh() ?? own(false);
 }
 
 function eaters(p: Proposal): number {
@@ -92,6 +105,7 @@ function deckHtml(): string {
   const canAlt = p.dish?.kind === 'cook' || p.dish?.kind === 'new';
   return `${sheetHead(esc(D.title), D.single ? 'Glissez à droite si ça vous dit, à gauche pour une autre idée.' : `Repas ${D.i + 1} sur ${total} · glissez à droite pour garder, à gauche pour changer.`)}
   ${D.note ? `<p class="banner info">${esc(D.note)}</p>` : ''}
+  ${D.single || D.i ? '' : `<button class="tag" data-a="deckVariety" aria-label="Changer : ${esc(VARIETY_LABEL[S().settings.variety ?? 'max'])}">✨ ${esc(capital(VARIETY_LABEL[S().settings.variety ?? 'max']))} · changer</button>`}
   <section class="deck">
     ${D.single ? '' : `<div class="deck-progress" role="progressbar" aria-label="Repas décidés" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${D.i}"><span data-pct="${Math.round(100 * D.i / total)}"></span></div>`}
     <div class="deck-stage" aria-live="polite">${D.i + 1 < total ? cardHtml(D.props[D.i + 1] as Proposal, true) : ''}${cardHtml(p)}</div>
@@ -124,6 +138,11 @@ function summaryHtml(): string {
   ${kept.length ? `<ul class="list recap">${kept.map(p => { const info = cardInfo(p, D?.props ?? []); return `<li><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}</span>
     <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(capital(fmtSlot(p.slot, today)))}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}</span></span>
     ${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${!!D?.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}</div></li>`; }).join('')}</ul>` : ''}
+  ${kept.filter(p => p.dish?.kind === 'new' && p.dish.catalog.yield === null).map(p => {
+    const dsh = p.dish as { catalog: { title: string }; yield?: number };
+    return `<fieldset class="card stack"><legend class="title">${esc(dsh.catalog.title)} : la recette ne dit pas pour combien de personnes</legend>
+      <div class="seg" role="radiogroup" aria-label="Pour combien de personnes">${[2, 4, 6].map(n => `<label><input type="radio" name="y-${p.slot}" data-c="deckYield" data-k="${p.slot}" value="${n}" ${dsh.yield === n ? 'checked' : ''}>${n} personnes</label>`).join('')}</div>
+      <p class="small muted">Sert à calculer les courses. Sans réponse, la liste de ce plat restera « à compléter ».</p></fieldset>`; }).join('')}
   ${bd && kept.some(canBatch) ? `<p class="banner info"><span><strong>👩‍🍳 Batch du ${esc(fmtDay(bd))} :</strong> ${inBatch ? `${inBatch} plat${inBatch > 1 ? 's' : ''} cuisiné${inBatch > 1 ? 's' : ''} à l'avance` : 'aucun plat pour l\'instant'}. Touchez « Batch » pour changer.</span></p>` : ''}
   <div class="actions">${kept.length ? `<button class="btn big block" data-a="deckOk">Valider la semaine</button>` : ''}<button class="btn ghost block" data-a="deckAgain">Recommencer</button></div>`;
 }
@@ -156,7 +175,11 @@ function mount(root: HTMLElement): void {
   root.onkeydown = e => { if (e.key === 'ArrowRight') { e.preventDefault(); act('yes'); } else if (e.key === 'ArrowLeft' && root.querySelector('[data-a="deckOther"]')) { e.preventDefault(); act('other'); } };
 }
 
-function render(): void { openSheet({ id: 'deck', render: deckHtml, mount }); }
+function render(): void {
+  const p = D && D.i < D.props.length ? D.props[D.i] : undefined;
+  if (p?.dish?.kind === 'new') markSeen([p.dish.catalog.id]); // vue une fois : repassera après les autres
+  openSheet({ id: 'deck', render: deckHtml, mount });
+}
 
 // Animation de départ (sauf si l'appareil demande moins d'animations), puis l'action.
 function act(kind: 'yes' | 'other' | 'skip'): void {
@@ -204,6 +227,17 @@ function finish(): void {
   D = null;
 }
 
+CLICK['deckVariety'] = async () => {
+  if (!D) return;
+  const order: Variety[] = ['max', 'equilibre', 'mes-plats'], cur = S().settings.variety ?? 'max';
+  const next = order[(order.indexOf(cur) + 1) % order.length] as Variety;
+  dispatch([{ t: 'settings.set', p: { variety: next } }], { toast: `Propositions : ${VARIETY_LABEL[next]}` });
+  await openWeekDeck(D.week);
+};
+CHANGE['deckYield'] = (d, el) => {
+  const p = D?.props.find(x => x.slot === d['k']);
+  if (p?.dish?.kind === 'new') p.dish = { ...p.dish, yield: Number((el as HTMLInputElement).value) };
+};
 CLICK['deckBatch'] = d => { if (!D) return; const k = d['k'] ?? ''; if (D.batch.has(k)) D.batch.delete(k); else D.batch.add(k); render(); };
 CLICK['deckYes'] = () => act('yes');
 CLICK['deckOther'] = () => act('other');
@@ -214,7 +248,7 @@ CLICK['deckAgain'] = async () => { if (D) await openWeekDeck(D.week); };
 
 export async function openWeekDeck(week: LocalDate): Promise<void> {
   const c = clock(), cat = await loadCatalog(); // hors ligne sans catalogue : vos plats seulement
-  const props = proposeWeek(S(), week, c.date, c.hour, cat);
+  const props = proposeWeek(S(), week, c.date, c.hour, cat, seenSet());
   const r = S().settings.ritual, bd = r ? batchDayFor(r, week) : null, batchDay = bd && bd >= c.date ? bd : null; // un batch passé ne prépare plus rien
   const batch = new Set(batchDay ? props.filter(p => (p.dish?.kind === 'cook' || p.dish?.kind === 'new') && defaultIn(batchDay, parseSlot(p.slot)?.date ?? '')).map(p => p.slot) : []);
   D = { props, i: 0, kept: new Set(), tried: new Map(props.map(p => [p.slot, new Set([idOf(p)].filter(Boolean))])), title: week === thisWeek() ? 'Le menu de la semaine' : 'Le menu de la semaine prochaine',
@@ -225,9 +259,10 @@ export async function openWeekDeck(week: LocalDate): Promise<void> {
 // « Ce soir, on mange quoi ? » : une carte pour un seul repas, on fait défiler les idées.
 export async function openIdea(slot: SlotKey): Promise<void> {
   const c = clock(), cat = await loadCatalog(), week = weekOf(slot.slice(0, 10), S().settings.weekStart);
-  let p = proposeWeek(S(), week, c.date, c.hour, cat).find(x => x.slot === slot && (x.dish?.kind === 'cook' || x.dish?.kind === 'new'));
+  let p = proposeWeek(S(), week, c.date, c.hour, cat, seenSet()).find(x => x.slot === slot && (x.dish?.kind === 'cook' || x.dish?.kind === 'new'));
   if (!p) {
-    const own = rank(S(), slot, c.date)[0], fresh = !own && cat ? nextDiscovery(S(), cat, slot, week, new Set()) : undefined;
+    const own = rank(S(), slot, c.date, new Set(), new Map(), { noRepeat: true })[0] ?? rank(S(), slot, c.date)[0];
+    const fresh = !own && cat ? nextDiscovery(S(), cat, slot, week, new Set(), seenSet()) : undefined;
     p = own ? { slot, dish: { kind: 'cook', recipe: own.recipe, extra: 0 }, reason: own.reason, presence: {}, guests: 0 }
       : fresh ? { slot, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 } : undefined;
   }

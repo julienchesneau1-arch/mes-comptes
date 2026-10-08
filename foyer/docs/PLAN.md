@@ -111,6 +111,18 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Défauts trouvés et corrigés | **livré** | Carrousel d'idées (V2.7) qui élargissait Aujourd'hui à 498 px sur téléphone (élément de grille sans `min-width: 0`) ; deux pastilles superposées sur une carte ; un plat déjà préparé laissait ses ingrédients dans « Pas encore pris » ; scénario « deux téléphones » dépendant de l'heure du test (horloge figée) |
 | Nouveau scénario navigateur | **livré** | `e2e/rituel.mjs`, horloge figée samedi puis dimanche : rituel activé, menu, feuille du batch, drive avec prix, budget, payé, bilan, séance jusqu'à la célébration ; axe 0 défaut en clair et en sombre |
 
+### V2.9 (aucune redondance, un maximum de nouveautés ; moins de charge mentale)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Maximum de nouveautés | **livré** | Réglage « Propositions de repas » (Maison › Réglages, et pastille dans le menu en cartes) : **Maximum de nouveautés** (par défaut), Équilibré, Surtout nos plats ; événement `settings.set` (`variety`), validé strictement. En maximum : une recette du catalogue jamais cuisinée à chaque repas tant qu'il en reste, vos plats ensuite ; les pages sans nombre de personnes deviennent proposables, le nombre (2, 4 ou 6) se choisit dans le récapitulatif et s'enregistre avec la recette. Test : 7 découvertes distinctes sur un catalogue de 7, vos 2 plats complètent |
+| Aucune redondance | **livré** | Jamais deux fois le même plat dans la semaine ; un plat prévu il y a moins de 13 jours laisse sa place s'il reste autre chose ; un plat du même genre (pâtes, gratin, curry… par règles fixes) déjà dans la semaine passe derrière ; une découverte déjà montrée sur ce téléphone depuis moins de 8 semaines passe en dernier ; les idées d'Aujourd'hui suivent les mêmes règles. Tests unitaires dédiés |
+| Équilibre de la semaine | **livré** | Carte sous la semaine (dès 3 repas prévus) : poisson 2 fois dont 1 gras, légumes secs au moins 2 fois, viande hors volaille 500 g au plus et charcuterie 150 g au plus, **par personne** (celle qui en mange le moins pour le poisson, le plus pour la viande), d'après les ingrédients des plats prévus ; sources Santé publique France en lien. Les propositions remontent ce qui manque (« poisson de la semaine ») et descendent la viande au-delà de 4 repas. Une quantité absente est signalée, jamais devinée |
+| Durées et ordre du batch | **livré** | Préparation et cuisson facultatives sur une recette ; lues à l'import web (`prepTime`, `cookTime` de schema.org ; fonction `foyer-import` redéployée, version 3). Feuille du batch : « Par quoi commencer » (une personne prépare à la suite, les cuissons tournent en même temps, la plus longue d'abord) et l'heure de fin estimée ; rien d'affiché si une durée manque (plats listés) |
+| Synchro en magasin | **livré** | Toutes les 5 s en mode magasin (20 s sinon) ; l'écran n'est redessiné que si quelque chose change (une section ouverte reste ouverte) |
+| Clarté (audit novice) | **livré** | Revue par un agent jouant un couple novice : clarté 4/10, charge mentale 5/10, 8 défauts. Corrigés : Aujourd'hui réduit à une action principale (« ✨ Compléter cette semaine (N repas) » ou « ✨ Choisir les repas du 12 au 18 oct. ») et une seule étape des premiers pas ; plat du batch affiché « 👩‍🍳 Cuisiné au batch dim. » au lieu de « À cuisiner » ; « 🛒 Commander au drive » en tête des courses ; après le montant payé, « Tout est arrivé du drive ? Oui, tout cocher » ; quantités à l'unité arrondies (« 2 pièces », « il en faut 1,5 pièce ») ; lignes sans quantité regroupées ; panier estimé montré seulement si 80 % des prix sont connus ; vocabulaire du batch simplifié (plus de J+n ni de « mise en place ») ; prix au drive replié (facultatif) ; « ajouté à vos plats (pas encore au menu) ». Notes après correction non mesurées |
+| Défauts trouvés et corrigés | **livré** | « D’ail », « D’huile d’olive » dans les courses (apostrophe typographique du catalogue non retirée : test ajouté) ; « 1,5 pièces » (pluriel français à partir de 2) ; synchro périodique qui refermait les sections ouvertes |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -138,7 +150,9 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 13 | Semaine › « ✨ Proposer le menu », glisser une carte vers la droite puis vers la gauche | La carte suit le doigt, « MIAM » / « AUTRE » apparaît, la carte suivante (ou une autre idée) s'affiche |
 | 14 | Maison › Réglages › Rituel batch › Activer ; samedi 17 h (rappels activés) | Notification « 🛒 Courses du batch à commander » ; Aujourd'hui affiche « Jour des courses » |
 | 15 | Au drive, sur un produit retenu : noter le prix vu chez Auchan ; après la commande, Courses › « Montant payé » | « N × prix = total » au drive ; la jauge du budget et Maison › Bilan se remplissent |
-| 16 | Dimanche : Aujourd'hui › « Lancer la session », toucher « C'est prêt » sur chaque plat | Progression, puis « Batch terminé ! » ; les repas de la semaine passent à « Préparé » sur les deux téléphones |
+| 16 | Dimanche : Aujourd'hui › « Lancer la session », toucher « Prêt » sur chaque plat | Progression, puis « Batch terminé ! » ; les repas de la semaine passent à « Préparé » sur les deux téléphones |
+| 17 | Semaine › « ✨ Proposer le menu » sur une semaine vide | Des recettes jamais cuisinées à chaque repas, aucune deux fois, pas deux plats du même genre ; « Équilibre de la semaine » apparaît sous la semaine après validation |
+| 18 | Les deux téléphones en mode magasin, cocher un article sur l'un | La coche apparaît sur l'autre en moins de 10 s |
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -160,7 +174,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 
 ## 4. Limites connues (assumées, documentées)
 
-- Synchro automatique toutes les 20 s, pas instantanée. Sans réseau, relais en pause ou synchro auto désactivée : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle).
+- Synchro automatique toutes les 20 s (5 s en mode magasin), pas instantanée. Sans réseau, relais en pause ou synchro auto désactivée : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle).
 - Projet Supabase gratuit : mis en pause après une semaine sans aucune activité ; Foyer continue alors en local et par lien.
 - Le lien contient tout le journal (≈ 1 Ko au départ, quelques dizaines de Ko après des mois) ; compactage non fait.
 - Un seul navigateur testé (Chromium). Safari iOS et VoiceOver restent à vérifier sur les téléphones.
@@ -171,9 +185,11 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 - Agenda : règles par mots du titre et heures des repas (midi 12 h-14 h, soir 19 h-21 h 30), sans IA ; un titre ambigu est proposé, jamais appliqué sans une première décision. Le premier mois, des propositions inutiles sont probables : « Jamais pour … » les fait taire.
 - Agenda : l'adresse iCal donne accès en lecture à tout l'agenda ; elle est dans le journal chiffré et dans les sauvegardes exportées ; le serveur la reçoit à chaque lecture (rien n'est conservé). Couper l'accès : « Réinitialiser » (Google) ou désactiver « Calendrier public » (iCloud).
 - Un plat décalé par l'agenda ne revient pas tout seul si l'événement est ensuite supprimé (la présence, elle, revient).
-- Batch : Foyer n'évalue ni la conservation ni la durée de cuisson. Il affiche le nombre de jours entre le batch et chaque repas (J+n) et renvoie au repère officiel de l'[ANSES](https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid) ; frigo ou congélateur reste une décision du foyer. Pas d'ordre de cuisson calculé (aucune durée dans les recettes).
+- Batch : Foyer n'évalue ni la conservation ni la durée de cuisson. Il affiche le nombre de jours entre le batch et chaque repas (J+n) et renvoie au repère officiel de l'[ANSES](https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid) ; frigo ou congélateur reste une décision du foyer. Ordre de la séance seulement pour les plats dont les durées sont connues (17 recettes du catalogue sur 423 en ont une ; les vôtres à saisir) ; il suppose une seule personne et des cuissons simultanées (feux, four) : à vous de juger si la cuisine le permet.
 - Prix : seulement ceux que vous notez, un par produit retenu ; ni promotion ni variation lue sur Auchan (CGU : pas de robot). Le panier estimé est un minimum tant que des articles n'ont pas de prix ; un article ajouté à la main n'est jamais chiffré (quantité libre).
 - Un batch couvre les repas du jour même au sixième jour suivant ; ses courses sont celles de la semaine qui commence le lendemain du batch.
+- Nouveautés : catalogue de 423 recettes bénévoles (Wikilivres), de qualité inégale ; à 8 nouveautés par semaine, environ un an avant d'avoir tout vu (calcul : 423 ÷ 8 ≈ 53 semaines). « Déjà vue » est retenu par téléphone (8 semaines), pas synchronisé.
+- Équilibre : repères comptés par mots des ingrédients (règles fixes), sans quantité de légumes, de fruits ni de féculents ; un plat mal nommé peut échapper au compte. Ce n'est pas un avis nutritionnel.
 - Conseiller de sécurité Supabase : 1 avertissement (extension `pg_net` créée dans le schéma `public` ; le déplacement a expiré depuis l'outil). Correction en une fois dans l'éditeur SQL : `drop extension pg_net; create extension pg_net with schema extensions;`.
 
 ## 5. Journal de session
@@ -209,3 +225,6 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-04 | Prise en main | Premiers pas, « Comment ça marche », libellés clarifiés, phrase d'accueil rendue exacte | livré | Pas de test avec une personne novice réelle |
 | 2026-10-08 | V2.8 | Rituel batch (courses samedi, batch dimanche) : `prep.batch`, feuille du batch, mise en place commune, J+n, rappels ; prix notés, panier estimé, budget, montant payé, bilan | livré | Conservation laissée au foyer ; prix saisis à la main |
 | 2026-10-08 | Vérification | 94 tests ; 4 scénarios navigateur dont `rituel.mjs` (horloge figée), axe 0 défaut clair et sombre ; défaut de largeur du carrousel (V2.7) trouvé et corrigé | livré | Gestes 14 à 16 non vérifiés sur iPhone |
+| 2026-10-08 | V2.9 | Maximum de nouveautés par défaut, aucune redondance (13 jours, genres, déjà vues), équilibre de la semaine (repères Santé publique France), durées et ordre du batch, synchro 5 s en magasin | livré | Qualité inégale du catalogue ; équilibre par mots-clés |
+| 2026-10-08 | Clarté | Audit novice (4/10 clarté, 5/10 charge mentale) : 8 défauts corrigés, Aujourd'hui réduit à une action | livré | Pas de test avec une vraie personne novice |
+| 2026-10-08 | Vérification | 100 tests ; 4 scénarios navigateur, 0 erreur, axe 0 défaut clair et sombre ; fonction `foyer-import` redéployée (v3) | livré | Appel réel de la fonction non testé depuis l'environnement (accès réseau refusé) ; gestes 17-18 non vérifiés sur iPhone |

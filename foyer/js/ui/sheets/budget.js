@@ -14,7 +14,7 @@ export function budgetCard(week, list) {
     const s = S(), cart = cartEstimate(s, list), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
     if (!list.meals && !spent)
         return '';
-    const base = spent?.cents ?? (cart.priced ? cart.cents : null);
+    const base = spent?.cents ?? (cart.reliable ? cart.cents : null);
     const ratio = budget && base !== null ? base / budget : null;
     const state = ratio === null ? '' : ratio > 1 ? 'over' : ratio >= .9 ? 'warn' : '';
     const meter = budget && base !== null
@@ -22,12 +22,13 @@ export function budgetCard(week, list) {
       <p class="small">${esc(eur(base))} ${spent ? 'payés' : 'estimés'} sur ${esc(eur(budget))} · ${ratio !== null && ratio > 1 ? `<strong>${esc(eur(base - budget))} au-dessus du budget</strong>` : `reste ${esc(eur(budget - base))}`}</p>` : '';
     return `<section class="card stack" aria-labelledby="bud-h"><div class="row"><h2 id="bud-h" class="grow">💶 Budget de la semaine</h2>${budget ? '' : '<button class="btn small-btn ghost" data-a="ritual">Fixer un budget</button>'}</div>
     <div class="stats" role="list">
-      <span role="listitem"><strong>${cart.priced ? `${cart.partial ? '≥\u00a0' : ''}${esc(eur(cart.cents))}` : '–'}</strong>panier estimé</span>
-      <span role="listitem"><strong>${cart.perPortion ? `${cart.partial ? '≥\u00a0' : ''}${esc(eur(cart.perPortion))}` : '–'}</strong>par portion</span>
+      ${cart.reliable ? `<span role="listitem"><strong>${esc(eur(cart.cents))}</strong>panier estimé${cart.partial ? ' (au moins)' : ''}</span>`
+        : `<span role="listitem"><strong>${cart.priced}/${cart.priced + cart.unpriced}</strong>prix connus</span>`}
+      <span role="listitem"><strong>${spent && cart.portions ? esc(eur(Math.round(spent.cents / cart.portions))) : cart.perPortion ? esc(eur(cart.perPortion)) : '–'}</strong>par portion</span>
       <span role="listitem"><strong>${spent ? esc(eur(spent.cents)) : '–'}</strong>payé</span>
     </div>
     ${meter}
-    ${cart.unpriced ? `<p class="small muted">${plural(cart.unpriced, 'article')} sans prix noté : l'estimation ne les compte pas (≥ = au moins). Le prix se note dans « Commander chez Auchan », une fois par produit.</p>` : ''}
+    ${cart.unpriced ? `<p class="small muted">${cart.reliable ? `${plural(cart.unpriced, 'article')} sans prix : le panier coûtera au moins ce montant.` : 'Le panier estimé apparaît quand 8 articles sur 10 ont un prix.'} Le prix se note au drive, une fois par produit.</p>` : ''}
     <form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
       <button class="btn ghost">${spent ? 'Corriger' : 'Noter'}</button>${spent ? `<button class="btn quiet" type="button" data-a="spentClear" data-week="${week}">Effacer</button>` : ''}</form></section>`;
 }
@@ -64,7 +65,7 @@ export function reportView() {
   ${any ? `<section class="card"><h2>Semaine par semaine</h2><div class="table-wrap" tabindex="0" role="region" aria-label="Bilan semaine par semaine"><table class="report">
     <thead><tr><th scope="col">Semaine</th><th scope="col">Payé</th><th scope="col">Estimé</th><th scope="col">Portions</th><th scope="col">€/portion</th><th scope="col">Jetés</th></tr></thead>
     <tbody>${weeks.map(w => `<tr><th scope="row">${esc(fmtDayShort(w.week))}${w.week === start ? ' (en cours)' : w.week > start ? ' (à venir)' : ''}</th><td>${w.spent !== null ? esc(eur(w.spent)) : '–'}</td>
-      <td>${w.estimate.priced ? `${w.estimate.partial ? '≥\u00a0' : ''}${esc(eur(w.estimate.cents))}` : '–'}</td><td>${w.estimate.portions || '–'}</td><td>${w.perPortion !== null ? `${w.partial ? '≥\u00a0' : ''}${esc(eur(w.perPortion))}` : '–'}</td><td>${w.thrown}</td></tr>`).join('')}</tbody></table></div>
-    <p class="small muted">€/portion : payé si noté, sinon panier estimé (≥ quand des articles n'ont pas de prix).</p></section>`
+      <td>${w.estimate.reliable ? esc(eur(w.estimate.cents)) : '–'}</td><td>${w.estimate.portions || '–'}</td><td>${w.perPortion !== null ? esc(eur(w.perPortion)) : '–'}</td><td>${w.thrown}</td></tr>`).join('')}</tbody></table></div>
+    <p class="small muted">€/portion : payé si noté, sinon panier estimé (seulement quand 8 articles sur 10 ont un prix ; c'est alors un minimum).</p></section>`
         : '<p class="empty"><strong>Pas encore de chiffres</strong>Notez le montant payé après chaque drive (Courses › Budget) : le bilan se remplit semaine après semaine.</p>'}`;
 }

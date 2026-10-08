@@ -16,13 +16,14 @@ import { S, clock, dispatch } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, $, toast, keepAwake } from '../dom.ts';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.ts';
 
-interface Draft { id: string | null; name: string; yield: string; ing: string; steps: string; veille: string; matin: string; tags: Set<string>; note: string; banner: string }
+interface Draft { id: string | null; name: string; yield: string; ing: string; steps: string; veille: string; matin: string; tags: Set<string>; note: string; banner: string; prep: string; cook: string }
 let draft: Draft | null = null;
 
 const fromContent = (id: string | null, c: RecipeContent | null, banner = ''): Draft => ({
   id, name: c?.name ?? '', yield: c?.yield ? String(c.yield) : '', ing: (c?.ingredients ?? []).map(lineText).join('\n'), steps: (c?.steps ?? []).join('\n'),
   veille: (c?.ahead ?? []).filter(a => a.when === 'veille').map(a => a.label).join('\n'), matin: (c?.ahead ?? []).filter(a => a.when === 'matin').map(a => a.label).join('\n'),
   tags: new Set(c?.tags ?? []), note: c?.note ?? '', banner,
+  prep: c?.prepMin != null ? String(c.prepMin) : '', cook: c?.cookMin != null ? String(c.cookMin) : '',
 });
 
 export function openRecipe(id: string | null): void {
@@ -55,6 +56,10 @@ function render(): string {
     <label class="field">Ingrédients<span class="hint">Une ligne par ingrédient : « 600 g de poulet », « 2 oignons », « sel ».</span>
       <textarea name="ing" rows="6" data-i="rIng" spellcheck="false">${esc(d.ing)}</textarea></label>
     <div id="ing-preview" aria-live="polite">${preview(d.ing)}</div>
+    <fieldset><legend>Durées (facultatif)</legend><div class="row">
+      <label class="field grow">Préparation (min)<input type="number" name="prep" min="0" max="1440" inputmode="numeric" value="${esc(d.prep)}" data-i="rPrep"></label>
+      <label class="field grow">Cuisson (min)<input type="number" name="cook" min="0" max="1440" inputmode="numeric" value="${esc(d.cook)}" data-i="rCook"></label></div>
+      <p class="small muted">Sert à dire par quoi commencer pendant le batch. Durées de la recette, jamais estimées par Foyer.</p></fieldset>
     <fieldset><legend>Étiquettes</legend><div class="chips">${TAGS.map(t => `<button type="button" class="tag" data-a="rTag" data-t="${t}" aria-pressed="${d.tags.has(t)}">${t}</button>`).join('')}</div>
       <p class="small muted">« rapide » : proposé d'abord les soirs de semaine · « week-end » : le week-end · « plat entier » : on prépare toujours toute la recette, le surplus devient des restes.</p></fieldset>
     <details ${d.steps || d.veille || d.matin ? 'open' : ''}><summary>Étapes et choses à faire avant</summary><div class="stack">
@@ -68,6 +73,7 @@ function render(): string {
 }
 
 const field = (k: keyof Draft) => (_: DOMStringMap, el: HTMLElement): void => { if (draft) (draft as unknown as Record<string, string>)[k] = (el as HTMLInputElement).value; };
+INPUT['rPrep'] = field('prep'); INPUT['rCook'] = field('cook');
 INPUT['rName'] = field('name'); INPUT['rYield'] = field('yield'); INPUT['rSteps'] = field('steps'); INPUT['rVeille'] = field('veille'); INPUT['rMatin'] = field('matin'); INPUT['rNote'] = field('note');
 INPUT['rIng'] = (_d, el) => { if (!draft) return; draft.ing = (el as HTMLTextAreaElement).value; const p = $('#ing-preview'); if (p) p.innerHTML = preview(draft.ing); };
 CLICK['rTag'] = (d, el) => { if (!draft) return; const t = d['t'] ?? ''; if (draft.tags.has(t)) draft.tags.delete(t); else draft.tags.add(t); el.setAttribute('aria-pressed', String(draft.tags.has(t))); };
@@ -79,10 +85,13 @@ function content(d: Draft): RecipeContent | string {
   const y = d.yield.trim() ? Number(d.yield) : null;
   if (y !== null && (!Number.isInteger(y) || y < 1 || y > 50)) return 'Le nombre de portions doit être un entier entre 1 et 50.';
   if (y === null && ingredients.some(l => l.qty)) return 'Indiquez pour combien de portions sont ces quantités : sans cela, les courses ne peuvent pas être calculées.';
+  const minutes = (t: string): number | null | 'bad' => { if (!t.trim()) return null; const n = Number(t); return Number.isInteger(n) && n >= 0 && n <= 1440 ? n : 'bad'; };
+  const prepMin = minutes(d.prep), cookMin = minutes(d.cook);
+  if (prepMin === 'bad' || cookMin === 'bad') return 'Les durées sont en minutes entières, de 0 à 1440.';
   const lines = (t: string) => t.split('\n').map(l => l.trim()).filter(Boolean);
   const ahead: AheadTask[] = [...lines(d.veille).map(label => ({ label: label.slice(0, 120), when: 'veille' as const })), ...lines(d.matin).map(label => ({ label: label.slice(0, 120), when: 'matin' as const }))];
   return { name: name.slice(0, 80), yield: y, ingredients: ingredients.slice(0, 60), steps: lines(d.steps).slice(0, 40).map(s => s.slice(0, 500)), ahead: ahead.slice(0, 10),
-    tags: [...d.tags].slice(0, 10), note: d.note.slice(0, 1000) };
+    tags: [...d.tags].slice(0, 10), note: d.note.slice(0, 1000), ...(prepMin !== null ? { prepMin } : {}), ...(cookMin !== null ? { cookMin } : {}) };
 }
 
 SUBMIT['recipeSave'] = () => {
@@ -91,7 +100,7 @@ SUBMIT['recipeSave'] = () => {
   if (typeof c === 'string') { toast(c); return; }
   const id = draft.id ?? newId();
   closeSheet();
-  dispatch([{ t: 'recipe.save', p: { recipe: id, content: c } }], { toast: `${c.name} enregistré` });
+  dispatch([{ t: 'recipe.save', p: { recipe: id, content: c } }], { toast: draft?.id ? `${c.name} enregistré` : `${c.name} ajouté à vos plats (pas encore au menu)` });
 };
 CLICK['rArchive'] = () => {
   if (!draft?.id) return;
@@ -137,7 +146,8 @@ CLICK['pasteGo'] = () => {
 // Recette lue (texte collé, page web, catalogue) : toujours relue avant d'entrer dans « Nos plats ».
 export function showParsed(r: ParsedRecipe, origin: string, source: string, tags: readonly string[] = []): void {
   const review = r.ingredients.filter(i => i.review || !i.line.qty).length;
-  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [...tags], note: source ? `Source : ${source}` : '' },
+  draft = fromContent(null, { name: r.name, yield: r.yield, ingredients: r.ingredients.map(i => i.line), steps: r.steps, ahead: [], tags: [...tags], note: source ? `Source : ${source}` : '',
+    prepMin: r.prepMin ?? null, cookMin: r.cookMin ?? null },
     `${origin} : ${r.ingredients.length} ingrédient(s), ${r.steps.length} étape(s)${r.yield ? `, pour ${r.yield}` : ', rendement non trouvé'}${review ? ` · ${review} ligne(s) à vérifier` : ''}. Relisez avant d'enregistrer.`);
   show();
 }

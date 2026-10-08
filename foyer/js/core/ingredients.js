@@ -9,7 +9,7 @@ const FORM_RE = [
     [/\s+(surgel[ée]e?s?)$/i, 'surgelé'], [/\s+(en (?:conserve|bo[iî]te))$/i, 'en conserve'],
 ];
 const QTY_TOKEN = /^(\d{1,6}(?:[.,]\d{1,4})?|\d{1,6}\/\d{1,6}|\d{0,6}[½¼¾⅓⅔⅛])$/;
-const DE = /^(?:de|d'|du|des)$/i;
+const DE = /^(?:de|d['’]|du|des)$/i; // apostrophe droite ou typographique (« 2 gousses d’ail »)
 export function parseIngredient(raw) {
     let text = raw.replace(/^[\s\-–—•*·▪●○◦✓☐□]+/, '').replace(/\s+/g, ' ').trim();
     let note = '';
@@ -38,7 +38,7 @@ export function parseIngredient(raw) {
         words = words.slice(used);
         if (words.length && DE.test(words[0] ?? ''))
             words = words.slice(1);
-        else if (words.length && /^d'/i.test(words[0] ?? ''))
+        else if (words.length && /^d['’]/i.test(words[0] ?? ''))
             words[0] = (words[0] ?? '').slice(2);
         unit ??= 'piece';
     }

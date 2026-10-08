@@ -2,6 +2,7 @@ import { current } from './model.js';
 import { parseIngredient, aisleOf } from './ingredients.js';
 import { familyOf } from './wikibook.js';
 import { nameKey, norm } from './text.js';
+import { dishType } from './visual.js';
 const isStrArr = (v, max) => Array.isArray(v) && v.length <= max && v.every(x => typeof x === 'string' && x.length <= 500);
 // Fichier relu avant usage : une recette mal formée est ignorée, pas affichée.
 export function readCatalog(x) {
@@ -28,8 +29,9 @@ export const attribution = (r) => `D'après « ${r.title} », Wikilivres, licenc
 export function toParsed(r) {
     return { name: r.title, yield: r.yield, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
 }
-export function toContent(r) {
-    return { name: r.title, yield: r.yield, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
+// yieldN : nombre de personnes choisi par le foyer quand la page ne le dit pas (jamais deviné).
+export function toContent(r, yieldN = null) {
+    return { name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
         tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r).slice(0, 1000) };
 }
 const ownedNames = (s) => new Set(Object.values(s.recipes).map(r => nameKey(current(r).name)));
@@ -60,10 +62,23 @@ export function discover(s, cat, ctx) {
     const owned = ownedNames(s);
     const out = [];
     for (const r of cat.recipes) {
-        if (r.yield === null || ctx.exclude.has(r.id) || owned.has(nameKey(r.title)))
-            continue; // sans nombre de personnes, pas de courses justes : jamais proposé d'office
+        // Sans nombre de personnes, pas de courses justes : proposé seulement si le foyer accepte de le préciser à la validation.
+        if ((r.yield === null && !ctx.noYield) || ctx.exclude.has(r.id) || owned.has(nameKey(r.title)))
+            continue;
         let score = 20;
         const why = ['nouveau'];
+        if (r.yield === null)
+            score -= 6;
+        if (ctx.seen?.has(r.id))
+            score -= 40; // déjà vue sans être retenue : d'autres d'abord
+        const type = dishType(r.title, r.ingredients), same = type ? ctx.types?.get(type) ?? 0 : 0;
+        if (same)
+            score -= 14 * same; // pas deux plats du même genre dans la semaine
+        const b = ctx.bonus?.(r);
+        if (b) {
+            score += b.score;
+            why.push(b.why);
+        }
         if (r.tags.includes('classique')) {
             score += 8;
             why.push('classique');

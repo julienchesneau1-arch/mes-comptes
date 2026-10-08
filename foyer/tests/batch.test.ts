@@ -107,7 +107,7 @@ test('ce que demande le rituel, jour par jour', () => {
   assert.equal(ritualNow(household().a.s, SAT), null);                    // pas de rituel : rien
 });
 
-test('rappels du rituel : samedi 17 h les courses, dimanche 9 h le batch ; tâche « la veille » rapportée au batch', () => {
+test('rappels du rituel : samedi 17 h les courses, dimanche 14 h le batch ; tâche « la veille » rapportée au batch', () => {
   const { a } = planned();
   a.emit(...batchDrafts(a.s, SUN, ['prepcurr', 'prepchil'], true));
   const sat8 = new Date('2026-10-03T06:00:00Z');
@@ -115,7 +115,7 @@ test('rappels du rituel : samedi 17 h les courses, dimanche 9 h le batch ; tâch
   assert.deepEqual(list.slice(0, 3), [
     ['2026-10-03T15:00:00.000Z', '🛒 Courses du batch à commander'],       // samedi 17 h
     ['2026-10-03T17:00:00.000Z', '⏰ Sortir le poulet du congélateur'],    // samedi 19 h : veille du batch, pas du repas
-    ['2026-10-04T07:00:00.000Z', '👩‍🍳 Batch cooking aujourd\'hui'],         // dimanche 9 h
+    ['2026-10-04T12:00:00.000Z', '👩‍🍳 Batch cooking aujourd\'hui'],         // dimanche 14 h, après le drive du matin
   ]);
   assert.ok(!list.some(([, t]) => /semaine prochaine est vide/.test(t ?? '')));
   assert.match(remindersFor(a.s, sat8).find(r => r.title.startsWith('👩‍🍳'))?.body ?? '', /^2 plats · 5 portions/);
@@ -165,7 +165,8 @@ test('budget : panier estimé avec les prix notés seulement, montant payé, co�
   assert.equal(cart.priced, 1);
   assert.equal(cart.unpriced, list.lines.length - 1 + 1); // le reste, et le café ajouté à la main
   assert.equal(cart.portions, 3 + 2 + 2);     // curry (3), chili (2), gratin (2)
-  assert.equal(cart.perPortion, Math.round(998 / 7));
+  assert.equal(cart.reliable, false);         // 1 article sur 7 chiffré : pas d'estimation affichée, ni de coût par portion estimé
+  assert.equal(cart.perPortion, null);
   // Mise à jour du produit par un téléphone qui ne connaît pas encore le prix : le prix est gardé.
   a.emit({ t: 'product.set', p: { key: 'poulet', url: 'https://www.auchan.fr/poulet-blanc/pr-C1', label: 'Poulet fermier', size: null, unit: null } });
   assert.equal(a.s.products['poulet']?.price, 499);

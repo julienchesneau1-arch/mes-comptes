@@ -1,7 +1,7 @@
 // Rituel batch : courses finales un jour (drive), cuisine en une séance un autre jour, repas de la semaine prêts.
 // Tout vient de ce que le foyer a déclaré (rituel, plats, portions). Foyer n'estime ni durée ni conservation :
 // il montre seulement combien de jours séparent le batch de chaque repas (J+n).
-import { type LocalDate, type SlotKey, addDays, daysBetween, parseSlot, slotOrder, weekday, weekOf } from './dates.ts';
+import { type LocalDate, type SlotKey, addDays, daysBetween, parseSlot, slotOrder, weekday, weekOf, fmtDayShort } from './dates.ts';
 import { type State, type Prep, type Ritual, current } from './model.ts';
 import { type Draft } from './reduce.ts';
 import { users, servings, eaters, portions } from './plan.ts';
@@ -10,7 +10,9 @@ import { type Q, ZERO, q, add, mul, div, qFrom } from './rational.ts';
 import { UNIT, toBase, showQty } from './units.ts';
 import { aisleOf, ingredientKey } from './ingredients.ts';
 
-export const DEFAULT_RITUAL: Ritual = { shop: 5, shopAt: '1700', cook: 6, cookAt: '0900' }; // samedi 17 h, dimanche 9 h
+export const DEFAULT_RITUAL: Ritual = { shop: 5, shopAt: '1700', cook: 6, cookAt: '1400' }; // liste finale samedi 17 h, drive dimanche matin, cuisine à 14 h
+// « du 12 au 18 oct. »
+export const weekRange = (w: LocalDate): string => `du ${Number(w.slice(8, 10))} au ${fmtDayShort(addDays(w, 6)).replace(/^\S+ /, '')}`;
 export const ANSES_FROID = 'https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid';
 
 // Prochaine occurrence d'un jour de la semaine (aujourd'hui compris) ; dernière occurrence au plus tard tel jour.
@@ -35,6 +37,7 @@ export interface BatchView {
   dishes: BatchDish[];        // plats cuisinés à ce batch
   candidates: BatchDish[];    // plats à cuisiner dans la fenêtre, pas (encore) dans ce batch
   portions: number; containers: number; done: number;
+  boxes: number; dishesToKeep: number;   // boîtes déjeuner (une par personne) et plats à garder pour les repas à table
 }
 
 function dish(s: State, prep: Prep, day: LocalDate): BatchDish {
@@ -61,6 +64,8 @@ export function batchView(s: State, day: LocalDate): BatchView {
     portions: dishes.reduce((n, x) => n + x.portions, 0),
     containers: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0).reduce((m, v) => m + v.containers, 0) + (x.extra ? 1 : 0), 0),
     done: dishes.filter(x => x.done).length,
+    boxes: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0).reduce((m, v) => m + v.boxes.length, 0), 0),
+    dishesToKeep: dishes.reduce((n, x) => n + x.serves.filter(v => v.offset > 0 && v.n > v.boxes.length).length + (x.extra ? 1 : 0), 0),
   };
 }
 
@@ -136,3 +141,27 @@ export function batchStreak(s: State, today: LocalDate): number {
   while (days.get(d)) { n++; d = addDays(d, -7); }
   return n;
 }
+
+// Par quoi commencer : la cuisson la plus longue d'abord, puis les autres en préparant pendant que ça cuit.
+// Modèle explicite : une personne prépare un plat à la fois ; les cuissons peuvent se faire en même temps (feux, four).
+// Avec ce modèle, commencer par la cuisson la plus longue donne la fin la plus tôt. Seulement avec les durées déclarées.
+export interface BatchStep { prep: string; name: string; prepMin: number | null; cookMin: number | null; start: number | null; end: number | null }
+export interface BatchOrder { steps: BatchStep[]; total: number | null; missing: string[] }
+export function batchOrder(s: State, dishes: readonly BatchDish[]): BatchOrder {
+  const raw = dishes.filter(d => !d.done).map(d => {
+    const r = s.recipes[d.prep.recipe], c = r ? current(r) : null;
+    return { prep: d.prep.id, name: d.name, prepMin: c?.prepMin ?? null, cookMin: c?.cookMin ?? null };
+  });
+  const sorted = [...raw].sort((a, b) => (b.cookMin ?? -1) - (a.cookMin ?? -1) || a.name.localeCompare(b.name, 'fr'));
+  const missing = sorted.filter(x => x.prepMin === null || x.cookMin === null).map(x => x.name);
+  let t = 0, total: number | null = missing.length ? null : 0;
+  const steps = sorted.map(x => {
+    if (missing.length || x.prepMin === null || x.cookMin === null) return { ...x, start: null, end: null };
+    const start = t; t += x.prepMin;
+    const end = t + x.cookMin;
+    total = Math.max(total ?? 0, end);
+    return { ...x, start, end };
+  });
+  return { steps, total, missing };
+}
+export const hm = (min: number): string => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}`);

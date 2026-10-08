@@ -9,7 +9,9 @@ import { toPrepare, servings } from './plan.ts';
 import { cmp, ZERO } from './rational.ts';
 
 // partial : des articles n'ont pas de prix noté ; le montant est alors un minimum (affiché « ≥ »).
-export interface Cart { cents: number; priced: number; unpriced: number; portions: number; perPortion: number | null; partial: boolean }
+// reliable : au moins 80 % des articles ont un prix noté ; en dessous, l'estimation n'est pas affichée (elle tromperait).
+export interface Cart { cents: number; priced: number; unpriced: number; portions: number; perPortion: number | null; partial: boolean; reliable: boolean }
+export const RELIABLE = 0.8;
 
 // Lignes à acheter (cochées ou non) dont le produit retenu a un prix et un nombre de paquets calculable.
 // Une ligne sans prix, ou un article ajouté à la main, est compté « sans prix » : l'estimation ne l'invente pas.
@@ -24,7 +26,8 @@ export function cartEstimate(s: State, list: ShoppingList): Cart {
   }
   unpriced += list.manual.length;
   const portions = weekPreps(s, list.week).reduce((n, p) => n + toPrepare(s, p), 0);
-  return { cents, priced, unpriced, portions, perPortion: priced && portions ? Math.round(cents / portions) : null, partial: unpriced > 0 };
+  const reliable = priced > 0 && priced / (priced + unpriced) >= RELIABLE;
+  return { cents, priced, unpriced, portions, perPortion: reliable && portions ? Math.round(cents / portions) : null, partial: unpriced > 0, reliable };
 }
 
 export interface WeekReport {
@@ -56,6 +59,6 @@ export function weekReport(r: Replay, week: LocalDate): WeekReport {
   }
   const estimate = cartEstimate(s, deriveShopping(s, week));
   const spent = s.shop[week]?.spent?.cents ?? null;
-  const base = spent ?? (estimate.priced ? estimate.cents : null);
+  const base = spent ?? (estimate.reliable ? estimate.cents : null);
   return { week, spent, estimate, home, outside, thrown, perPortion: base && estimate.portions ? Math.round(base / estimate.portions) : null, partial: spent === null && estimate.partial };
 }

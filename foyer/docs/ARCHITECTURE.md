@@ -32,6 +32,8 @@
 
 **ADR-15 — Rituel batch et budget : ce que le foyer déclare, rien de plus.** Le rituel (`settings.ritual` : jour et heure des courses, jour et heure du batch) et le batch d'un plat (`prep.batch` : jour où il est cuisiné, distinct du repas où il est servi) sont des événements du journal, donc synchronisés et annulables. Le plat garde son créneau de service : portions, boîtes, restes et courses ne changent pas de calcul ; seuls « la veille / le matin », les rappels et « Pas encore pris » se rapportent au jour du batch. `batch.ts` dérive la vue d'un batch (plats, J+n, boîtes, mise en place commune, ingrédients partagés), ce que le rituel demande aujourd'hui et la série de batchs. Les prix sont un champ du produit retenu (`product.set.price`, centimes, gardé si un téléphone pas encore à jour renvoie le produit sans prix) ; le montant payé est un événement par semaine (`shop.spent`) ; `budget.ts` n'additionne que des prix notés et marque l'estimation « au moins » s'il en manque. Rejeté : durée de conservation calculée (aucune source officielle ne donne une durée par plat maison ; repère [ANSES](https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid) en lien), ordre de cuisson calculé (pas de durées dans les recettes), prix lus sur auchan.fr (CGU).
 
+**ADR-16 — Nouveautés, aucune redondance, équilibre : des règles fixes et lisibles.** Le réglage `settings.variety` (`max` par défaut quand il est absent, `equilibre`, `mes-plats`) est un événement du journal, partagé par les deux téléphones. `propose.ts` applique toujours les mêmes filtres : un plat jamais deux fois dans la semaine, pas un plat prévu depuis moins de 13 jours s'il reste un autre candidat (sinon il revient, rien n'est laissé vide), pénalité par plat du même genre déjà dans la semaine (`dishType` de `visual.ts`, emoji par mots du nom), découvertes déjà montrées sur ce téléphone (`ui/seen.ts`, 8 semaines, stockage local non synchronisé : c'est une préférence d'affichage, pas une donnée du foyer) placées en dernier. `balance.ts` compte les repères de Santé publique France sur les plats prévus, par personne (la moins servie pour le poisson et les légumes secs, la plus exposée pour la viande et la charcuterie), en grammes par portion à partir des quantités en masse ; une quantité absente est signalée, jamais estimée ; le même compte donne un bonus ou un malus motivé aux propositions. Les durées de préparation et de cuisson sont des champs facultatifs du contenu de recette (`prepMin`, `cookMin`, sans changer le schéma) ; `batchOrder` (batch.ts) ordonne la séance pour une personne qui prépare à la suite pendant que les cuissons tournent (cuisson la plus longue d'abord, règle de Jackson) et n'affiche rien si une durée manque. Révise ADR-15 sur ce point : l'ordre est calculé seulement à partir de durées déclarées. Rejeté : score nutritionnel (pas de table de composition embarquée, risque de fausse précision), IA de suggestion (non déterministe, non sourcée).
+
 ## Carte des modules
 
 ```
@@ -65,11 +67,12 @@ src/core/            logique pure, sans DOM, testée sous Node
   ical.ts            lecture iCalendar : récurrences, exceptions, fuseaux (copié dans la fonction foyer-agenda)
   agenda.ts          agenda → repas : classement des événements, propositions, automatismes, retour arrière, plat décalé
   feries.ts          jours fériés français (Pâques calculé)
-  visual.ts          visuel d'un plat (emoji + fond par famille)
-  batch.ts           rituel batch : jours, plats du batch, J+n, mise en place commune, ce que le rituel demande aujourd'hui
+  visual.ts          visuel d'un plat (emoji + fond par famille), genre du plat (variété de la semaine)
+  balance.ts         repères de la semaine (poisson, légumes secs, viande, charcuterie) par personne ; coup de pouce aux propositions
+  batch.ts           rituel batch : jours, plats du batch, boîtes, légumes à préparer en une fois, ordre de la séance, ce que le rituel demande aujourd'hui
   budget.ts          panier estimé (prix notés), montant payé, bilan des semaines ; money.ts : centimes et euros
   classics.ts        plats classiques proposés au démarrage
-src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts)
+src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts, découvertes déjà vues : seen.ts)
 supabase/            migrations (relais, rappels) et fonctions foyer-import, foyer-push et foyer-agenda (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
 ```

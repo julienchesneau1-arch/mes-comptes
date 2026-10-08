@@ -39,6 +39,8 @@ function render(): void {
   const app = $('#app');
   if (!app) return;
   const keep = focusKey();
+  // Sections dépliées (« Plus d'options », « Toutes les étapes »…) : gardées ouvertes d'un rendu à l'autre.
+  const opened = new Set($$<HTMLDetailsElement>('details[open] > summary', app).map(x => x.textContent ?? ''));
   const nav = $('#tabs');
   const demo = A.demo ? '<div class="demo-bar" role="note"><span>Mode découverte : foyer fictif, rien n\'est enregistré.</span><button class="btn small-btn ghost" data-a="demoExit">Quitter</button></div>' : '';
   if (!S().hid) {
@@ -50,6 +52,7 @@ function render(): void {
   const tab = A.ui.tab;
   app.innerHTML = demo + (tab === 'semaine' ? weekView() : tab === 'courses' ? shopView() : tab === 'maison' ? homeView() : todayView());
   for (const el of $$<HTMLElement>('[data-pct]', app)) el.style.width = `${el.dataset['pct'] ?? 0}%`; // jauges : CSP sans style écrit dans le HTML
+  for (const sm of $$<HTMLElement>('details > summary', app)) if (opened.has(sm.textContent ?? '')) (sm.parentElement as HTMLDetailsElement).open = true;
   for (const a of $$<HTMLAnchorElement>('#tabs a')) {
     if (a.getAttribute('href') === `#${tab}`) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   }

@@ -35,6 +35,8 @@
 
 **V2.8 (8 octobre 2026) — rituel batch et budget.** Aucune des pages concurrentes consultées le 4 octobre ne décrit un batch cooking relié aux portions réelles (plat cuisiné le dimanche, boîtes et restes de la semaine, J+n). Jow propose des menus « batch » dans son catalogue ; Foyer part de vos plats, de votre semaine (présences, boîtes, agenda) et rappelle chaque étape à deux. Le budget repose sur des prix notés à la main : moins automatique que les prix affichés dans un panier partenaire (Jow), mais exact et sans robot. Notes inchangées tant que l'usage réel n'a pas tranché.
 
+**V2.9 (8 octobre 2026) — nouveautés et clarté.** Jow et Mealime renouvellent leurs propositions à partir de leur propre catalogue ; Foyer propose par défaut une recette jamais cuisinée à chaque repas (catalogue Wikilivres de 423 recettes, plus restreint et de qualité plus inégale qu'un catalogue éditorial) et refuse toute répétition dans la semaine. Les repères d'équilibre comptés sur la semaine par personne ne figurent sur aucune des pages concurrentes consultées le 4 octobre. Audit de clarté avant correction : 4/10 (agent jouant un couple novice, pas une personne réelle) ; notes du comparatif inchangées tant que l'usage réel n'a pas tranché.
+
 ## Ce qui ferait passer Foyer devant partout
 
 1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.

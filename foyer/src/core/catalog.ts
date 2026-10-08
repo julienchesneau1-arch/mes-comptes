@@ -7,6 +7,7 @@ import { type IngredientLine, parseIngredient, aisleOf } from './ingredients.ts'
 import type { ParsedRecipe } from './recipe-text.ts';
 import { type CatalogRecipe, familyOf } from './wikibook.ts';
 import { nameKey, norm } from './text.ts';
+import { dishType } from './visual.ts';
 
 export interface Catalog {
   source: string; sourceUrl: string; license: string; licenseUrl: string; note: string; generated: string; count: number;
@@ -37,8 +38,9 @@ export const attribution = (r: CatalogRecipe): string => `D'après « ${r.title}
 export function toParsed(r: CatalogRecipe): ParsedRecipe {
   return { name: r.title, yield: r.yield, ingredients: r.ingredients.map(parseIngredient), steps: r.steps };
 }
-export function toContent(r: CatalogRecipe): RecipeContent {
-  return { name: r.title, yield: r.yield, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
+// yieldN : nombre de personnes choisi par le foyer quand la page ne le dit pas (jamais deviné).
+export function toContent(r: CatalogRecipe, yieldN: number | null = null): RecipeContent {
+  return { name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
     tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r).slice(0, 1000) };
 }
 
@@ -68,14 +70,27 @@ function linesOf(r: CatalogRecipe): IngredientLine[] {
 const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 
 export interface Discovery { recipe: CatalogRecipe; score: number; reason: string }
-export interface DiscoverContext { week: LocalDate; weekend: boolean; evening: boolean; neighbourFamilies: ReadonlySet<string>; weekFresh: ReadonlyMap<string, string>; exclude: ReadonlySet<string> }
+export interface DiscoverContext {
+  week: LocalDate; weekend: boolean; evening: boolean; neighbourFamilies: ReadonlySet<string>; weekFresh: ReadonlyMap<string, string>; exclude: ReadonlySet<string>;
+  types?: ReadonlyMap<string, number>;  // types de plats déjà dans la semaine (pâtes, soupe…) : on varie
+  seen?: ReadonlySet<string>;           // découvertes déjà montrées récemment et non retenues : en dernier
+  noYield?: boolean;                    // accepter les pages sans nombre de personnes (le foyer le dira à la validation)
+  bonus?: (r: CatalogRecipe) => { score: number; why: string } | null; // repères d'équilibre de la semaine
+}
 export function discover(s: State, cat: Catalog, ctx: DiscoverContext): Discovery[] {
   const owned = ownedNames(s);
   const out: Discovery[] = [];
   for (const r of cat.recipes) {
-    if (r.yield === null || ctx.exclude.has(r.id) || owned.has(nameKey(r.title))) continue; // sans nombre de personnes, pas de courses justes : jamais proposé d'office
+    // Sans nombre de personnes, pas de courses justes : proposé seulement si le foyer accepte de le préciser à la validation.
+    if ((r.yield === null && !ctx.noYield) || ctx.exclude.has(r.id) || owned.has(nameKey(r.title))) continue;
     let score = 20;
     const why: string[] = ['nouveau'];
+    if (r.yield === null) score -= 6;
+    if (ctx.seen?.has(r.id)) score -= 40; // déjà vue sans être retenue : d'autres d'abord
+    const type = dishType(r.title, r.ingredients), same = type ? ctx.types?.get(type) ?? 0 : 0;
+    if (same) score -= 14 * same;          // pas deux plats du même genre dans la semaine
+    const b = ctx.bonus?.(r);
+    if (b) { score += b.score; why.push(b.why); }
     if (r.tags.includes('classique')) { score += 8; why.push('classique'); }
     score -= Math.max(0, r.ingredients.length - 10); // plus simple à acheter et à faire
     if (ctx.evening && !ctx.weekend) {

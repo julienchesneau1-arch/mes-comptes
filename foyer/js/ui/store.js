@@ -67,7 +67,7 @@ export function saveDevice(d) { try {
     localStorage.setItem(DEVICE, JSON.stringify(d));
 }
 catch { /* sans effet en navigation privée */ } }
-export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda'])
+export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus'])
     try {
         localStorage.removeItem(k);
     }
