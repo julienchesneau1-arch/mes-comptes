@@ -1,6 +1,7 @@
 // Rejeu déterministe du journal. Chaque événement est revalidé contre l'état du moment :
 // s'il n'est plus possible (dernière portion déjà prise, créneau occupé entre-temps), il est écarté et signalé, jamais forcé.
-import type { SlotKey } from './dates.ts';
+import { type SlotKey, parseSlot } from './dates.ts';
+import type { Prep } from './model.ts';
 import { type AnyEv, type Ev, type EventType, type Rejection, type Slot, type State, type WeekShop, emptyState, current } from './model.ts';
 import { portions, invalidate } from './plan.ts';
 
@@ -39,6 +40,12 @@ const tidy = (s: State, k: SlotKey): void => {
   if (x && !x.dish && !x.eaten && !x.guests && !x.chef && !Object.keys(x.presence).length) delete s.slots[k];
 };
 
+// Un plat déplacé avant son jour de batch est cuisiné le jour même : il sort du batch.
+function unbatchIfLate(p: Prep): void {
+  const d = p.slot ? parseSlot(p.slot)?.date : undefined;
+  if (p.batch && (!d || p.batch > d)) p.batch = null;
+}
+
 function removeDish(s: State, k: SlotKey): void {
   const slot = s.slots[k];
   const d = slot?.dish;
@@ -74,6 +81,8 @@ function apply(s: State, e: AnyEv): void {
       if (e.p.boxesFromDinner !== undefined) s.settings.boxesFromDinner = e.p.boxesFromDinner;
       if (e.p.aisleOrder !== undefined) s.settings.aisleOrder = [...e.p.aisleOrder];
       if (e.p.holidays !== undefined) s.settings.holidays = e.p.holidays;
+      if (e.p.ritual !== undefined) s.settings.ritual = e.p.ritual ? { ...e.p.ritual } : null;
+      if (e.p.budget !== undefined) s.settings.budget = e.p.budget;
       return;
     }
     case 'recipe.save': {
@@ -116,7 +125,7 @@ function apply(s: State, e: AnyEv): void {
       const slot = slotOf(s, e.p.slot);
       if (slot.eaten) conflict('ce repas est déjà déclaré mangé');
       if (slot.dish) conflict(`créneau déjà occupé par ${dishName(s, e.p.slot)}`);
-      s.preps[e.p.prep] = { id: e.p.prep, recipe: e.p.recipe, slot: e.p.slot, extra: e.p.extra, status: 'planned', done: null, discarded: 0 };
+      s.preps[e.p.prep] = { id: e.p.prep, recipe: e.p.recipe, slot: e.p.slot, extra: e.p.extra, status: 'planned', done: null, discarded: 0, batch: null };
       slot.dish = { kind: 'cook', prep: e.p.prep };
       return;
     }
@@ -157,8 +166,8 @@ function apply(s: State, e: AnyEv): void {
       const from = slotOf(s, e.p.from), to = slotOf(s, e.p.to);
       const da = from.dish, db = to.dish;
       from.dish = db; to.dish = da;
-      if (da?.kind === 'cook') { const p = s.preps[da.prep]; if (p) p.slot = e.p.to; }
-      if (db?.kind === 'cook') { const p = s.preps[db.prep]; if (p) p.slot = e.p.from; }
+      if (da?.kind === 'cook') { const p = s.preps[da.prep]; if (p) { p.slot = e.p.to; unbatchIfLate(p); } }
+      if (db?.kind === 'cook') { const p = s.preps[db.prep]; if (p) { p.slot = e.p.from; unbatchIfLate(p); } }
       tidy(s, e.p.from); tidy(s, e.p.to);
       return;
     }
@@ -223,6 +232,18 @@ function apply(s: State, e: AnyEv): void {
       prep.discarded += e.p.n;
       return;
     }
+    case 'prep.batch': {
+      const prep = prepOf(s, e.p.prep);
+      if (prep.done) conflict('plat déjà préparé');
+      if (prep.batch === e.p.day) noop(e.p.day ? 'déjà dans ce batch' : 'pas prévu en batch');
+      if (e.p.day !== null) {
+        const d = prep.slot ? parseSlot(prep.slot)?.date : undefined;
+        if (!d) conflict('plat retiré du planning');
+        if (e.p.day > d) conflict('le batch doit avoir lieu avant le repas (le plat a changé de jour ?)');
+      }
+      prep.batch = e.p.day;
+      return;
+    }
     case 'task.set': {
       s.tasks[e.p.key] = { done: e.p.done, by: e.by, at: e.at };
       return;
@@ -243,6 +264,12 @@ function apply(s: State, e: AnyEv): void {
       else w.items[e.p.id] = { name: e.p.name, qty: e.p.qty, aisle: e.p.aisle, checked: e.p.checked, by: e.by, at: e.at };
       return;
     }
+    case 'shop.spent': {
+      const w = weekShop(s, e.p.week);
+      if (e.p.cents === null) { if (!w.spent) noop('aucun montant noté'); delete w.spent; return; }
+      w.spent = { cents: e.p.cents, by: e.by, at: e.at };
+      return;
+    }
     case 'staple.set': {
       if (e.p.removed) delete s.staples[e.p.key]; else s.staples[e.p.key] = { name: e.p.name, qty: e.p.qty, aisle: e.p.aisle };
       return;
@@ -253,7 +280,10 @@ function apply(s: State, e: AnyEv): void {
     }
     case 'product.set': {
       if (e.p.url === null) { if (!s.products[e.p.key]) noop('aucun produit retenu'); delete s.products[e.p.key]; return; }
-      s.products[e.p.key] = { url: e.p.url, label: e.p.label, size: e.p.size, unit: e.p.unit, by: e.by, at: e.at };
+      // Prix absent (téléphone pas encore à jour) : celui du même produit est gardé.
+      const prev = s.products[e.p.key];
+      const price = e.p.price !== undefined ? e.p.price : prev?.url === e.p.url ? prev.price : null;
+      s.products[e.p.key] = { url: e.p.url, label: e.p.label, size: e.p.size, unit: e.p.unit, price, by: e.by, at: e.at };
       return;
     }
     case 'agenda.set': {

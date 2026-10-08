@@ -30,6 +30,8 @@
 
 **ADR-14 — Une identité visuelle sans images téléchargées.** Chaque plat reçoit un emoji et un fond coloré par règles fixes (`visual.ts`) : rendu immédiat, hors ligne, identique sur les deux téléphones, aucune requête externe (CSP inchangée), aucun droit d'image à gérer. Police Nunito (OFL) servie par l'app. Propositions en cartes (`sheets/deck.ts`) : gestes par événements de pointeur, boutons équivalents pour le clavier et VoiceOver, aucune animation si l'appareil demande moins de mouvement, aucune transparence dans les animations d'entrée (le contraste reste mesurable). Rejeté pour l'instant : photos de plats (pas de source libre fiable pour vos propres plats).
 
+**ADR-15 — Rituel batch et budget : ce que le foyer déclare, rien de plus.** Le rituel (`settings.ritual` : jour et heure des courses, jour et heure du batch) et le batch d'un plat (`prep.batch` : jour où il est cuisiné, distinct du repas où il est servi) sont des événements du journal, donc synchronisés et annulables. Le plat garde son créneau de service : portions, boîtes, restes et courses ne changent pas de calcul ; seuls « la veille / le matin », les rappels et « Pas encore pris » se rapportent au jour du batch. `batch.ts` dérive la vue d'un batch (plats, J+n, boîtes, mise en place commune, ingrédients partagés), ce que le rituel demande aujourd'hui et la série de batchs. Les prix sont un champ du produit retenu (`product.set.price`, centimes, gardé si un téléphone pas encore à jour renvoie le produit sans prix) ; le montant payé est un événement par semaine (`shop.spent`) ; `budget.ts` n'additionne que des prix notés et marque l'estimation « au moins » s'il en manque. Rejeté : durée de conservation calculée (aucune source officielle ne donne une durée par plat maison ; repère [ANSES](https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid) en lien), ordre de cuisson calculé (pas de durées dans les recettes), prix lus sur auchan.fr (CGU).
+
 ## Carte des modules
 
 ```
@@ -64,6 +66,8 @@ src/core/            logique pure, sans DOM, testée sous Node
   agenda.ts          agenda → repas : classement des événements, propositions, automatismes, retour arrière, plat décalé
   feries.ts          jours fériés français (Pâques calculé)
   visual.ts          visuel d'un plat (emoji + fond par famille)
+  batch.ts           rituel batch : jours, plats du batch, J+n, mise en place commune, ce que le rituel demande aujourd'hui
+  budget.ts          panier estimé (prix notés), montant payé, bilan des semaines ; money.ts : centimes et euros
   classics.ts        plats classiques proposés au démarrage
 src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts)
 supabase/            migrations (relais, rappels) et fonctions foyer-import, foyer-push et foyer-agenda (déployées le 4 octobre 2026 sur le projet dédié)

@@ -1,6 +1,7 @@
 // Phrase courte décrivant une action du journal : pour les conflits et l'historique (« Sam voulait prévoir les restes de Curry mardi midi »).
 import { parseSlot, fmtDayShort } from './dates.js';
 import { current } from './model.js';
+import { eur } from './money.js';
 const when = (k) => { const p = parseSlot(k); return p ? `${fmtDayShort(p.date)} ${p.slot}` : k; };
 const recipe = (s, id) => { const r = s.recipes[id]; return r ? current(r).name : 'un plat'; };
 const prepName = (s, id) => { const p = s.preps[id]; return p ? recipe(s, p.recipe) : 'un plat'; };
@@ -27,10 +28,12 @@ export function describeEvent(s, e) {
         case 'prep.done': return `déclarer ${prepName(s, e.p.prep)} préparé (${e.p.yield} portions)`;
         case 'prep.correct': return `corriger ${prepName(s, e.p.prep)} à ${e.p.yield} portions`;
         case 'prep.discard': return `jeter ${e.p.n} portion(s) de ${prepName(s, e.p.prep)}`;
+        case 'prep.batch': return e.p.day ? `cuisiner ${prepName(s, e.p.prep)} au batch du ${fmtDayShort(e.p.day)}` : `retirer ${prepName(s, e.p.prep)} du batch`;
         case 'task.set': return e.p.done ? 'cocher une tâche' : 'décocher une tâche';
         case 'shop.check': return 'cocher un article';
         case 'shop.pantry': return 'noter ce que vous avez déjà';
         case 'shop.item': return `ajouter ${e.p.name} aux courses`;
+        case 'shop.spent': return e.p.cents === null ? 'effacer le montant payé' : `noter ${eur(e.p.cents)} payés pour les courses`;
         case 'staple.set': return `mémoriser ${e.p.name}`;
         case 'aisle.set': return 'changer un rayon';
         case 'product.set': return e.p.url ? `retenir un produit Auchan (${e.p.label})` : 'oublier un produit Auchan';

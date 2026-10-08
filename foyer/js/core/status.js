@@ -26,7 +26,7 @@ export function slotView(s, k, today, hour) {
     const slot = s.slots[k];
     const n = servings(s, k);
     const past = isPast(k, today, hour);
-    const base = { key: k, status: n ? 'vide' : 'personne', servings: n, title: '', sub: '', prep: null, recipe: null, incomplete: false, link: null, past };
+    const base = { key: k, status: n ? 'vide' : 'personne', servings: n, title: '', sub: '', prep: null, recipe: null, incomplete: false, link: null, past, batch: null };
     const people = eaters(s, k).filter(e => e.presence !== 'dehors').map(e => (e.presence === 'boite' ? `${e.name} (boîte)` : e.name));
     const guests = slot?.guests ? `${slot.guests} invité${slot.guests > 1 ? 's' : ''}` : '';
     const chef = slot?.chef ? s.members.find(m => m.id === slot.chef)?.name : undefined;
@@ -43,6 +43,7 @@ export function slotView(s, k, today, hour) {
         return { ...base, status: 'probleme', link: 'Le plat d\'origine a été retiré' };
     const r = s.recipes[prep.recipe];
     base.recipe = prep.recipe;
+    base.batch = !prep.done && prep.batch ? prep.batch : null;
     base.incomplete = !!r && !current(r).ingredients.length;
     if (d.kind === 'from') {
         base.link = prep.slot ? `Restes de ${fmtSlot(prep.slot, today)}` : 'Portions déjà préparées';

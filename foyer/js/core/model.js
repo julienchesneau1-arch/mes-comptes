@@ -6,7 +6,7 @@ export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-
 export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/;
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-    'prep.done', 'prep.correct', 'prep.discard', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
+    'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
@@ -24,6 +24,11 @@ const STATES = new Set(['ferme', 'ouvert', 'congele', 'decongele', 'prepare', 'i
 const NEED_RE = /^(na|-?\d{1,12}(\/\d{1,12})?)(\+\d{1,3})?$/;
 const isNeed = (v) => typeof v === 'string' && NEED_RE.test(v);
 const isQty = (v) => typeof v === 'string' && qFrom(v) !== null && (qFrom(v)?.n ?? 0) > 0;
+const isHHMM = (v) => typeof v === 'string' && /^([01]\d|2[0-3])[0-5]\d$/.test(v);
+export const validRitual = (v) => isObj(v) && int(v['shop'], 0, 6) && int(v['cook'], 0, 6) && isHHMM(v['shopAt']) && isHHMM(v['cookAt']);
+const optRitual = (v) => v === undefined || v === null || validRitual(v);
+const optCents = (v, hi) => v === undefined || v === null || int(v, 1, hi);
+export const MAX_CENTS = 1_000_000; // 10 000 € : borne de saisie
 function validMembers(v) {
     if (!Array.isArray(v) || v.length < 1 || v.length > 8)
         return false;
@@ -43,7 +48,8 @@ export function validRhythm(v) {
 }
 const validAisleOrder = (v) => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v) {
-    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']));
+    return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
+        && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS);
 }
 export function validIngredient(v) {
     if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120))
@@ -85,7 +91,7 @@ const P = {
     'members.set': p => validMembers(p['members']),
     'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
         && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
-        && (p['holidays'] === undefined || bool(p['holidays'])),
+        && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS),
     'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
     'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
     'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -103,15 +109,17 @@ const P = {
     'prep.done': p => isId(p['prep']) && int(p['yield'], 0, 99) && int(p['planned'], 0, 99) && int(p['version'], 1, 10000),
     'prep.correct': p => isId(p['prep']) && int(p['yield'], 0, 99) && str(p['reason'], 120),
     'prep.discard': p => isId(p['prep']) && int(p['n'], 1, 99) && str(p['reason'], 120),
+    'prep.batch': p => isId(p['prep']) && (p['day'] === null || isDate(p['day'])),
     'task.set': p => isKey(p['key']) && bool(p['done']),
     'shop.check': p => isDate(p['week']) && isKey(p['key']) && (p['needAt'] === null || isNeed(p['needAt'])),
     'shop.pantry': p => isDate(p['week']) && isKey(p['key']) && (p['qty'] === null || p['qty'] === 'all' || isQty(p['qty'])) && isNeed(p['needAt']),
     'shop.item': p => isDate(p['week']) && isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string'
         && !!AISLE[p['aisle']] && bool(p['checked']) && bool(p['removed']),
+    'shop.spent': p => isDate(p['week']) && (p['cents'] === null || int(p['cents'], 1, MAX_CENTS)),
     'staple.set': p => isKey(p['key']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']] && bool(p['removed']),
     'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
     'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
-        && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])),
+        && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])) && optCents(p['price'], 100_000),
     'agenda.set': p => isId(p['cal']) && (p['member'] === null || isId(p['member'])) && str(p['label'], 40)
         && (p['url'] === null || (typeof p['url'] === 'string' && AGENDA_URL_RE.test(p['url']))),
     'agenda.rule': p => isKey(p['key']) && (p['effect'] === null || p['effect'] === 'auto' || p['effect'] === 'jamais'),

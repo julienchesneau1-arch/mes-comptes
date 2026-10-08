@@ -97,6 +97,20 @@ Commandes : `cd foyer && npm ci && npm run check` (compilation stricte, typage d
 
 Zéro erreur console sur l'ensemble des scénarios navigateur.
 
+### V2.8 (rituel batch du week-end ; économies visibles)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Rituel de la semaine | **livré** | Maison › Réglages › Rituel batch (ou carte « Batch cooking le dimanche ? » sur Aujourd'hui) : courses finales un jour et une heure (samedi 17 h par défaut), batch un autre (dimanche 9 h). Événement `settings.set` (`ritual`), validé strictement ; tests unitaires |
+| Plats cuisinés au batch | **livré** | Événement `prep.batch` : un plat est cuisiné le jour du batch et mangé plus tard ; refusé si le batch tombe après le repas ou si le plat est déjà préparé ; un plat déplacé avant son batch en sort. Menu en cartes : pastille « 👩‍🍳 Batch » sur les repas des 5 jours suivant le batch, à décocher dans le récapitulatif ; plats étiquetés « batch » mis en avant pour ces repas. Navigateur : 4 plats au batch, 1 retiré, 3 marqués dans la semaine |
+| Feuille du batch | **livré** | Plats, portions, boîtes à remplir avec leur jour et leur J+n, mise en place commune (fruits et légumes de tous les plats additionnés), ingrédients partagés, courses du batch ; le jour J : « C'est prêt » d'un geste par plat, progression, célébration. Conservation non évaluée : J+n affiché, repère officiel ANSES en lien |
+| Aujourd'hui selon le rituel | **livré** | Avant : « Batch dimanche : quels plats ? » ou « le menu d'abord » ; jour des courses : articles à commander, panier estimé, « Commander au drive » ; jour du batch : « C'est l'heure du batch ! ». Tâches « la veille » rapportées au jour du batch ; « Pas encore pris » regroupe les ingrédients du batch |
+| Rappels du rituel | **livré** | Notification le jour des courses à l'heure choisie (« 🛒 Courses du batch à commander » ou « 🗓️ Menu à choisir avant les courses ») et le jour du batch (« 👩‍🍳 Batch cooking aujourd'hui : 4 plats · 16 portions ») ; remplace « semaine suivante vide ». Tests : heures exactes, tâche la veille du batch |
+| Prix et budget | **livré** | Prix d'un paquet noté une fois sur le produit retenu (jamais lu sur Auchan) → « 6 × 4,99 € = 29,94 € » au drive, panier estimé (« ≥ » tant que des articles n'ont pas de prix), coût par portion, budget hebdomadaire avec jauge, montant payé noté après le drive (`shop.spent`). Montants en centimes entiers |
+| Bilan | **livré** | Maison › Bilan : payé sur 4 semaines, coût par portion réel (payé ÷ portions cuisinées), portions cuisinées, jetés, batchs d'affilée ; tableau des 8 dernières semaines (navigable au clavier) |
+| Défauts trouvés et corrigés | **livré** | Carrousel d'idées (V2.7) qui élargissait Aujourd'hui à 498 px sur téléphone (élément de grille sans `min-width: 0`) ; deux pastilles superposées sur une carte ; un plat déjà préparé laissait ses ingrédients dans « Pas encore pris » ; scénario « deux téléphones » dépendant de l'heure du test (horloge figée) |
+| Nouveau scénario navigateur | **livré** | `e2e/rituel.mjs`, horloge figée samedi puis dimanche : rituel activé, menu, feuille du batch, drive avec prix, budget, payé, bilan, séance jusqu'à la célébration ; axe 0 défaut en clair et en sombre |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -122,6 +136,9 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 11 | Maison › Réglages › « Activer les rappels » → Autoriser, puis « Envoyer un rappel d'essai », verrouiller le téléphone | « 🔔 Essai Foyer » arrive en moins de 6 minutes (si « Un rappel pour vos repas : ouvrez Foyer » arrive à la place : envoyer le Diagnostic) |
 | 12 | Maison › Réglages › Agendas › « Brancher un agenda » avec l'adresse iCal (Google) ou le lien « Calendrier public » (iCloud) | « Agenda de … branché : N événements » ; un événement du soir apparaît dans « Ce que l'agenda change » |
 | 13 | Semaine › « ✨ Proposer le menu », glisser une carte vers la droite puis vers la gauche | La carte suit le doigt, « MIAM » / « AUTRE » apparaît, la carte suivante (ou une autre idée) s'affiche |
+| 14 | Maison › Réglages › Rituel batch › Activer ; samedi 17 h (rappels activés) | Notification « 🛒 Courses du batch à commander » ; Aujourd'hui affiche « Jour des courses » |
+| 15 | Au drive, sur un produit retenu : noter le prix vu chez Auchan ; après la commande, Courses › « Montant payé » | « N × prix = total » au drive ; la jauge du budget et Maison › Bilan se remplissent |
+| 16 | Dimanche : Aujourd'hui › « Lancer la session », toucher « C'est prêt » sur chaque plat | Progression, puis « Batch terminé ! » ; les repas de la semaine passent à « Préparé » sur les deux téléphones |
 
 **Étape B — Première semaine (charge minimale)**
 - Toucher 10 à 15 classiques à la création. Compléter les ingrédients **seulement** des 5 plats les plus fréquents (« Coller une recette » accepte un texte de notes ou de site).
@@ -154,6 +171,9 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 - Agenda : règles par mots du titre et heures des repas (midi 12 h-14 h, soir 19 h-21 h 30), sans IA ; un titre ambigu est proposé, jamais appliqué sans une première décision. Le premier mois, des propositions inutiles sont probables : « Jamais pour … » les fait taire.
 - Agenda : l'adresse iCal donne accès en lecture à tout l'agenda ; elle est dans le journal chiffré et dans les sauvegardes exportées ; le serveur la reçoit à chaque lecture (rien n'est conservé). Couper l'accès : « Réinitialiser » (Google) ou désactiver « Calendrier public » (iCloud).
 - Un plat décalé par l'agenda ne revient pas tout seul si l'événement est ensuite supprimé (la présence, elle, revient).
+- Batch : Foyer n'évalue ni la conservation ni la durée de cuisson. Il affiche le nombre de jours entre le batch et chaque repas (J+n) et renvoie au repère officiel de l'[ANSES](https://www.anses.fr/fr/content/comment-bien-conserver-ses-aliments-et-ne-pas-interrompre-la-chaine-du-froid) ; frigo ou congélateur reste une décision du foyer. Pas d'ordre de cuisson calculé (aucune durée dans les recettes).
+- Prix : seulement ceux que vous notez, un par produit retenu ; ni promotion ni variation lue sur Auchan (CGU : pas de robot). Le panier estimé est un minimum tant que des articles n'ont pas de prix ; un article ajouté à la main n'est jamais chiffré (quantité libre).
+- Un batch couvre les repas du jour même au sixième jour suivant ; ses courses sont celles de la semaine qui commence le lendemain du batch.
 - Conseiller de sécurité Supabase : 1 avertissement (extension `pg_net` créée dans le schéma `public` ; le déplacement a expiré depuis l'outil). Correction en une fois dans l'éditeur SQL : `drop extension pg_net; create extension pg_net with schema extensions;`.
 
 ## 5. Journal de session
@@ -187,3 +207,5 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-05 | V2.7 | Refonte visuelle (palette vive, police ronde, visuels de plats, icône), menu en cartes à balayer, Aujourd'hui en carte héros ; 4 défauts trouvés par les tests navigateur et corrigés | livré | Gestes non testés sur un vrai iPhone |
 | 2026-10-04 | Performance | Lecteur d'agenda : 23 s → 0,5 s sur un agenda chargé (dates hors fenêtre écartées sans calcul d'heure, récurrences sautées jusqu'au mois utile) ; fonction redéployée | livré | — |
 | 2026-10-04 | Prise en main | Premiers pas, « Comment ça marche », libellés clarifiés, phrase d'accueil rendue exacte | livré | Pas de test avec une personne novice réelle |
+| 2026-10-08 | V2.8 | Rituel batch (courses samedi, batch dimanche) : `prep.batch`, feuille du batch, mise en place commune, J+n, rappels ; prix notés, panier estimé, budget, montant payé, bilan | livré | Conservation laissée au foyer ; prix saisis à la main |
+| 2026-10-08 | Vérification | 94 tests ; 4 scénarios navigateur dont `rituel.mjs` (horloge figée), axe 0 défaut clair et sombre ; défaut de largeur du carrousel (V2.7) trouvé et corrigé | livré | Gestes 14 à 16 non vérifiés sur iPhone |

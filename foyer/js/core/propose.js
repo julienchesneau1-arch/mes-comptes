@@ -10,7 +10,8 @@ import { newId } from './reduce.js';
 import { wholeExtra } from './commands.js';
 import { prepTitle } from './status.js';
 import { discover, familiesOf, toContent } from './catalog.js';
-export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien'];
+import { defaultIn, lastWeekday } from './batch.js';
+export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien', 'batch'];
 // Dernier jour où chaque plat a été prévu (cuisiné).
 export function lastPlanned(s) {
     const m = new Map();
@@ -77,6 +78,7 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map()) {
                 weekFresh.set(k, v);
     const last = lastPlanned(s);
     const weekend = weekday(p.date) >= 5, evening = p.slot === 'soir';
+    const rit = s.settings.ritual, batchSlot = !!rit && defaultIn(lastWeekday(addDays(p.date, -1), rit.cook), p.date);
     const exp = expiring(s, p.date);
     const out = [];
     for (const r of Object.values(s.recipes)) {
@@ -104,6 +106,10 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map()) {
         if (tags.has('favori')) {
             score += 8;
             why.push('favori');
+        }
+        if (tags.has('batch') && batchSlot) {
+            score += 10;
+            why.push('se prépare à l\'avance');
         }
         // Réutiliser un produit frais déjà acheté pour un autre plat de la semaine : moins de restes de crème ou de coriandre.
         const shared = [...fresh(s, r.id)].filter(([k]) => weekFresh.has(k)).map(([, v]) => v);

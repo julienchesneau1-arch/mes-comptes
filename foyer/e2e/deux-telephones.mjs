@@ -16,6 +16,7 @@ const mk = async () => {
   await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, mute);
   await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: readFileSync(new globalThis.URL('./catalogue-essai.json', import.meta.url), 'utf8') }));
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
+  await page.clock.setFixedTime(new Date('2026-10-05T08:00:00Z')); // lundi 10 h à Paris : « ce soir » reste à venir, quelle que soit l'heure du test
   page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
   return page;

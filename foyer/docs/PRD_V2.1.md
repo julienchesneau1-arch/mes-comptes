@@ -203,4 +203,17 @@ Demande : « couleurs vives, DA moderne et attractive comme les meilleurs ; des 
 
 Limite assumée : visuels par emoji, pas de photos de plats.
 
-Fin du PRD V2.1 (révisions V2.2 à V2.7 incluses).
+## 14. V2.8 — batch cooking le dimanche, courses le samedi, économies visibles (8 octobre 2026)
+
+Demande : « se mettre au batch cooking le dimanche, choix des courses finales le samedi pour un drive le dimanche matin ; comment le mettre en avant pour s'y mettre et faire des économies ».
+
+| Règle | Contenu |
+|---|---|
+| Un rituel, pas un réglage caché | Présenté une fois sur Aujourd'hui ; activé en un geste ; ensuite chaque jour du rituel a sa carte en tête d'Aujourd'hui et son rappel |
+| Le batch se décide dans le menu | Les repas des 5 jours suivant le batch sont proposés « 👩‍🍳 Batch » ; un toucher pour en retirer un |
+| La séance guide sans inventer | Plats, boîtes à remplir avec J+n, légumes de tous les plats à préparer en une fois, « C'est prêt » par plat ; aucune durée de conservation ni de cuisson calculée |
+| Économies mesurées, pas promises | Prix notés par le foyer → panier estimé, coût par portion, budget, montant payé, bilan ; ingrédients partagés signalés ; jetés comptés. Aucun chiffre d'économie annoncé sans mesure |
+
+[ANOMALIE_LOGIQUE corrigée] Un plat déjà déclaré préparé faisait encore apparaître ses ingrédients dans « Pas encore pris » : ils sont désormais ignorés.
+
+Fin du PRD V2.1 (révisions V2.2 à V2.8 incluses).

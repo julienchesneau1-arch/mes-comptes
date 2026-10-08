@@ -18,6 +18,7 @@ export interface Device {
   push: boolean;             // rappels en notifications sur ce téléphone
   pushHash: string;          // rappels déjà déposés (évite de les redéposer à l'identique)
   guide: boolean;            // carte « Premiers pas » affichée
+  ritualHint: boolean;       // présentation du rituel batch encore proposée
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -55,6 +56,7 @@ export function loadDevice(newId: () => string): Device {
     push: d.push === true,
     pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
     guide: d.guide !== false,
+    ritualHint: d.ritualHint !== false,
   };
   saveDevice(dev);
   return dev;

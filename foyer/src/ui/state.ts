@@ -13,7 +13,7 @@ export interface UI {
   day: number;                 // jour sélectionné dans la semaine (téléphone)
   weekList: boolean;           // « toute la semaine » en liste
   shopWeek: LocalDate | null;
-  home: 'plats' | 'portions' | 'surveiller' | 'reglages';
+  home: 'plats' | 'portions' | 'surveiller' | 'bilan' | 'reglages';
   q: string;
   showDone: boolean;
   store: boolean;              // mode magasin : écran allumé, seulement ce qui reste
