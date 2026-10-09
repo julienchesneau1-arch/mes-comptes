@@ -64,7 +64,7 @@ export interface WatchItem {
 
 export interface Mark { by: MemberId | null; at: string }
 export interface WeekShop {
-  checked: Record<string, Mark & { needAt: string }>;               // « pris » pour le besoin affiché à ce moment
+  checked: Record<string, Mark & { needAt: string; name?: string }>;               // « pris » pour le besoin affiché à ce moment
   pantry: Record<string, Mark & { qty: string; needAt: string }>;   // « on en a » : qty = fraction ou « all »
   items: Record<string, Mark & { name: string; qty: string; aisle: string; checked: boolean }>;
   spent?: Mark & { cents: number };                                 // montant réellement payé, saisi par le foyer
@@ -106,7 +106,7 @@ export interface Payloads {
   'prep.discard': { prep: string; n: number; reason: string };
   'prep.batch': { prep: string; day: LocalDate | null };
   'task.set': { key: string; done: boolean };
-  'shop.check': { week: LocalDate; key: string; needAt: string | null };
+  'shop.check': { week: LocalDate; key: string; needAt: string | null; name?: string }; // name : pour nommer un article qui n'est plus au menu
   'shop.pantry': { week: LocalDate; key: string; qty: string | null; needAt: string };
   'shop.item': { week: LocalDate; id: string; name: string; qty: string; aisle: string; checked: boolean; removed: boolean };
   'shop.spent': { week: LocalDate; cents: number | null };
@@ -232,7 +232,7 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'prep.discard': p => isId(p['prep']) && int(p['n'], 1, 99) && str(p['reason'], 120),
   'prep.batch': p => isId(p['prep']) && (p['day'] === null || isDate(p['day'])),
   'task.set': p => isKey(p['key']) && bool(p['done']),
-  'shop.check': p => isDate(p['week']) && isKey(p['key']) && (p['needAt'] === null || isNeed(p['needAt'])),
+  'shop.check': p => isDate(p['week']) && isKey(p['key']) && (p['needAt'] === null || isNeed(p['needAt'])) && (p['name'] === undefined || str(p['name'], 80, 1)),
   'shop.pantry': p => isDate(p['week']) && isKey(p['key']) && (p['qty'] === null || p['qty'] === 'all' || isQty(p['qty'])) && isNeed(p['needAt']),
   'shop.item': p => isDate(p['week']) && isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string'
     && !!AISLE[p['aisle']] && bool(p['checked']) && bool(p['removed']),

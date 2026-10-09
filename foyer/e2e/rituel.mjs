@@ -1,5 +1,5 @@
 // Rituel batch, horloge fixée : samedi 10 octobre 2026 (jour des courses) puis dimanche 11 (jour du batch).
-// Rituel activé depuis Aujourd'hui, menu en cartes avec plats « Batch », drive avec prix noté, budget, montant payé, bilan,
+// Rituel activé depuis Aujourd'hui, menu en cartes avec plats « Batch », drive sans prix à saisir, budget estimé tout seul, montant payé, bilan,
 // puis séance de batch (à préparer en une fois, « Prêt », célébration). axe WCAG 2.2 AA clair et sombre.
 // Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
@@ -82,7 +82,9 @@ await step('menu en cartes : plats marqués « Batch », un retiré, semaine val
   console.log('   batch :', (await text(dlg.locator('.banner.info').last())));
   await shot('r05-recap-batch'); await axe('recap-batch');
   await dlg.getByRole('button', { name: 'Valider la semaine' }).click();
-  await page.waitForTimeout(400);
+  await dlg.getByRole('heading', { name: /Panier prêt/ }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   await page.getByRole('button', { name: 'Semaine suivante' }).click();
   await page.getByRole('button', { name: 'Toute la semaine' }).click().catch(() => {});
@@ -100,7 +102,7 @@ await step('feuille du batch (samedi) : programme, à ajouter, mise en place, co
   await shot('r07-batch-samedi'); await axe('batch-samedi');
   await page.keyboard.press('Escape');
 });
-await step('jour des courses : drive avec prix noté, panier estimé', async () => {
+await step('jour des courses : drive sans prix à saisir, estimation automatique', async () => {
   await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
   await page.getByRole('heading', { name: 'Jour des courses' }).waitFor();
   await shot('r08-samedi-courses'); await axe('samedi-courses');
@@ -111,9 +113,9 @@ await step('jour des courses : drive avec prix noté, panier estimé', async () 
   await dlg.locator('summary', { hasText: 'Retenir le produit choisi' }).click();
   await dlg.getByLabel('Lien du produit chez Auchan').fill('https://www.auchan.fr/auchan-produit-essai/pr-C1000009');
   await dlg.getByLabel(/Contenance d'un paquet/).fill('1');
-  await dlg.getByLabel(/Prix d'un paquet en euros/).fill('4,99');
+  if (await dlg.getByLabel(/Prix d'un paquet/).count()) throw new Error('aucun prix ne doit être demandé');
   await dlg.getByRole('button', { name: 'Retenir ce produit' }).click();
-  await dlg.getByText(/= 4,99|× 4,99/).first().waitFor();
+  await dlg.getByText(/À mettre au panier : \d+ ×/).first().waitFor();
   await axe('drive-prix');
   console.log('   drive :', (await text(dlg.locator('section').first())).slice(0, 200));
   await page.keyboard.press('Escape');
@@ -125,6 +127,10 @@ await step('courses : budget, montant payé, jauge', async () => {
   await dlg.getByLabel(/Par semaine, en euros/).fill('90');
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
   await page.keyboard.press('Escape');
+  const est = await text(page.locator('section', { has: page.getByRole('heading', { name: /Budget de la semaine/ }) }));
+  if (!/\d+,\d{2}\s€\s*panier estimé/.test(est)) throw new Error('panier estimé automatiquement attendu : ' + est);
+  if (!/Insee/.test(est)) throw new Error('source des prix attendue : ' + est);
+  await page.locator('summary', { hasText: 'Noter le montant payé' }).click();
   await page.getByLabel(/Montant payé au drive/).fill('64,30');
   await page.getByRole('button', { name: 'Noter', exact: true }).click();
   await page.locator('[role="meter"]').waitFor();

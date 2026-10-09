@@ -5,7 +5,7 @@ import { current } from '../../core/model.js';
 import { DEFAULT_RITUAL, ANSES_FROID, batchView, batchDrafts, batchDayFor, defaultIn, miseEnPlace, sharedIngredients, batchStreak, batchOrder, hm, weekRange } from '../../core/batch.js';
 import { declarePrepared } from '../../core/commands.js';
 import { deriveShopping } from '../../core/shopping.js';
-import { cartEstimate } from '../../core/budget.js';
+import { cartEstimate, cartText } from '../../core/budget.js';
 import { eur, parseEuros } from '../../core/money.js';
 import { dishLook } from '../../core/visual.js';
 import { capital } from '../../core/status.js';
@@ -49,7 +49,7 @@ function ritualHtml() {
   <section class="card stack"><h3 class="section-title">Budget courses (facultatif)</h3>
     <form data-f="budgetSet" class="row"><label class="field grow">Par semaine, en euros<input type="text" name="eur" inputmode="decimal" placeholder="ex. 90" value="${budget ? esc(eur(budget).replace(/\s?€$/, '').replace(/ /g, '')) : ''}"></label><button class="btn ghost">Enregistrer</button></form>
     ${budget ? '<button class="btn quiet" data-a="budgetOff">Retirer le budget</button>' : ''}
-    <p class="small muted">Comparé au panier estimé (prix que vous notez sur les produits du drive) et au montant réellement payé. Foyer ne lit aucun prix sur un site.</p></section>`;
+    <p class="small muted">Comparé au panier estimé automatiquement (prix moyens publiés par l'Insee, rien à saisir) puis au montant payé si vous le notez. Foyer ne lit aucun prix sur un site marchand.</p></section>`;
 }
 CLICK['ritualOn'] = () => dispatch([{ t: 'settings.set', p: { ritual: DEFAULT_RITUAL } }], { toast: 'Rituel activé : courses le samedi, batch le dimanche' });
 CLICK['ritualOff'] = () => dispatch([{ t: 'settings.set', p: { ritual: null } }], { toast: 'Rituel arrêté' });
@@ -131,7 +131,7 @@ function batchHtml(day) {
       <ul class="list">${mep.map(l => `<li><div class="item"><span class="grow"><span class="title">${esc(l.name)}</span><br><span class="sub">${esc(l.dishes.join(', '))}</span></span><span class="qty">${esc(l.qty || '?')}</span></div></li>`).join('')}</ul></section>` : ''}
   ${shared.length ? `<p class="banner ok"><span><strong>Malin :</strong> ${esc(shared.slice(0, 4).join(', '))} ${shared.length > 1 ? 'servent' : 'sert'} dans plusieurs plats : moins de restes, moins d'achats.</span></p>` : ''}
   ${!session || !v.dishes.length ? `<section class="card stack"><h3 class="section-title">Courses du batch</h3>
-      <p>${list.remaining ? `${plural(list.remaining, 'article')} à prendre` : 'Liste traitée'}${cart.reliable ? ` · panier estimé : ${cart.partial ? 'au moins ' : ''}${esc(eur(cart.cents))}` : ''}</p>
+      <p>${list.remaining ? `${plural(list.remaining, 'article')} à prendre` : 'Liste traitée'}${cart.priced ? ` · panier estimé : ${esc(cartText(cart, eur))}` : ''}</p>
       <div class="actions"><button class="btn soft" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button></div></section>` : ''}
   <p class="small muted">Frigo ou congélateur selon le jour du repas : c'est vous qui décidez, Foyer n'évalue pas la conservation. Repères officiels : <a href="${ANSES_FROID}" target="_blank" rel="noopener noreferrer">ANSES, conserver ses aliments</a>.</p>`;
 }
@@ -177,7 +177,7 @@ export function ritualCard(rn) {
         if (rn.menuEmpty)
             return card('sun', '🗓️', `Rituel · courses ${hourText(r.shopAt)}`, 'D\'abord, le menu', esc(`Le batch est ${when} : choisissez les repas, la liste de courses suit.`), `<button class="btn" data-a="propose" data-week="${v.week}">✨ Choisir les repas ${esc(weekRange(v.week))}</button>`);
         const list = deriveShopping(s, v.week), cart = cartEstimate(s, list);
-        return card('ocean', '🛒', `Rituel · courses ${hourText(r.shopAt)}`, 'Jour des courses', esc(`${list.remaining ? plural(list.remaining, 'article') + ' à commander' : 'Liste traitée'}${cart.reliable ? ` · panier estimé : ${cart.partial ? 'au moins ' : ''}${eur(cart.cents)}` : ''} · batch ${when}${v.dishes.length ? ` (${plural(v.dishes.length, 'plat')})` : ''}`), `<button class="btn" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button>${v.dishes.length ? '' : `<button class="btn ghost" data-a="batchOpen" data-day="${v.day}">Plats du batch</button>`}`);
+        return card('ocean', '🛒', `Rituel · courses ${hourText(r.shopAt)}`, 'Jour des courses', esc(`${list.remaining ? plural(list.remaining, 'article') + ' à commander' : 'Liste traitée'}${cart.priced ? ` · panier estimé : ${cartText(cart, eur)}` : ''} · batch ${when}${v.dishes.length ? ` (${plural(v.dishes.length, 'plat')})` : ''}`), `<button class="btn" data-a="drive" data-week="${v.week}">Commander au drive</button><button class="btn ghost" data-a="goShop" data-week="${v.week}">Voir la liste</button>${v.dishes.length ? '' : `<button class="btn ghost" data-a="batchOpen" data-day="${v.day}">Plats du batch</button>`}`);
     }
     if (rn.kind === 'choose')
         return card('basil', '🥘', 'Rituel · batch', `Batch ${when} : quels plats ?`, esc(`${plural(v.candidates.length, 'plat prévu', 'plats prévus')} cette semaine. Choisissez ceux à cuisiner à l'avance.`), `<button class="btn" data-a="batchOpen" data-day="${v.day}">Choisir les plats</button>`);

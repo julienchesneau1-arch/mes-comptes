@@ -1,7 +1,8 @@
-// Économies : panier estimé (prix notés par le foyer), budget de la semaine, montant payé, bilan des semaines passées.
-// Chiffres tirés uniquement de ce que le foyer a saisi ; un article sans prix est compté « sans prix », jamais estimé.
+// Économies : panier estimé sans rien saisir (prix moyens Insee), budget de la semaine, montant payé (facultatif), bilan des semaines.
+// Un article sans prix de référence est compté « non chiffré », jamais deviné : le montant est alors un minimum.
 import { addDays, fmtDayShort } from '../../core/dates.js';
-import { cartEstimate, weekReport } from '../../core/budget.js';
+import { cartEstimate, cartText, coverText, weekReport } from '../../core/budget.js';
+import { refPrices, monthText } from '../../core/refprice.js';
 import { batchStreak } from '../../core/batch.js';
 import { eur, parseEuros } from '../../core/money.js';
 import { A, S, clock, dispatch, thisWeek } from '../state.js';
@@ -14,23 +15,35 @@ export function budgetCard(week, list) {
     const s = S(), cart = cartEstimate(s, list), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
     if (!list.meals && !spent)
         return '';
-    const base = spent?.cents ?? (cart.reliable ? cart.cents : null);
+    const base = spent?.cents ?? (cart.priced ? cart.cents : null);
     const ratio = budget && base !== null ? base / budget : null;
     const state = ratio === null ? '' : ratio > 1 ? 'over' : ratio >= .9 ? 'warn' : '';
     const meter = budget && base !== null
         ? `<div class="meter ${state}" role="meter" aria-label="Budget de la semaine" aria-valuemin="0" aria-valuemax="${budget}" aria-valuenow="${Math.min(base, budget)}"><span data-pct="${Math.min(100, Math.round(100 * (ratio ?? 0)))}"></span></div>
-      <p class="small">${esc(eur(base))} ${spent ? 'payés' : 'estimés'} sur ${esc(eur(budget))} · ${ratio !== null && ratio > 1 ? `<strong>${esc(eur(base - budget))} au-dessus du budget</strong>` : `reste ${esc(eur(budget - base))}`}</p>` : '';
+      <p class="small">${spent ? esc(eur(base)) : esc(cartText(cart, eur))} ${spent ? 'payés' : 'estimés'} sur ${esc(eur(budget))} · ${ratio !== null && ratio > 1 ? `<strong>${esc(eur(base - budget))} au-dessus du budget</strong>` : `reste ${esc(eur(budget - base))}`}</p>` : '';
     return `<section class="card stack" aria-labelledby="bud-h"><div class="row"><h2 id="bud-h" class="grow">💶 Budget de la semaine</h2>${budget ? '' : '<button class="btn small-btn ghost" data-a="ritual">Fixer un budget</button>'}</div>
     <div class="stats" role="list">
-      ${cart.reliable ? `<span role="listitem"><strong>${esc(eur(cart.cents))}</strong>panier estimé${cart.partial ? ' (au moins)' : ''}</span>`
-        : `<span role="listitem"><strong>${cart.priced}/${cart.priced + cart.unpriced}</strong>prix connus</span>`}
+      <span role="listitem"><strong>${cart.priced ? esc(eur(cart.cents)) : '–'}</strong>panier estimé${cart.priced && cart.partial ? ` (au moins : ${esc(coverText(cart))})` : ''}</span>
       <span role="listitem"><strong>${spent && cart.portions ? esc(eur(Math.round(spent.cents / cart.portions))) : cart.perPortion ? esc(eur(cart.perPortion)) : '–'}</strong>par portion</span>
       <span role="listitem"><strong>${spent ? esc(eur(spent.cents)) : '–'}</strong>payé</span>
     </div>
     ${meter}
-    ${cart.unpriced ? `<p class="small muted">${cart.reliable ? `${plural(cart.unpriced, 'article')} sans prix : le panier coûtera au moins ce montant.` : 'Le panier estimé apparaît quand 8 articles sur 10 ont un prix.'} Le prix se note au drive, une fois par produit.</p>` : ''}
-    <form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
-      <button class="btn ghost">${spent ? 'Corriger' : 'Noter'}</button>${spent ? `<button class="btn quiet" type="button" data-a="spentClear" data-week="${week}">Effacer</button>` : ''}</form></section>`;
+    ${estimateNote(cart.priced, cart.unpriced, cart.seasonings)}
+    <details${spent ? ' open' : ''}><summary>${spent ? 'Montant payé noté' : 'Noter le montant payé (facultatif)'}</summary><form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
+      <button class="btn ghost">${spent ? 'Corriger' : 'Noter'}</button>${spent ? `<button class="btn quiet" type="button" data-a="spentClear" data-week="${week}">Effacer</button>` : ''}</form>
+      <p class="small muted">Le total de la commande Auchan rend le coût par portion exact. Sans lui, Foyer s'en tient à l'estimation.</p></details></section>`;
+}
+// Source et limites de l'estimation, en une phrase : d'où viennent les prix, ce qui n'est pas chiffré.
+function estimateNote(priced, unpriced, seasonings) {
+    const rp = refPrices();
+    if (!rp)
+        return '<p class="small muted">Prix de référence pas encore chargés (il faut une connexion la première fois).</p>';
+    const parts = [`Estimé automatiquement aux <a href="${esc(rp.sourceUrl)}" target="_blank" rel="noopener noreferrer">prix moyens publiés par l'Insee</a> (${esc(monthText(rp.period))}), pas aux prix d'Auchan. Rien à saisir.`];
+    if (unpriced)
+        parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
+    if (seasonings)
+        parts.push('Sel, poivre et épices non comptés.');
+    return `<p class="small muted">${parts.join(' ')}</p>`;
 }
 SUBMIT['spentSet'] = (data, form) => {
     const week = form.dataset['week'] ?? '', c = parseEuros(String(data.get('eur') ?? ''));
@@ -61,11 +74,11 @@ export function reportView() {
       <span role="listitem"><strong>${thrown}</strong>jeté${thrown > 1 ? 's' : ''}</span>
       ${s.settings.ritual ? `<span role="listitem"><strong>${streak ? `🔥 ${streak}` : '0'}</strong>batch${streak > 1 ? 's' : ''} d'affilée</span>` : ''}
     </div>
-    <p class="small muted">Payé = montants notés après le drive. Par portion = payé ÷ portions cuisinées ces semaines-là. Jetés = portions et produits déclarés jetés. Rien n'est estimé à votre place.</p></section>
+    <p class="small muted">Payé = montants notés après le drive (facultatif). Par portion = payé ÷ portions cuisinées ces semaines-là. Jetés = portions et produits déclarés jetés.</p></section>
   ${any ? `<section class="card"><h2>Semaine par semaine</h2><div class="table-wrap" tabindex="0" role="region" aria-label="Bilan semaine par semaine"><table class="report">
     <thead><tr><th scope="col">Semaine</th><th scope="col">Payé</th><th scope="col">Estimé</th><th scope="col">Portions</th><th scope="col">€/portion</th><th scope="col">Jetés</th></tr></thead>
     <tbody>${weeks.map(w => `<tr><th scope="row">${esc(fmtDayShort(w.week))}${w.week === start ? ' (en cours)' : w.week > start ? ' (à venir)' : ''}</th><td>${w.spent !== null ? esc(eur(w.spent)) : '–'}</td>
-      <td>${w.estimate.reliable ? esc(eur(w.estimate.cents)) : '–'}</td><td>${w.estimate.portions || '–'}</td><td>${w.perPortion !== null ? esc(eur(w.perPortion)) : '–'}</td><td>${w.thrown}</td></tr>`).join('')}</tbody></table></div>
-    <p class="small muted">€/portion : payé si noté, sinon panier estimé (seulement quand 8 articles sur 10 ont un prix ; c'est alors un minimum).</p></section>`
-        : '<p class="empty"><strong>Pas encore de chiffres</strong>Notez le montant payé après chaque drive (Courses › Budget) : le bilan se remplit semaine après semaine.</p>'}`;
+      <td>${w.estimate.priced ? esc(cartText(w.estimate, eur)) : '–'}</td><td>${w.estimate.portions || '–'}</td><td>${w.perPortion !== null ? esc(eur(w.perPortion)) : '–'}</td><td>${w.thrown}</td></tr>`).join('')}</tbody></table></div>
+    <p class="small muted">Estimé : prix moyens Insee. €/portion : payé si noté, sinon estimé (seulement quand 8 articles sur 10 ont un prix de référence).</p></section>`
+        : '<p class="empty"><strong>Pas encore de chiffres</strong>Prévoyez une semaine : le panier est estimé tout seul, le bilan se remplit semaine après semaine.</p>'}`;
 }

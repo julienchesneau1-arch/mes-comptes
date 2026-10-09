@@ -12,6 +12,7 @@ import { onboardingView, CLASSICS } from './onboarding.ts';
 import { demoLog } from './demo.ts';
 import { applyTheme, linkFromUrl } from './sheets/settings.ts';
 import { startAutoSync } from './autosync.ts';
+import { loadRefPrices } from './prices.ts';
 import { startReminders } from './push.ts';
 import { startAgenda } from './agenda.ts';
 import './sheets/agenda.ts';
@@ -80,6 +81,7 @@ function boot(): void {
   wireDrag(document);
   route();
   startAutoSync();
+  loadRefPrices();
   startReminders();
   startAgenda();
   if (dropped > 0) toast(`${dropped} élément(s) illisible(s) écarté(s) à l'ouverture. Une copie de secours existe dans Maison › Réglages.`);

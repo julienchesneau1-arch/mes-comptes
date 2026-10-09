@@ -1,5 +1,5 @@
 // Les quatre écrans : Aujourd'hui, Semaine, Courses, Maison. HTML calculé depuis l'état ; tout texte est échappé.
-import { type LocalDate, type SlotKey, addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, weekOf, weekday, parseSlot, fmtSlot, paris } from '../core/dates.ts';
+import { type LocalDate, type SlotKey, addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, weekOf, fmtSlot, paris } from '../core/dates.ts';
 import { current } from '../core/model.ts';
 import { deriveToday } from '../core/today.ts';
 import { slotView, STATUS_LABEL, prepTitle, capital, type SlotView } from '../core/status.ts';
@@ -26,6 +26,7 @@ import { weekBalance, TARGET, SOURCES } from '../core/balance.ts';
 import { VARIETIES, type Variety } from '../core/model.ts';
 import { RELAY } from './config.ts';
 import { openLine } from './sheets/shop.ts';
+import { cartChangesCard, shopWeekFor } from './sheets/drive.ts';
 import { packsFor } from '../core/drive.ts';
 import { ingredientKey } from '../core/ingredients.ts';
 import { dishLook, type Look } from '../core/visual.ts';
@@ -71,6 +72,7 @@ export function todayView(): string {
   const s = S();
   const n = unsent();
   const ritualHtml = ritualCard(t.ritual);
+  const cartTodo = cartChangesCard(shopWeekFor(s, t.date, thisWeek())); // le menu a changé après le drive : à reporter sur Auchan
   const bothEmpty = t.cards.length === 2 && t.cards.every(c => c.view.status === 'vide');
   const cards = (bothEmpty ? t.cards.slice(0, 1) : t.cards).map((c, i) => {
     const v = c.view, look = slotLook(v), id = `m-${v.key.replace('|', '-')}`;
@@ -124,7 +126,7 @@ export function todayView(): string {
   const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
   return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
-    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${checks}${tasks}${toBuy}${plan}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
+    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${checks}${tasks}${toBuy}${plan}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
 }
 
 /* ---------- Semaine ---------- */
@@ -216,7 +218,7 @@ function lineRow(l: ShopLine, week: LocalDate): string {
 
 export function shopView(): string {
   const s = S(), c = clock();
-  const week = A.ui.shopWeek ?? (weekday(c.date) >= 5 && Object.values(s.preps).some(p => p.slot && (parseSlot(p.slot)?.date ?? '') >= addDays(thisWeek(), 7) && (parseSlot(p.slot)?.date ?? '') < addDays(thisWeek(), 14)) ? addDays(thisWeek(), 7) : thisWeek());
+  const week = A.ui.shopWeek ?? shopWeekFor(s, c.date, thisWeek());
   const list = deriveShopping(s, week);
   const banner = !list.meals ? '' : list.incomplete.length
     ? `<div class="banner partial"><p class="grow"><strong>${plural(list.incomplete.length, 'plat', 'plats')} sans quantités</strong> (${esc(list.incomplete.map(x => x.name).join(', '))}) : à acheter de mémoire, ou compléter la recette.</p><button class="btn small-btn ghost" data-a="recipe" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
@@ -243,6 +245,7 @@ export function shopView(): string {
     ${todo.length + mTodo.length + toJudge.length && !A.ui.store ? (s.shop[week]?.spent
       ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
       : `<button class="btn big block" data-a="drive" data-week="${week}">🛒 Commander au drive</button>`) : ''}
+    ${A.ui.store ? '' : cartChangesCard(week)}
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
@@ -252,13 +255,13 @@ export function shopView(): string {
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}</ul></details>` : ''}
     ${A.ui.store ? '' : budgetCard(week, list)}
     <div class="actions"><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
-    <p class="small muted">Cocher = acheté pour ces courses. Cela ne crée ni stock ni date ; les prix sont ceux que vous notez.</p></main>`;
+    <p class="small muted">Cocher = acheté (ou mis au panier) pour ces courses. Cela ne crée ni stock ni date. Montants : estimations automatiques, rien à saisir.</p></main>`;
 }
 // Après le drive : un geste coche tout ce qui reste (chaque ligne garde son besoin du moment, comme une coche à la main).
 CLICK['allBought'] = d => {
   const week = d['week'] ?? thisWeek(), list = deriveShopping(S(), week);
   const drafts: Draft[] = [
-    ...list.lines.filter(l => !l.done).map(l => ({ t: 'shop.check' as const, p: { week, key: l.key, needAt: checkSig(l) } })),
+    ...list.lines.filter(l => !l.done).map(l => ({ t: 'shop.check' as const, p: { week, key: l.key, needAt: checkSig(l), name: l.name } })),
     ...list.manual.filter(m => !m.checked).map(m => ({ t: 'shop.item' as const, p: { week, id: m.id, name: m.name, qty: m.qty, aisle: m.aisle, checked: true, removed: false } })),
   ];
   dispatch(drafts, { toast: `${plural(drafts.length, 'article coché', 'articles cochés')} : tout est acheté` });
@@ -344,7 +347,7 @@ function settingsView(): string {
     <section class="card stack"><h2>Ce que fait Foyer, et ce qu'il ne fait pas</h2>
       <ul class="parsed"><li>Calcule les courses à partir de vos plats et du nombre de portions : quantités exactes, sources visibles.</li>
       <li>Ne tient pas d'inventaire : « on en a déjà » vaut pour une liste, pas pour toujours.</li>
-      <li>N'utilise aucune IA, ne devine ni prix, ni durée, ni conservation : les prix viennent de vous.</li>
+      <li>N'utilise aucune IA (aucun coût, aucun token), ne devine ni durée ni conservation. Prix : moyennes Insee et relevés Open Prices, jamais lus sur le site d'Auchan.</li>
       <li>Ne confirme jamais un repas parce que l'heure est passée.</li>
       <li>Données sur vos téléphones uniquement ; la synchro est chiffrée de bout en bout.</li></ul>
       <p class="small muted">Version ${VERSION} · <a href="${DGCCRF_URL}" target="_blank" rel="noopener">DLC et DDM (DGCCRF)</a></p>

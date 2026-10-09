@@ -334,7 +334,7 @@ function apply(s, e) {
             if (e.p.needAt === null)
                 delete w.checked[e.p.key];
             else
-                w.checked[e.p.key] = { needAt: e.p.needAt, by: e.by, at: e.at };
+                w.checked[e.p.key] = { needAt: e.p.needAt, by: e.by, at: e.at, ...(e.p.name ? { name: e.p.name } : {}) };
             return;
         }
         case 'shop.pantry': {

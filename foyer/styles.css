@@ -405,3 +405,10 @@ table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .balance .chip { min-width: 3.75rem; justify-content: center; }
 .order { margin: 0; padding-left: 1.25rem; display: grid; gap: .5rem; }
 .order li .sub { display: block; color: var(--ink-2); font-size: .875rem; }
+
+/* V3.0 : panier qui suit le menu, conseil qualité-prix */
+.card.attention { border: 2px solid var(--amber); }
+.advice ul.plain { list-style: none; padding: 0; margin: .5rem 0; }
+.advice li { padding: .6rem 0; border-top: 1px solid var(--line); }
+.advice li:first-child { border-top: 0; }
+.badge { display: inline-block; padding: .1rem .55rem; border-radius: 999px; background: var(--amber-bg); color: var(--amber); font-size: .85rem; font-weight: 800; }

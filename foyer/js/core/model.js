@@ -115,7 +115,7 @@ const P = {
     'prep.discard': p => isId(p['prep']) && int(p['n'], 1, 99) && str(p['reason'], 120),
     'prep.batch': p => isId(p['prep']) && (p['day'] === null || isDate(p['day'])),
     'task.set': p => isKey(p['key']) && bool(p['done']),
-    'shop.check': p => isDate(p['week']) && isKey(p['key']) && (p['needAt'] === null || isNeed(p['needAt'])),
+    'shop.check': p => isDate(p['week']) && isKey(p['key']) && (p['needAt'] === null || isNeed(p['needAt'])) && (p['name'] === undefined || str(p['name'], 80, 1)),
     'shop.pantry': p => isDate(p['week']) && isKey(p['key']) && (p['qty'] === null || p['qty'] === 'all' || isQty(p['qty'])) && isNeed(p['needAt']),
     'shop.item': p => isDate(p['week']) && isId(p['id']) && str(p['name'], 80, 1) && str(p['qty'], 40) && typeof p['aisle'] === 'string'
         && !!AISLE[p['aisle']] && bool(p['checked']) && bool(p['removed']),

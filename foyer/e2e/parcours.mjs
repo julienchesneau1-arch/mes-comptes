@@ -100,7 +100,14 @@ await step('menu en cartes : autre idée, geste « je prends », tout garder, va
   console.log('   menu :', `${first} → ${second} ;`, (await sheet.locator('.recap .title').allInnerTexts()).join(' · '));
   await shot('05b-menu-pret'); await axe('menu-pret');
   await sheet.getByRole('button', { name: 'Valider la semaine' }).click();
-  await page.waitForTimeout(400);
+  // Le panier suit le menu : prêt à remplir tout de suite, montant estimé sans rien saisir.
+  await page.locator('dialog[open]').getByRole('heading', { name: /Panier prêt/ }).waitFor();
+  const ready = await page.locator('dialog[open]').innerText();
+  if (!/\d+\s*articles?/.test(ready) || !/Remplir le panier Auchan/.test(ready)) throw new Error('panier prêt : ' + ready);
+  console.log('   panier prêt :', ready.replace(/\s+/g, ' ').slice(0, 160));
+  await shot('05c-panier-pret'); await axe('panier-pret');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
   await shot('06-semaine'); await axe('semaine');
 });
 await step('toute la semaine', async () => { await page.getByRole('button', { name: 'Toute la semaine' }).click(); await shot('07-semaine-liste'); });
@@ -142,6 +149,42 @@ await step('drive Auchan assisté (aucune page Auchan ouverte pendant le test)',
   await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
   await dlg.getByText(`Article 2 sur ${total}`).waitFor();
   if ((await dlg.locator('h3').first().innerText()).trim() === first) throw new Error('l\'article n\'a pas avancé');
+  if (await dlg.getByLabel(/Prix d'un paquet/).count()) throw new Error('aucun prix ne doit être demandé');
+  await page.keyboard.press('Escape');
+});
+await step('le panier suit le menu : tout au panier, une portion de plus, mise à jour proposée', async () => {
+  await page.getByRole('button', { name: /Commander au drive/ }).click();
+  const dlg = page.locator('dialog[open]');
+  for (let i = 0; i < 80 && await dlg.getByRole('button', { name: 'Ajouté au panier' }).count(); i++) await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  await dlg.getByText('Tout est au panier ou déjà traité.').waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Semaine', exact: true }).click();
+  await page.locator('button.slot.s-a-cuisiner').first().click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Une portion en plus', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Courses', exact: true }).click();
+  const card = page.locator('section', { has: page.getByRole('heading', { name: /Panier Auchan à mettre à jour/ }) });
+  await card.waitFor();
+  const t = await card.innerText();
+  if (!/＋/.test(t)) throw new Error('ajout attendu : ' + t);
+  console.log('   panier à mettre à jour :', t.replace(/\s+/g, ' ').slice(0, 200));
+  await shot('09d-panier-a-jour'); await axe('panier-a-jour');
+  await card.getByRole('button', { name: 'Ajouter les manquants' }).click();
+  for (let i = 0; i < 20 && await dlg.getByRole('button', { name: 'Ajouté au panier' }).count(); i++) await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  await page.keyboard.press('Escape');
+  await card.waitFor({ state: 'detached' });
+});
+await step('qualité-prix : conseil sur une ligne de courses (crème fraîche)', async () => {
+  const line = page.locator('button.item-btn', { hasText: /^Crème fraîche/ }).first();
+  if (!(await line.count())) { console.log('   (pas de crème fraîche dans ce menu : étape sautée)'); return; }
+  if (!(await line.isVisible())) await page.locator('summary', { hasText: 'Déjà traités' }).click(); // tout est déjà au panier
+  await line.click();
+  const adv = page.locator('dialog[open] .advice');
+  await adv.waitFor();
+  const t = await adv.innerText();
+  if (!/Meilleur rapport/.test(t) || !/€\s*le litre/.test(t) || !/Open Food Facts/.test(t)) throw new Error('conseil incomplet : ' + t);
+  console.log('   conseil :', t.replace(/\s+/g, ' ').slice(0, 220));
+  await page.locator('dialog[open]').screenshot({ path: 'captures/09e-qualite-prix.png' }); await axe('qualite-prix');
   await page.keyboard.press('Escape');
 });
 await step('découvrir des recettes (catalogue) et en ajouter une après relecture', async () => {
