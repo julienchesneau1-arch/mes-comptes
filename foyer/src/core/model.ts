@@ -72,6 +72,9 @@ export interface WeekShop {
 export interface Staple { name: string; qty: string; aisle: string }
 // Produit retenu au drive pour un ingrédient : lien et contenance saisis par le foyer (rien n'est lu sur le site du magasin).
 export interface Product { url: string; label: string; size: string | null; unit: string | null; price: number | null; by: MemberId | null; at: string } // price : un paquet, en centimes, vu par le foyer
+// Dernier prix payé pour un ingrédient, lu sur une facture du drive (sur le téléphone, sans IA) : nom imprimé, contenance, prix.
+// loose : vendu au poids, cents est alors le prix d'un kg (ou d'un litre) ; sinon le prix d'un article de cette contenance.
+export interface Paid { label: string; cents: number; size: string | null; unit: string | null; loose: boolean; day: LocalDate; by: MemberId | null; at: string }
 export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
 // Agendas branchés : adresse de lecture (secrète) d'un agenda, rattachée à une personne ou au foyer entier.
 export interface AgendaCal { id: string; member: MemberId | null; label: string; url: string }
@@ -113,6 +116,7 @@ export interface Payloads {
   'staple.set': { key: string; name: string; qty: string; aisle: string; removed: boolean };
   'aisle.set': { key: string; aisle: string };
   'product.set': { key: string; url: string | null; label: string; size: string | null; unit: string | null; price?: number | null };
+  'price.paid': { key: string; label: string; cents: number | null; size: string | null; unit: string | null; loose: boolean; day: LocalDate }; // cents null : oublier
   'agenda.set': { cal: string; member: MemberId | null; label: string; url: string | null };
   'agenda.rule': { key: string; effect: 'auto' | 'jamais' | null };
   'agenda.mark': { slot: SlotKey; member: MemberId; presence: Presence | null; src: string; cal: string; title: string };
@@ -134,7 +138,7 @@ export interface Ev<T extends EventType = EventType> {
 export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-  'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
+  'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
   'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
@@ -241,6 +245,9 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
   'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
     && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])) && optCents(p['price'], 100_000),
+  'price.paid': p => isKey(p['key']) && str(p['label'], 120) && (p['cents'] === null || int(p['cents'], 1, 100_000)) && bool(p['loose']) && isDate(p['day'])
+    && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']]))
+    && (!p['loose'] || (p['size'] === '1' && (p['unit'] === 'kg' || p['unit'] === 'l'))),
   'agenda.set': p => isId(p['cal']) && (p['member'] === null || isId(p['member'])) && str(p['label'], 40)
     && (p['url'] === null || (typeof p['url'] === 'string' && AGENDA_URL_RE.test(p['url']))),
   'agenda.rule': p => isKey(p['key']) && (p['effect'] === null || p['effect'] === 'auto' || p['effect'] === 'jamais'),
@@ -276,6 +283,7 @@ export interface State {
   staples: Record<string, Staple>;
   aisles: Record<string, string>;
   products: Record<string, Product>;
+  paid: Record<string, Paid>;      // dernier prix payé par ingrédient (factures du drive)
   agenda: AgendaState;
   watch: Record<string, WatchItem>;
   tasks: Record<string, Mark & { done: boolean }>;
@@ -290,7 +298,7 @@ export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Pr
 
 export const emptyState = (): State => ({
   hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
+  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
 });
 
 export const current = (r: Recipe): RecipeContent => r.versions[r.versions.length - 1] as RecipeContent;

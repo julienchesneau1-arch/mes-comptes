@@ -57,22 +57,24 @@ export function packsFor(l, p) {
     const more = cmp(total, l.toBuy) > 0 ? ` · ${showQty(total, u.dim, u)} pour ${lineQty(l)}` : '';
     return { n, text: `${n} × ${showQty(per, u.dim, u)}${more}` };
 }
+// Dernier prix payé pour un ingrédient : sous sa clé exacte (avec la forme : surgelé, en conserve…), sinon sous son seul nom.
+export const paidFor = (s, name, form) => s.paid[ingredientKey(name, form)] ?? s.paid[nameKey(name)] ?? null;
 // Ce qui reste à commander, dans l'ordre de la liste (rayons du magasin).
 export function driveItems(s, list) {
     const out = [];
     for (const l of list.lines) {
         if (l.done)
             continue;
-        const productKey = ingredientKey(l.name, l.form), product = s.products[productKey] ?? null;
+        const productKey = ingredientKey(l.name, l.form), product = s.products[productKey] ?? null, paid = paidFor(s, l.name, l.form);
         const qty = lineQty(l), unk = l.unknown.length ? (qty ? ' + quantité à voir' : 'quantité à voir') : '';
-        out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: `${qty}${unk}`, productKey, product,
-            url: product?.url ?? searchUrl(l.name), packs: product ? packsFor(l, product) : null });
+        out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: `${qty}${unk}`, productKey, product, paid,
+            url: product?.url ?? searchUrl(paid?.label ?? l.name), packs: product ? packsFor(l, product) : paid && !paid.loose ? packsFor(l, paid) : null });
     }
     for (const m of list.manual) {
         if (m.checked)
             continue;
-        const productKey = nameKey(m.name), product = s.products[productKey] ?? null;
-        out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, url: product?.url ?? searchUrl(m.name), packs: null });
+        const productKey = nameKey(m.name), product = s.products[productKey] ?? null, paid = s.paid[productKey] ?? null;
+        out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, paid, url: product?.url ?? searchUrl(paid?.label ?? m.name), packs: null });
     }
     return out;
 }

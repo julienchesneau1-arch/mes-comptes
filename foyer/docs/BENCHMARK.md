@@ -39,6 +39,8 @@
 
 **V3.0 (9 octobre 2026) — drive et prix.** Jow garde une avance nette sur le drive : panier Auchan rempli automatiquement grâce à un partenariat (page « Auchan x Jow »), prix réels du magasin. Foyer : panier prêt et mis à jour d'après le menu, un toucher par article, prix estimés (Insee, relevés Open Prices) et conseil qualité-prix (Open Food Facts) qu'aucune page concurrente consultée ne décrit. Critère « commander au drive » inchangé.
 
+**V3.1 (9 octobre 2026) — prix réels.** Foyer lit la facture du drive sur le téléphone : prix réellement payés à la place des estimations, montant payé noté, même produit recherché la fois suivante. Jow garde les prix du magasin avant l'achat (partenariat) ; Foyer a ceux de vos achats passés, sans partenariat ni IA. Critère « commander au drive » inchangé.
+
 ## Ce qui ferait passer Foyer devant partout
 
 1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.
