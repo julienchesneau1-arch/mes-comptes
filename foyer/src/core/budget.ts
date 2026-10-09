@@ -1,34 +1,69 @@
-// Budget : panier estimé avec les prix que le foyer a notés (jamais lus sur un site), montant réellement payé, bilan des semaines.
+// Budget : panier estimé sans rien saisir (prix relevé du produit conseillé, sinon prix moyen Insee ; un prix noté autrefois sur un
+// produit retenu reste prioritaire), montant payé, bilan.
 import { type LocalDate, addDays, paris, slotKey, SLOTS } from './dates.ts';
 import type { State } from './model.ts';
 import type { Replay } from './reduce.ts';
-import { type ShoppingList, deriveShopping, weekPreps } from './shopping.ts';
+import { type ShopLine, type ShoppingList, deriveShopping, weekPreps } from './shopping.ts';
 import { packsFor } from './drive.ts';
 import { ingredientKey } from './ingredients.ts';
 import { toPrepare, servings } from './plan.ts';
-import { cmp, ZERO } from './rational.ts';
+import { type Q, cmp, mul, q, qFrom, ZERO } from './rational.ts';
+import { UNIT, toBase } from './units.ts';
+import { type Ref, refFor, refCost } from './refprice.ts';
+import { type Group, type Product, groupFor, productOf } from './products.ts';
+import { nameKey } from './text.ts';
 
-// partial : des articles n'ont pas de prix noté ; le montant est alors un minimum (affiché « ≥ »).
-// reliable : au moins 80 % des articles ont un prix noté ; en dessous, l'estimation n'est pas affichée (elle tromperait).
-export interface Cart { cents: number; priced: number; unpriced: number; portions: number; perPortion: number | null; partial: boolean; reliable: boolean }
+// partial : des articles restent non chiffrés ; le montant est alors un minimum (affiché « au moins »).
+// reliable : au moins 80 % des articles sont chiffrés ; en dessous, pas de coût par portion (il tromperait).
+// Les assaisonnements (sel, poivre, épices, herbes sèches) ne comptent ni dans le montant ni dans la proportion : quelques centimes.
+export interface Cart { cents: number; priced: number; unpriced: number; seasonings: number; portions: number; perPortion: number | null; partial: boolean; reliable: boolean }
 export const RELIABLE = 0.8;
 
-// Lignes à acheter (cochées ou non) dont le produit retenu a un prix et un nombre de paquets calculable.
-// Une ligne sans prix, ou un article ajouté à la main, est compté « sans prix » : l'estimation ne l'invente pas.
+const SEASONINGS = new Set(['sel', 'poivre', 'sel poivre', 'poivre noir', 'gros sel', 'fleur de sel', 'sel fin', 'epice', 'muscade', 'noix de muscade',
+  'cumin', 'curry', 'paprika', 'piment', 'piment d\'espelette', 'piment de cayenne', 'cannelle', 'curcuma', 'herbe de provence', 'thym', 'laurier',
+  'feuille de laurier', 'romarin', 'origan', 'bouquet garni', 'clou de girofle', 'quatre-epice', 'ras el hanout', 'gingembre en poudre', 'sariette']
+  .map(nameKey));
+// « Sel, laurier, thym, romarin » : chaque partie doit être un assaisonnement.
+export const isSeasoning = (name: string): boolean => {
+  const parts = name.split(/,| et /).map(x => nameKey(x)).filter(Boolean);
+  return parts.length > 0 && parts.every(x => SEASONINGS.has(x));
+};
+
+export interface LineCost { cents: number; how: 'noté' | 'relevé' | 'référence'; ref: Ref | null; group: Group | null; product: Product | null; qty: Q | null }
+// Coût d'une ligne à acheter : paquets du produit retenu si sa contenance est connue (on achète des paquets entiers), sinon la quantité exacte.
+export function lineCost(s: State, l: ShopLine): LineCost | null {
+  if (!l.toBuy || cmp(l.toBuy, ZERO) <= 0) return null;
+  const p = s.products[ingredientKey(l.name, l.form)];
+  const packs = p ? packsFor(l, p) : null;
+  if (p?.price && packs?.n) return { cents: packs.n * p.price, how: 'noté', ref: null, group: null, product: null, qty: null };
+  const u = p?.unit ? UNIT[p.unit] : undefined, size = p?.size ? qFrom(p.size) : null;
+  const qty = packs?.n && u && size && u.dim === l.dim ? mul(q(packs.n), toBase(size, u)) : l.toBuy;
+  const g = groupFor(l.name), adv = g ? productOf(g, g.value ?? g.cheap) : null;
+  const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, l.dim, qty) : null;
+  if (seen !== null) return { cents: seen, how: 'relevé', ref: null, group: g, product: adv, qty };
+  const ref = refFor(l.name), cents = ref ? refCost(ref, l.dim, qty) : null;
+  return ref && cents !== null ? { cents, how: 'référence', ref, group: g, product: null, qty } : null;
+}
+
 export function cartEstimate(s: State, list: ShoppingList): Cart {
-  let cents = 0, priced = 0, unpriced = 0;
+  let cents = 0, priced = 0, unpriced = 0, seasonings = 0;
   for (const l of list.lines) {
     if (l.pantry?.active && l.pantry.qty === 'all') continue;
     if (l.toBuy && cmp(l.toBuy, ZERO) <= 0 && !l.unknown.length) continue;
-    const p = s.products[ingredientKey(l.name, l.form)];
-    const packs = p ? packsFor(l, p) : null;
-    if (p?.price && packs?.n) { cents += packs.n * p.price; priced++; } else unpriced++;
+    if (isSeasoning(l.name)) { seasonings++; continue; }
+    const c = lineCost(s, l);
+    if (c) { cents += c.cents; priced++; } else unpriced++;
   }
-  unpriced += list.manual.length;
+  unpriced += list.manual.filter(m => !isSeasoning(m.name)).length;
   const portions = weekPreps(s, list.week).reduce((n, p) => n + toPrepare(s, p), 0);
   const reliable = priced > 0 && priced / (priced + unpriced) >= RELIABLE;
-  return { cents, priced, unpriced, portions, perPortion: reliable && portions ? Math.round(cents / portions) : null, partial: unpriced > 0, reliable };
+  return { cents, priced, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(cents / portions) : null, partial: unpriced > 0, reliable };
 }
+
+// « ≈ 48 € » si tout est chiffré, « au moins 48 € » sinon ; vide si rien ne l'est encore.
+export const cartText = (c: Cart, eur: (cents: number) => string): string => (c.priced ? `${c.partial ? 'au moins ' : '≈ '}${eur(c.cents)}` : '');
+// « 9 articles chiffrés sur 33 » : ce que couvre le montant.
+export const coverText = (c: Cart): string => `${c.partial ? `${c.priced} article${c.priced > 1 ? 's' : ''} chiffré${c.priced > 1 ? 's' : ''} sur ${c.priced + c.unpriced}` : 'tous les articles chiffrés'}${c.seasonings ? ', hors sel et épices' : ''}`;
 
 export interface WeekReport {
   week: LocalDate;

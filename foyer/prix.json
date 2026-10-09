@@ -1,0 +1,781 @@
+{
+ "source": "Insee, prix moyens de vente au détail en métropole",
+ "sourceUrl": "https://www.insee.fr/fr/statistiques/series/103157792",
+ "license": "Licence ouverte, « Source : Insee »",
+ "weights": "USDA FoodData Central (SR Legacy), domaine public",
+ "weightsUrl": "https://fdc.nal.usda.gov/",
+ "generated": "2026-10-08",
+ "period": "2026-08",
+ "refs": [
+  {
+   "id": "tomate",
+   "label": "Tomates",
+   "keys": [
+    "tomate",
+    "tomate bien mure",
+    "tomate mure"
+   ],
+   "per": "kg",
+   "series": "000641429",
+   "pieceG": 123,
+   "fdc": 170457,
+   "cents": 426,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "poireau",
+   "label": "Poireaux",
+   "keys": [
+    "poireau"
+   ],
+   "per": "kg",
+   "series": "000641428",
+   "cents": 273,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "oignon",
+   "label": "Oignons",
+   "keys": [
+    "oignon",
+    "oignon jaune"
+   ],
+   "per": "kg",
+   "series": "000641427",
+   "pieceG": 110,
+   "fdc": 170000,
+   "cents": 285,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "carotte",
+   "label": "Carottes",
+   "keys": [
+    "carotte"
+   ],
+   "per": "kg",
+   "series": "000641422",
+   "pieceG": 61,
+   "fdc": 170393,
+   "cents": 221,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "haricot-vert",
+   "label": "Haricots verts",
+   "keys": [
+    "haricot vert",
+    "haricots verts frais"
+   ],
+   "per": "kg",
+   "series": "000641359",
+   "cents": 757,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "champignon",
+   "label": "Champignons de Paris",
+   "keys": [
+    "champignon",
+    "champignon de paris"
+   ],
+   "per": "kg",
+   "series": "000641423",
+   "pieceG": 18,
+   "fdc": 169251,
+   "cents": 660,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "poivron",
+   "label": "Poivrons",
+   "keys": [
+    "poivron",
+    "poivron rouge",
+    "poivron vert",
+    "poivron jaune"
+   ],
+   "per": "kg",
+   "series": "010596274",
+   "pieceG": 119,
+   "fdc": 170108,
+   "cents": 487,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "courgette",
+   "label": "Courgettes",
+   "keys": [
+    "courgette"
+   ],
+   "per": "kg",
+   "series": "000641425",
+   "pieceG": 196,
+   "fdc": 169291,
+   "cents": 243,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "endive",
+   "label": "Endives",
+   "keys": [
+    "endive"
+   ],
+   "per": "kg",
+   "series": "000641426",
+   "cents": 464,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "pomme-de-terre",
+   "label": "Pommes de terre de conservation",
+   "keys": [
+    "pomme de terre",
+    "pomme de terre a chair ferme",
+    "pomme de terre farineuse"
+   ],
+   "per": "kg",
+   "series": "000641360",
+   "pieceG": 213,
+   "fdc": 170026,
+   "cents": 194,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "pomme-de-terre-nouvelle",
+   "label": "Pommes de terre nouvelles",
+   "keys": [
+    "pomme de terre nouvelle"
+   ],
+   "per": "kg",
+   "series": "000641430",
+   "cents": 310,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "chou-fleur",
+   "label": "Chou-fleur",
+   "keys": [
+    "chou-fleur",
+    "chou fleur"
+   ],
+   "per": "piece",
+   "series": "001791254",
+   "cents": 458,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "artichaut",
+   "label": "Artichauts",
+   "keys": [
+    "artichaut"
+   ],
+   "per": "piece",
+   "series": "001791256",
+   "cents": 333,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "avocat",
+   "label": "Avocat",
+   "keys": [
+    "avocat"
+   ],
+   "per": "piece",
+   "series": "001791255",
+   "cents": 150,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "kiwi",
+   "label": "Kiwi",
+   "keys": [
+    "kiwi"
+   ],
+   "per": "piece",
+   "series": "001791257",
+   "cents": 94,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "pamplemousse",
+   "label": "Pamplemousses roses",
+   "keys": [
+    "pamplemousse",
+    "pamplemousse rose"
+   ],
+   "per": "piece",
+   "series": "010536481",
+   "cents": 100,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "pomme",
+   "label": "Pommes",
+   "keys": [
+    "pomme"
+   ],
+   "per": "kg",
+   "series": "000641367",
+   "pieceG": 182,
+   "fdc": 171688,
+   "cents": 319,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "poire",
+   "label": "Poires",
+   "keys": [
+    "poire"
+   ],
+   "per": "kg",
+   "series": "000641369",
+   "pieceG": 178,
+   "fdc": 169118,
+   "cents": 384,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "banane",
+   "label": "Bananes",
+   "keys": [
+    "banane"
+   ],
+   "per": "kg",
+   "series": "000641432",
+   "cents": 214,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "orange",
+   "label": "Oranges",
+   "keys": [
+    "orange"
+   ],
+   "per": "kg",
+   "series": "000641365",
+   "cents": 276,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "citron",
+   "label": "Citrons",
+   "keys": [
+    "citron",
+    "citron jaune"
+   ],
+   "per": "kg",
+   "series": "000641434",
+   "cents": 416,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "clementine",
+   "label": "Clémentines",
+   "keys": [
+    "clementine"
+   ],
+   "per": "kg",
+   "series": "000641435",
+   "cents": 422,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "rumsteck",
+   "label": "Bœuf : rumsteck",
+   "keys": [
+    "rumsteck",
+    "rumsteak",
+    "romsteck"
+   ],
+   "per": "kg",
+   "series": "000442434",
+   "cents": 3088,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "faux-filet",
+   "label": "Bœuf : faux-filet",
+   "keys": [
+    "faux-filet",
+    "faux filet"
+   ],
+   "per": "kg",
+   "series": "000442433",
+   "cents": 3209,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "entrecote",
+   "label": "Bœuf : entrecôte",
+   "keys": [
+    "entrecote"
+   ],
+   "per": "kg",
+   "series": "000442435",
+   "cents": 3251,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "bavette",
+   "label": "Bœuf : bifteck dans la bavette",
+   "keys": [
+    "bavette",
+    "bifteck",
+    "steak"
+   ],
+   "per": "kg",
+   "series": "000442436",
+   "cents": 3201,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "filet-boeuf",
+   "label": "Bœuf : filet",
+   "keys": [
+    "filet de boeuf"
+   ],
+   "per": "kg",
+   "series": "000442432",
+   "cents": 5013,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "cote-boeuf",
+   "label": "Bœuf : côte avec os",
+   "keys": [
+    "cote de boeuf"
+   ],
+   "per": "kg",
+   "series": "000442437",
+   "cents": 3067,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "veau",
+   "label": "Veau : escalope",
+   "keys": [
+    "escalope de veau"
+   ],
+   "per": "kg",
+   "series": "000442441",
+   "cents": 2965,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "echine",
+   "label": "Porc : échine avec os",
+   "keys": [
+    "echine de porc",
+    "echine"
+   ],
+   "per": "kg",
+   "series": "000442450",
+   "cents": 1214,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "roti-porc",
+   "label": "Porc : rôti dans le filet",
+   "keys": [
+    "roti de porc"
+   ],
+   "per": "kg",
+   "series": "000442448",
+   "cents": 1399,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "lapin",
+   "label": "Lapin entier",
+   "keys": [
+    "lapin"
+   ],
+   "per": "kg",
+   "series": "000442453",
+   "cents": 1377,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "foie-veau",
+   "label": "Foie de veau",
+   "keys": [
+    "foie de veau"
+   ],
+   "per": "kg",
+   "series": "000442454",
+   "cents": 3493,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "jambon",
+   "label": "Jambon supérieur",
+   "keys": [
+    "jambon",
+    "jambon blanc",
+    "jambon de paris",
+    "jambon cuit"
+   ],
+   "per": "kg",
+   "series": "000849397",
+   "cents": 1985,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "merlan",
+   "label": "Filet de merlan",
+   "keys": [
+    "merlan",
+    "filet de merlan"
+   ],
+   "per": "kg",
+   "series": "000641408",
+   "cents": 2537,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "sole",
+   "label": "Soles",
+   "keys": [
+    "sole"
+   ],
+   "per": "kg",
+   "series": "000641413",
+   "cents": 4098,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "lotte",
+   "label": "Baudroie (lotte) en tranche",
+   "keys": [
+    "lotte",
+    "baudroie"
+   ],
+   "per": "kg",
+   "series": "000641405",
+   "cents": 2954,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "moule",
+   "label": "Moules de bouchot",
+   "keys": [
+    "moule",
+    "moule de bouchot"
+   ],
+   "per": "kg",
+   "series": "000641418",
+   "cents": 644,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "crevette-grise",
+   "label": "Crevettes grises",
+   "keys": [
+    "crevette grise"
+   ],
+   "per": "kg",
+   "series": "000641417",
+   "cents": 3468,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "crevette",
+   "label": "Crevettes roses tropicales",
+   "keys": [
+    "crevette",
+    "crevette rose",
+    "gamba"
+   ],
+   "per": "kg",
+   "series": "000641354",
+   "cents": 1720,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "baguette",
+   "label": "Pain baguette",
+   "keys": [
+    "baguette",
+    "pain"
+   ],
+   "per": "kg",
+   "series": "000442423",
+   "cents": 411,
+   "period": "2026-08",
+   "method": "mesuré"
+  },
+  {
+   "id": "camembert",
+   "label": "Camembert",
+   "keys": [
+    "camembert"
+   ],
+   "per": "kg",
+   "series": "000442484",
+   "cents": 888,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 700,
+    "index": "011814885"
+   }
+  },
+  {
+   "id": "steak-hache",
+   "label": "Steaks hachés",
+   "keys": [
+    "steak hache",
+    "boeuf hache",
+    "viande hachee",
+    "viande de boeuf hachee",
+    "hache de boeuf"
+   ],
+   "per": "kg",
+   "series": "000849396",
+   "cents": 1590,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 1180,
+    "index": "011814755"
+   }
+  },
+  {
+   "id": "beurre",
+   "label": "Beurre",
+   "keys": [
+    "beurre",
+    "beurre doux",
+    "beurre demi-sel"
+   ],
+   "per": "kg",
+   "series": "000442490",
+   "cents": 1205,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 880,
+    "index": "011814941"
+   }
+  },
+  {
+   "id": "huile-olive",
+   "label": "Huile d'olive vierge extra",
+   "keys": [
+    "huile d'olive",
+    "huile d'olive vierge extra"
+   ],
+   "per": "l",
+   "series": "000442491",
+   "cents": 1063,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 743,
+    "index": "011814930"
+   }
+  },
+  {
+   "id": "huile",
+   "label": "Huile de tournesol",
+   "keys": [
+    "huile",
+    "huile de tournesol",
+    "huile vegetale",
+    "huile neutre"
+   ],
+   "per": "l",
+   "series": "000442493",
+   "cents": 299,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 209,
+    "index": "011814930"
+   }
+  },
+  {
+   "id": "emmental",
+   "label": "Emmental",
+   "keys": [
+    "emmental",
+    "emmental rape",
+    "fromage rape"
+   ],
+   "per": "kg",
+   "series": "000442487",
+   "cents": 1092,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 861,
+    "index": "011814885"
+   }
+  },
+  {
+   "id": "pates",
+   "label": "Pâtes",
+   "keys": [
+    "pate",
+    "pate seche",
+    "spaghetti",
+    "penne",
+    "tagliatelle",
+    "fusilli",
+    "coquillette",
+    "macaroni",
+    "farfalle",
+    "linguine",
+    "rigatoni"
+   ],
+   "per": "kg",
+   "series": "000442429",
+   "cents": 189,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 154,
+    "index": "011814732"
+   }
+  },
+  {
+   "id": "lait-entier",
+   "label": "Lait entier",
+   "keys": [
+    "lait entier"
+   ],
+   "per": "l",
+   "series": "000442479",
+   "cents": 157,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 121,
+    "index": "011814851"
+   }
+  },
+  {
+   "id": "lait",
+   "label": "Lait demi-écrémé",
+   "keys": [
+    "lait",
+    "lait demi-ecreme"
+   ],
+   "per": "l",
+   "series": "000442480",
+   "cents": 116,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 87,
+    "index": "011814858"
+   }
+  },
+  {
+   "id": "sucre",
+   "label": "Sucre",
+   "keys": [
+    "sucre",
+    "sucre en poudre",
+    "sucre semoule"
+   ],
+   "per": "kg",
+   "series": "000442544",
+   "cents": 141,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 98,
+    "index": "011815116"
+   }
+  },
+  {
+   "id": "yaourt",
+   "label": "Yaourt nature",
+   "keys": [
+    "yaourt",
+    "yaourt nature"
+   ],
+   "per": "kg",
+   "series": "000849398",
+   "cents": 179,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2019-12",
+    "cents": 144,
+    "index": "011814901"
+   }
+  },
+  {
+   "id": "thon",
+   "label": "Thon au naturel en boîte",
+   "keys": [
+    "thon",
+    "thon au naturel",
+    "thon en boite"
+   ],
+   "per": "kg",
+   "series": "000442470",
+   "cents": 1540,
+   "period": "2026-08",
+   "method": "actualisé",
+   "base": {
+    "period": "2020-02",
+    "cents": 1281,
+    "index": "011814826"
+   }
+  }
+ ]
+}

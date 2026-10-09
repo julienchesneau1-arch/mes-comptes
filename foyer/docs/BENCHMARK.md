@@ -37,6 +37,8 @@
 
 **V2.9 (8 octobre 2026) — nouveautés et clarté.** Jow et Mealime renouvellent leurs propositions à partir de leur propre catalogue ; Foyer propose par défaut une recette jamais cuisinée à chaque repas (catalogue Wikilivres de 423 recettes, plus restreint et de qualité plus inégale qu'un catalogue éditorial) et refuse toute répétition dans la semaine. Les repères d'équilibre comptés sur la semaine par personne ne figurent sur aucune des pages concurrentes consultées le 4 octobre. Audit de clarté avant correction : 4/10 (agent jouant un couple novice, pas une personne réelle) ; notes du comparatif inchangées tant que l'usage réel n'a pas tranché.
 
+**V3.0 (9 octobre 2026) — drive et prix.** Jow garde une avance nette sur le drive : panier Auchan rempli automatiquement grâce à un partenariat (page « Auchan x Jow »), prix réels du magasin. Foyer : panier prêt et mis à jour d'après le menu, un toucher par article, prix estimés (Insee, relevés Open Prices) et conseil qualité-prix (Open Food Facts) qu'aucune page concurrente consultée ne décrit. Critère « commander au drive » inchangé.
+
 ## Ce qui ferait passer Foyer devant partout
 
 1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.

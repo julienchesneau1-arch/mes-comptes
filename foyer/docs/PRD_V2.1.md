@@ -231,4 +231,17 @@ Demande : « aucune redondance dans les recettes proposées, un maximum de nouve
 [ANOMALIE_LOGIQUE corrigée] Un plat cuisiné au batch dimanche restait marqué « À cuisiner » le jour où il est mangé : il est affiché « 👩‍🍳 Cuisiné au batch dim. ».
 [ANOMALIE_LOGIQUE corrigée] Après le montant payé, les articles restaient « Pas encore acheté » tant qu'ils n'étaient pas cochés un par un : « Tout est arrivé du drive ? Oui, tout cocher ».
 
-Fin du PRD V2.1 (révisions V2.2 à V2.9 incluses).
+## 16. V3.0 — rien à saisir, le panier suit le menu, qualité-prix (9 octobre 2026)
+
+Demande : « comme Jow, que l'import au drive se fasse pareil, sans noter les prix ou quoi que ce soit ; l'étude du meilleur rapport qualité-prix des produits de nos recettes ; le tout économe en tokens ».
+
+| Règle | Contenu |
+|---|---|
+| Zéro saisie | Aucun prix demandé ; estimation automatique, source et couverture affichées |
+| Le panier suit le menu | Prêt dès « Valider la semaine » ; après un changement, seulement ce qui change (＋ / −) |
+| Qualité-prix lisible | Trois choix par article (meilleur rapport, moins cher, mieux noté), règles de points affichées, prix daté et lieu du relevé |
+| Zéro token | Aucune IA ; données ouvertes figées chaque mois par la CI, aucun appel pendant l'usage |
+
+[ANOMALIE_LOGIQUE] « Exactement comme Jow » : Jow remplit le panier Auchan par un partenariat privé ; Auchan n'a pas d'API publique et ses CGU (art. 8) interdisent l'extraction automatisée sans licence. Décision du foyer : Foyer prépare tout, un toucher par article sur Auchan. Les prix « en temps réel » d'Auchan restent hors d'atteinte ; remplacés par des relevés datés et les moyennes Insee.
+
+Fin du PRD V2.1 (révisions V2.2 à V3.0 incluses).

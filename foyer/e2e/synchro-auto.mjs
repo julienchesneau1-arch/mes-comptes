@@ -10,11 +10,11 @@ import { tmpdir } from 'node:os';
 const SRC = new URL('..', import.meta.url).pathname;
 const DIR = join(tmpdir(), 'foyer-relais-e2e');
 rmSync(DIR, { recursive: true, force: true }); mkdirSync(DIR, { recursive: true });
-for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js', 'fonts']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
+for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js', 'fonts', 'prix.json', 'produits.json']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
 cpSync(join(SRC, 'e2e/catalogue-essai.json'), join(DIR, 'catalogue.json')); // extrait fixe : résultats reproductibles
 writeFileSync(join(DIR, 'js/ui/config.js'), "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n");
 writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test"));
-const TYPES = { '.woff2': 'font/woff2', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const TYPES = { '.json': 'application/json', '.woff2': 'font/woff2', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const p = join(DIR, decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/\/$/, '/index.html'));
   try { const b = readFileSync(p); res.writeHead(200, { 'Content-Type': TYPES[extname(p)] ?? 'application/octet-stream' }); res.end(b); } catch { res.writeHead(404); res.end(); }
@@ -28,6 +28,8 @@ async function acceptMenu(P) {
   const all = s.getByRole('button', { name: /Garder tout le menu/ });
   if (await all.count()) await all.click(); else await s.getByRole('button', { name: 'Je prends ce plat' }).click();
   await s.getByRole('button', { name: 'Valider la semaine' }).click();
+  await P.locator('dialog[open]').getByRole('heading', { name: /Panier prêt/ }).waitFor(); // le panier suit le menu
+  await P.keyboard.press('Escape');
 }
 
 await new Promise(r => server.listen(8767, '127.0.0.1', r));

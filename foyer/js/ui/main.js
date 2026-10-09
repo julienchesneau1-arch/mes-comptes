@@ -12,6 +12,7 @@ import { onboardingView, CLASSICS } from './onboarding.js';
 import { demoLog } from './demo.js';
 import { applyTheme, linkFromUrl } from './sheets/settings.js';
 import { startAutoSync } from './autosync.js';
+import { loadRefPrices } from './prices.js';
 import { startReminders } from './push.js';
 import { startAgenda } from './agenda.js';
 import './sheets/agenda.js';
@@ -94,6 +95,7 @@ function boot() {
     wireDrag(document);
     route();
     startAutoSync();
+    loadRefPrices();
     startReminders();
     startAgenda();
     if (dropped > 0)

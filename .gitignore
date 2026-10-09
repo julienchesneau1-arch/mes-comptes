@@ -10,4 +10,6 @@ node_modules
 !foyer/tsconfig.json
 !foyer/tsconfig.test.json
 !foyer/catalogue.json
+!foyer/prix.json
+!foyer/produits.json
 captures/

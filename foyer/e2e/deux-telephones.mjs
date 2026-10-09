@@ -44,6 +44,8 @@ async function acceptMenu(P) {
   const all = s.getByRole('button', { name: /Garder tout le menu/ });
   if (await all.count()) await all.click(); else await s.getByRole('button', { name: 'Je prends ce plat' }).click();
   await s.getByRole('button', { name: 'Valider la semaine' }).click();
+  await P.locator('dialog[open]').getByRole('heading', { name: /Panier prêt/ }).waitFor(); // le panier suit le menu
+  await P.keyboard.press('Escape');
 }
 
 await step('A crée le foyer avec un plat complet', async () => {

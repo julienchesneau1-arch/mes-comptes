@@ -251,7 +251,7 @@ function apply(s: State, e: AnyEv): void {
     }
     case 'shop.check': {
       const w = weekShop(s, e.p.week);
-      if (e.p.needAt === null) delete w.checked[e.p.key]; else w.checked[e.p.key] = { needAt: e.p.needAt, by: e.by, at: e.at };
+      if (e.p.needAt === null) delete w.checked[e.p.key]; else w.checked[e.p.key] = { needAt: e.p.needAt, by: e.by, at: e.at, ...(e.p.name ? { name: e.p.name } : {}) };
       return;
     }
     case 'shop.pantry': {

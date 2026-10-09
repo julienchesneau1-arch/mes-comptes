@@ -37,7 +37,7 @@ export interface ShoppingList {
 }
 
 const sig = (need: Q | null, unknown: number): string => `${need ? qStr(need) : 'na'}${unknown ? `+${unknown}` : ''}`;
-function parseSig(s: string): { need: Q | null; unknown: number } {
+export function parseSig(s: string): { need: Q | null; unknown: number } {
   const [a, b] = s.split('+');
   return { need: a === 'na' || a === undefined ? null : qFrom(a), unknown: b ? Number(b) : 0 };
 }
@@ -104,7 +104,8 @@ export function deriveShopping(s: State, week: LocalDate): ShoppingList {
     const c = shop?.checked[line.key];
     if (c) {
       const was = parseSig(c.needAt);
-      const delta = line.toBuy && was.need ? sub(line.toBuy, was.need) : line.toBuy && !was.need ? line.toBuy : null;
+      // Ce qui s'achète à l'unité a été arrondi à l'achat : 1,75 oignon reste couvert par les 2 déjà pris.
+      const delta = line.toBuy && was.need ? sub(wholeUp(line.toBuy, line.dim), wholeUp(was.need, line.dim)) : line.toBuy && !was.need ? line.toBuy : null;
       const grew = delta !== null && cmp(delta, ZERO) > 0;
       const newUnknown = line.unknown.length > was.unknown;
       line.check = { done: !grew && !newUnknown, delta: grew ? delta : null, newUnknown, by: c.by, at: c.at };
@@ -142,7 +143,8 @@ const minQ = (a: Q, b: Q): Q => (cmp(a, b) <= 0 ? a : b);
 /* ---------- Présentation ---------- */
 
 // Ce qui s'achète à l'unité (oignons, poulet, boîtes, paquets…) : arrondi à l'unité supérieure, le besoin exact entre parenthèses.
-const BUY_WHOLE = new Set(['piece', 'tranche', 'boite', 'sachet', 'botte', 'paquet', 'pot', 'filet', 'cube', 'bouquet', 'barquette', 'bocal', 'brique', 'bouteille', 'rouleau', 'pave', 'tablette']);
+export const wholeUp = (v: Q, dim: string | null): Q => (dim && BUY_WHOLE.has(dim) && v.d !== 1 ? q(Math.ceil(v.n / v.d)) : v);
+const BUY_WHOLE = new Set(['piece', 'gousse', 'tranche', 'boite', 'sachet', 'botte', 'paquet', 'pot', 'filet', 'cube', 'bouquet', 'barquette', 'bocal', 'brique', 'bouteille', 'rouleau', 'pave', 'tablette']);
 export const lineQty = (l: ShopLine, which: 'need' | 'toBuy' = 'toBuy'): string => {
   const v = which === 'need' ? l.need : l.toBuy;
   if (!v || !l.dim) return '';

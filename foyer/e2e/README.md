@@ -12,7 +12,7 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/synchro-auto.mjs   # sert lui-même
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/rituel.mjs
 ```
 
-- `parcours.mjs` : création du foyer, recette complétée, proposition de semaine (maximum de nouveautés, recette sans nombre de personnes complétée dans le récapitulatif), courses, commande guidée au drive Auchan (sans ouvrir de page Auchan), Aujourd'hui, feuille d'un créneau, rechargement (journal identique), mode découverte, grille ordinateur, zoom 200 % ; axe-core WCAG 2.0/2.1/2.2 A et AA sur 11 écrans.
+- `parcours.mjs` : création du foyer, recette complétée, proposition de semaine (maximum de nouveautés, recette sans nombre de personnes complétée dans le récapitulatif), panier prêt, courses, panier mis à jour après un changement du menu, conseil qualité-prix, commande guidée au drive Auchan (sans ouvrir de page Auchan), Aujourd'hui, feuille d'un créneau, rechargement (journal identique), mode découverte, grille ordinateur, zoom 200 % ; axe-core WCAG 2.0/2.1/2.2 A et AA sur 11 écrans.
 - `deux-telephones.mjs` et `synchro-auto.mjs` choisissent « Surtout nos plats » (Réglages) pour retrouver des plats connus d'un téléphone à l'autre.
 - `deux-telephones.mjs` : vraie synchro par lien chiffré entre deux navigateurs (mauvais code refusé), mêmes courses des deux côtés, absence reçue et recalculée, déplacement avec aperçu, « on a mangé » avec rendement réel, navigation au clavier.
 

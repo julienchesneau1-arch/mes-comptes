@@ -1,11 +1,11 @@
 // Commande au drive Auchan, sans robot ni identifiant : Foyer ouvre la bonne page Auchan, la personne ajoute au panier elle-même.
 // Auchan n'offre pas d'API publique de panier et ses CGU interdisent les robots d'extraction : rien n'est lu sur auchan.fr.
 // Foyer retient seulement ce que le foyer saisit (lien du produit choisi, contenance) ; le nombre de paquets en découle, exactement.
-import { type Q, q, mul, div, cmp, parseQ, qFrom, qStr } from './rational.ts';
+import { type Q, q, mul, div, sub, cmp, parseQ, qFrom, qStr } from './rational.ts';
 import { type Unit, UNIT, matchUnit, toBase, showQty } from './units.ts';
 import type { LocalDate } from './dates.ts';
 import { type State, type Product, PRODUCT_URL_RE } from './model.ts';
-import { type ShopLine, type ShoppingList, lineQty } from './shopping.ts';
+import { type ShopLine, type ShoppingList, lineQty, parseSig, checkSig, wholeUp } from './shopping.ts';
 import { ingredientKey } from './ingredients.ts';
 import { nameKey, capitalize } from './text.ts';
 
@@ -81,6 +81,32 @@ export function driveItems(s: State, list: ShoppingList): DriveItem[] {
     if (m.checked) continue;
     const productKey = nameKey(m.name), product = s.products[productKey] ?? null;
     out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, url: product?.url ?? searchUrl(m.name), packs: null });
+  }
+  return out;
+}
+
+// Le menu a changé après que des articles ont été mis au panier (ou cochés) : ce qu'il faut ajouter, ce qui est en trop.
+// « plus » : le besoin a augmenté (l'écart revient aussi dans la liste et dans la commande guidée) ;
+// « moins » : le besoin a baissé ; « retire » : l'ingrédient n'est plus au menu de la semaine.
+export interface CartChange { key: string; name: string; kind: 'plus' | 'moins' | 'retire'; qty: string; needAt: string | null }
+export function cartChanges(s: State, list: ShoppingList): CartChange[] {
+  const out: CartChange[] = [], checked = s.shop[list.week]?.checked ?? {};
+  const shown = (v: Q | null, dim: string | null): string => (v && dim ? showQty(v, dim) : '');
+  for (const l of list.lines) {
+    const c = checked[l.key];
+    if (!c || (l.pantry?.active && l.pantry.qty === 'all')) continue;
+    if (l.check?.delta) out.push({ key: l.key, name: l.name, kind: 'plus', qty: shown(l.check.delta, l.dim), needAt: null });
+    else if (l.check?.newUnknown) out.push({ key: l.key, name: l.name, kind: 'plus', qty: 'quantité à voir', needAt: null });
+    else {
+      const was = parseSig(c.needAt).need;
+      const now = l.toBuy ? wholeUp(l.toBuy, l.dim) : null, then = was ? wholeUp(was, l.dim) : null;
+      if (now && then && cmp(now, then) < 0) out.push({ key: l.key, name: l.name, kind: 'moins', qty: shown(sub(then, now), l.dim), needAt: checkSig(l) });
+    }
+  }
+  for (const [key, c] of Object.entries(checked)) {
+    if (list.lines.some(l => l.key === key)) continue;
+    const dim = key.slice(key.lastIndexOf('|') + 1);
+    out.push({ key, name: c.name ?? capitalize(key.split('|')[0] ?? key), kind: 'retire', qty: shown(parseSig(c.needAt).need, dim !== '?' ? dim : null), needAt: null });
   }
   return out;
 }

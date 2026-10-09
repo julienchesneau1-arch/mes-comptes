@@ -16,6 +16,7 @@ import { A, S, clock, dispatch, thisWeek } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.ts';
 import { CLICK, CHANGE } from '../registry.ts';
 import { seenSet, markSeen } from '../seen.ts';
+import { openCartReady } from './drive.ts';
 import type { Variety } from '../../core/model.ts';
 
 const VARIETY_LABEL: Record<Variety, string> = { max: 'maximum de nouveautés', equilibre: 'équilibré', 'mes-plats': 'surtout nos plats' };
@@ -224,7 +225,9 @@ function finish(): void {
   if (bd) for (const x of drafts) if (x.t === 'slot.cook' && D.batch.has(x.p.slot) && inWindow(bd, parseSlot(x.p.slot)?.date ?? '')) toBatch.push({ t: 'prep.batch', p: { prep: x.p.prep, day: bd } });
   dispatch([...drafts, ...toBatch], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0] as Proposal).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
   confetti();
+  const week = D.week, single = D.single;
   D = null;
+  if (!single) openCartReady(week); // le panier suit le menu : prêt à remplir tout de suite
 }
 
 CLICK['deckVariety'] = async () => {

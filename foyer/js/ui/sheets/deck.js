@@ -14,6 +14,7 @@ import { A, S, clock, dispatch, thisWeek } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.js';
 import { CLICK, CHANGE } from '../registry.js';
 import { seenSet, markSeen } from '../seen.js';
+import { openCartReady } from './drive.js';
 const VARIETY_LABEL = { max: 'maximum de nouveautés', equilibre: 'équilibré', 'mes-plats': 'surtout nos plats' };
 let D = null;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -269,7 +270,10 @@ function finish() {
                 toBatch.push({ t: 'prep.batch', p: { prep: x.p.prep, day: bd } });
     dispatch([...drafts, ...toBatch], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0]).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
     confetti();
+    const week = D.week, single = D.single;
     D = null;
+    if (!single)
+        openCartReady(week); // le panier suit le menu : prêt à remplir tout de suite
 }
 CLICK['deckVariety'] = async () => {
     if (!D)
