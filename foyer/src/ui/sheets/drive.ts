@@ -48,7 +48,7 @@ export function adviceHtml(name: string): string {
   const items = shown.filter(([p]) => p && !seen.has(p.code) && seen.add(p.code)).map(([p, tag]) => productLine(p as Offer, g.per, tag));
   if (!items.length) return '';
   return `<details class="advice"${v ? ' open' : ''}><summary>Qualité-prix chez Auchan : ${esc(g.label.toLowerCase())}</summary><ul class="plain stack">${items.join('')}</ul>
-    <p class="small muted">« Meilleur rapport » : chaque point de qualité justifie jusqu'à ${Math.round(VALUE_POINT * 100)} % de prix en plus que le moins cher. Points : Nutri-Score, transformation (NOVA), bio, Label Rouge, AOP/IGP. Sources : Open Food Facts et Open Prices (bases ouvertes, mises à jour chaque mois) ; les prix sont des relevés de contributeurs, pas les prix du site Auchan.</p></details>`;
+    <p class="small muted">« Meilleur rapport » : chaque point de qualité justifie jusqu'à ${Math.round(VALUE_POINT * 100)} % de prix en plus que le moins cher. Points : Nutri-Score, transformation (NOVA), bio, Label Rouge, AOP/IGP. Sources : Open Food Facts et Open Prices (bases ouvertes, mises à jour chaque semaine) ; les prix sont des relevés de contributeurs, pas les prix du site Auchan.</p></details>`;
 }
 const openLink = (it: Pick<DriveItem, 'url' | 'product' | 'name'>, cls = 'btn block'): string =>
   `<a class="${cls}" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(`${it.product ? 'Ouvrir le produit' : 'Chercher'} ${it.name} chez Auchan (nouvelle page)`)}">${it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}</a>`;

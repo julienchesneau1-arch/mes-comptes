@@ -1,6 +1,6 @@
 // Régénère produits.json : produits vendus chez Auchan (Open Food Facts, recherche « search-a-licious ») et leurs prix relevés (Open Prices).
 // Bases ouvertes (ODbL), lues avec un User-Agent identifié et sans dépasser leurs quotas. Rien n'est lu sur auchan.fr.
-// Lancer depuis foyer/ avec un accès réseau : node scripts/produits.mjs (la CI le fait chaque mois : .github/workflows/prix.yml).
+// Lancer depuis foyer/ avec un accès réseau : node scripts/produits.mjs (la CI le fait chaque semaine : .github/workflows/prix.yml).
 import { writeFileSync } from 'node:fs';
 import { GROUP_DEFS, buildGroup } from '../src/core/products.ts';
 

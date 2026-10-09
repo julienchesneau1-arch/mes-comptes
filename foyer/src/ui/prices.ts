@@ -1,5 +1,5 @@
 // Prix de référence (prix.json, Insee) et étude qualité-prix (produits.json, Open Food Facts + Open Prices) : chargés au démarrage,
-// gardés hors ligne par sw.js, relus avant usage. Fichiers statiques régénérés chaque mois par la CI : aucun appel pendant l'usage.
+// gardés hors ligne par sw.js, relus avant usage. Fichiers statiques régénérés chaque semaine par la CI : aucun appel pendant l'usage.
 // Tant qu'ils ne sont pas là, les montants restent « non chiffrés » ; l'écran est redessiné dès qu'ils arrivent.
 import { readRefPrices, setRefPrices } from '../core/refprice.ts';
 import { readProducts, setProducts } from '../core/products.ts';

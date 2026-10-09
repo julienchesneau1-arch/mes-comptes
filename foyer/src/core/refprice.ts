@@ -4,7 +4,7 @@
 // - Produits d'épicerie dont l'Insee a arrêté le relevé fin 2019 : dernier prix publié × évolution de l'indice des prix
 //   de leur famille (même source), méthode affichée comme « actualisé ».
 // - Légumes et fruits comptés à la pièce : poids moyen d'une pièce « moyenne » d'après USDA FoodData Central (domaine public).
-// Le fichier prix.json est régénéré chaque mois par la CI (scripts/prix.mjs) ; l'app le lit tel quel.
+// Le fichier prix.json est régénéré chaque semaine par la CI (l'Insee publie une fois par mois) (scripts/prix.mjs) ; l'app le lit tel quel.
 import type { Q } from './rational.ts';
 import { nameKey } from './text.ts';
 

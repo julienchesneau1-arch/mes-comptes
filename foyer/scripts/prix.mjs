@@ -1,5 +1,5 @@
 // Régénère prix.json : prix moyens de vente au détail publiés chaque mois par l'Insee (Banque de données macro-économiques, SDMX, accès libre).
-// Lancer depuis foyer/ avec un accès réseau : node scripts/prix.mjs (la CI le fait chaque mois : .github/workflows/prix.yml).
+// Lancer depuis foyer/ avec un accès réseau : node scripts/prix.mjs (la CI le fait chaque semaine : .github/workflows/prix.yml).
 // Hors réseau : node scripts/prix.mjs --from <dossier contenant prix.xml et indices.xml>.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { REF_DEFS, buildRefPrices } from '../src/core/refprice.ts';

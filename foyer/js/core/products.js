@@ -2,7 +2,7 @@
 // - qualité : base ouverte Open Food Facts (Nutri-Score, groupe NOVA de transformation, labels bio, Label Rouge, AOP/IGP) ;
 // - prix : relevés datés de la base ouverte Open Prices (tickets et étiquettes photographiés par des contributeurs),
 //   ceux d'un magasin Auchan d'abord. Ce ne sont pas les prix du site Auchan (ses CGU interdisent de les extraire).
-// Le fichier produits.json est régénéré chaque mois par la CI (scripts/produits.mjs) ; l'app le lit tel quel, hors ligne.
+// Le fichier produits.json est régénéré chaque semaine par la CI (scripts/produits.mjs) ; l'app le lit tel quel, hors ligne.
 import {} from './refprice.js';
 import { parseSize } from './drive.js';
 import { toBase } from './units.js';

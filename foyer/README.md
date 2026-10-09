@@ -17,7 +17,7 @@ Adresse (après publication de `main`) : `https://julienchesneau1-arch.github.io
 - **Équilibre** : sous la semaine, les repères officiels (Santé publique France) comptés sur vos plats prévus : poisson 2 fois dont 1 gras, légumes secs 2 fois, viande hors volaille 500 g au plus, charcuterie 150 g au plus. Les propositions comblent ce qui manque.
 - **Rituel batch** : courses finales le samedi (commande au drive), batch cooking le dimanche (Maison › Réglages › Rituel batch). Le menu en cartes marque les plats « 👩‍🍳 Batch » ; la feuille du batch liste les plats, les boîtes à emporter et les légumes à préparer en une fois ; « Par quoi commencer » si les recettes ont leurs durées (saisies ou lues à l'import) ; « Prêt » d'un geste. Rappels le jour des courses et le jour du batch.
 - **Budget, rien à saisir** : panier estimé tout seul (prix relevés des produits conseillés, sinon prix moyens publiés par l'Insee), en disant combien d'articles sont chiffrés ; budget de la semaine avec jauge ; montant payé facultatif ; Maison › Bilan suit les semaines.
-- **Qualité-prix** : pour chaque article d'épicerie ou de crèmerie, les produits vendus chez Auchan classés par Nutri-Score, transformation (NOVA), bio, Label Rouge, AOP/IGP et prix relevé : « meilleur rapport », « moins cher », « mieux noté » (Open Food Facts et Open Prices, mis à jour chaque mois).
+- **Qualité-prix** : pour chaque article d'épicerie ou de crèmerie, les produits vendus chez Auchan classés par Nutri-Score, transformation (NOVA), bio, Label Rouge, AOP/IGP et prix relevé : « meilleur rapport », « moins cher », « mieux noté » (Open Food Facts et Open Prices, mis à jour chaque semaine).
 - **Prise en main** : Aujourd'hui ne montre qu'une étape des « Premiers pas » à la fois ; « Comment ça marche » dans Réglages.
 
 ## Installer sur iPhone (iOS 16.4 ou plus récent)
@@ -38,7 +38,7 @@ Pas d'inventaire du frigo, pas d'IA (aucun coût, aucun token), aucun prix lu su
 cd foyer
 npm ci
 npm run check      # compile (TypeScript strict) → js/ et sw.js, typage des tests, 109 tests
-node scripts/prix.mjs        # prix.json (Insee) — la CI le fait chaque mois
+node scripts/prix.mjs        # prix.json (Insee) — la CI le fait chaque semaine
 node scripts/produits.mjs    # produits.json (Open Food Facts + Open Prices) — idem
 ```
 

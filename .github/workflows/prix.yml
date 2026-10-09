@@ -1,10 +1,11 @@
 name: prix
 # Régénère foyer/prix.json (prix moyens Insee, licence ouverte) et foyer/produits.json (Open Food Facts + Open Prices, ODbL),
-# chaque mois et à chaque changement des scripts, puis les enregistre sur la branche. Aucun appel pendant l'usage de l'app.
+# chaque semaine (prix relevés plus récents ; l'Insee, lui, publie une fois par mois) et à chaque changement des scripts,
+# puis les enregistre sur la branche. Aucun appel pendant l'usage de l'app.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 6 16 * *'   # le 16 de chaque mois : l'Insee publie les prix moyens du mois précédent vers le 15
+    - cron: '17 5 * * 1'    # chaque lundi à 5 h 17 UTC : relevés Open Prices de la semaine (et prix Insee du mois quand ils sortent, vers le 15)
   push:
     paths: ['foyer/scripts/prix.mjs', 'foyer/scripts/produits.mjs', 'foyer/src/core/refprice.ts', 'foyer/src/core/products.ts', '.github/workflows/prix.yml']
 permissions:
