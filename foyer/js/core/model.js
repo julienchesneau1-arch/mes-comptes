@@ -8,7 +8,7 @@ export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-
 export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/;
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
-    'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
+    'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
     'watch.close', 'conflict.ack', 'undo']);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
@@ -124,6 +124,9 @@ const P = {
     'aisle.set': p => isKey(p['key']) && typeof p['aisle'] === 'string' && !!AISLE[p['aisle']],
     'product.set': p => isKey(p['key']) && (p['url'] === null || (typeof p['url'] === 'string' && PRODUCT_URL_RE.test(p['url']))) && str(p['label'], 120)
         && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']])) && optCents(p['price'], 100_000),
+    'price.paid': p => isKey(p['key']) && str(p['label'], 120) && (p['cents'] === null || int(p['cents'], 1, 100_000)) && bool(p['loose']) && isDate(p['day'])
+        && ((p['size'] === null && p['unit'] === null) || (isQty(p['size']) && typeof p['unit'] === 'string' && !!UNIT[p['unit']]))
+        && (!p['loose'] || (p['size'] === '1' && (p['unit'] === 'kg' || p['unit'] === 'l'))),
     'agenda.set': p => isId(p['cal']) && (p['member'] === null || isId(p['member'])) && str(p['label'], 40)
         && (p['url'] === null || (typeof p['url'] === 'string' && AGENDA_URL_RE.test(p['url']))),
     'agenda.rule': p => isKey(p['key']) && (p['effect'] === null || p['effect'] === 'auto' || p['effect'] === 'jamais'),
@@ -151,6 +154,6 @@ export const defaultRhythm = (ids, midi, soir, weekendMidi = 'maison') => Array.
 }));
 export const emptyState = () => ({
     hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
+    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
 });
 export const current = (r) => r.versions[r.versions.length - 1];

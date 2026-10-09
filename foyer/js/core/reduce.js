@@ -388,6 +388,20 @@ function apply(s, e) {
             s.products[e.p.key] = { url: e.p.url, label: e.p.label, size: e.p.size, unit: e.p.unit, price, by: e.by, at: e.at };
             return;
         }
+        case 'price.paid': {
+            const prev = s.paid[e.p.key];
+            if (e.p.cents === null) {
+                if (!prev)
+                    noop('aucun prix payé retenu');
+                delete s.paid[e.p.key];
+                return;
+            }
+            // Factures lues dans le désordre (ou sur les deux téléphones) : le prix le plus récent reste.
+            if (prev && prev.day > e.p.day)
+                noop('prix plus récent déjà retenu');
+            s.paid[e.p.key] = { label: e.p.label, cents: e.p.cents, size: e.p.size, unit: e.p.unit, loose: e.p.loose, day: e.p.day, by: e.by, at: e.at };
+            return;
+        }
         case 'agenda.set': {
             if (e.p.member !== null && !s.members.some(m => m.id === e.p.member))
                 conflict('membre inconnu');

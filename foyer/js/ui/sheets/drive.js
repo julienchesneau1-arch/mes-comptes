@@ -13,7 +13,7 @@ import { openSheet, sheetHead, esc, toast, refreshSheet } from '../dom.js';
 import { CLICK, SUBMIT } from '../registry.js';
 const skipped = new Set(), added = new Set(); // séance en cours seulement : « Passer », « Ajouté au panier »
 export function openDrive(week) { openSheet({ id: 'drive', render: () => driveHtml(week) }); }
-const packsLine = (it) => it.product && it.packs && it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong></p>` : '';
+const packsLine = (it) => (it.product || it.paid) && it.packs && it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong></p>` : '';
 // Estimation automatique de l'article (prix moyen Insee), sans rien saisir ; rien d'affiché si aucune référence ne correspond.
 function costLine(week, it) {
     if (!it.id.startsWith('l:'))
@@ -21,6 +21,8 @@ function costLine(week, it) {
     const l = deriveShopping(S(), week).lines.find(x => `l:${x.key}` === it.id), c = l ? lineCost(S(), l) : null;
     if (!c)
         return '';
+    if (c.how === 'facture' && c.paid)
+        return `<p class="small muted">≈ ${esc(eur(c.cents))} au prix payé le ${esc(dateText(c.paid.day))} (facture du drive) : ${esc(eur(c.paid.cents))}${c.paid.loose ? ' le kg' : ''}</p>`;
     if (c.how === 'relevé' && c.product?.price && c.group)
         return `<p class="small muted">≈ ${esc(eur(c.cents))} au prix relevé du produit conseillé (${esc(eur(c.product.price.perCents))} ${perText(c.group)})</p>`;
     return c.ref ? `<p class="small muted">≈ ${esc(eur(c.cents))} · prix moyen Insee ${esc(c.ref.label.toLowerCase())} : ${esc(eur(c.ref.cents))} ${perText(c.ref)} (${esc(monthText(c.ref.period))})</p>`
@@ -82,7 +84,9 @@ function driveHtml(week) {
     <p class="small muted">Article ${addedNow + items.length - todo.length + 1} sur ${addedNow + items.length}${skipped.size ? ` · ${skipped.size} passé${skipped.size > 1 ? 's' : ''}` : ''}</p>
     <h3>${esc(cur.name)}</h3>
     ${cur.qty ? `<p>Besoin : <strong>${esc(cur.qty)}</strong></p>` : ''}
-    ${cur.product ? `<p>Produit retenu : ${esc(cur.product.label)}</p>${packsLine(cur)}` : '<p class="small muted">Aucun produit retenu : la recherche Auchan s\'ouvre.</p>'}
+    ${cur.product ? `<p>Produit retenu : ${esc(cur.product.label)}</p>${packsLine(cur)}`
+        : cur.paid ? `<p>Déjà acheté : <strong>${esc(cur.paid.label)}</strong></p>${packsLine(cur)}<p class="small muted">La recherche Auchan s'ouvre sur ce produit.</p>`
+            : '<p class="small muted">Aucun produit retenu : la recherche Auchan s\'ouvre.</p>'}
     ${costLine(week, cur)}
     ${adviceHtml(cur.name)}
     ${openLink(cur)}

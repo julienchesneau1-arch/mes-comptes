@@ -28,22 +28,26 @@ export function budgetCard(week, list) {
       <span role="listitem"><strong>${spent ? esc(eur(spent.cents)) : '–'}</strong>payé</span>
     </div>
     ${meter}
-    ${estimateNote(cart.priced, cart.unpriced, cart.seasonings)}
-    <details${spent ? ' open' : ''}><summary>${spent ? 'Montant payé noté' : 'Noter le montant payé (facultatif)'}</summary><form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
+    ${estimateNote(cart.priced, cart.paid, cart.unpriced, cart.seasonings)}
+    <details${spent ? ' open' : ''}><summary>${spent ? 'Montant payé noté' : 'Noter le montant payé (facultatif)'}</summary>
+      <button class="btn ghost block" type="button" data-a="invoice">🧾 Lire la facture du drive (montant et prix payés)</button><form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
       <button class="btn ghost">${spent ? 'Corriger' : 'Noter'}</button>${spent ? `<button class="btn quiet" type="button" data-a="spentClear" data-week="${week}">Effacer</button>` : ''}</form>
-      <p class="small muted">Le total de la commande Auchan rend le coût par portion exact. Sans lui, Foyer s'en tient à l'estimation.</p></details></section>`;
+      <p class="small muted">Le total de la commande Auchan rend le coût par portion exact. Lire la facture le note tout seul, et ses prix remplacent ensuite les estimations.</p></details></section>`;
 }
 // Source et limites de l'estimation, en une phrase : d'où viennent les prix, ce qui n'est pas chiffré.
-function estimateNote(priced, unpriced, seasonings) {
+function estimateNote(priced, paid, unpriced, seasonings) {
     const rp = refPrices();
-    if (!rp)
+    if (!rp && !paid)
         return '<p class="small muted">Prix de référence pas encore chargés (il faut une connexion la première fois).</p>';
-    const parts = [`Estimé automatiquement aux <a href="${esc(rp.sourceUrl)}" target="_blank" rel="noopener noreferrer">prix moyens publiés par l'Insee</a> (${esc(monthText(rp.period))}), pas aux prix d'Auchan. Rien à saisir.`];
+    const parts = [paid ? `${plural(paid, 'article')} au prix payé sur vos factures du drive${priced > paid ? ', les autres' : '.'}` : ''];
+    const src = rp ? `aux <a href="${esc(rp.sourceUrl)}" target="_blank" rel="noopener noreferrer">prix moyens publiés par l'Insee</a> (${esc(monthText(rp.period))}) ou relevés` : 'aux prix relevés';
+    if (priced > paid)
+        parts.push(`${paid ? '' : 'Estimé automatiquement '}${src}, pas aux prix d'Auchan. Rien à saisir.`);
     if (unpriced)
         parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
     if (seasonings)
         parts.push('Sel, poivre et épices non comptés.');
-    return `<p class="small muted">${parts.join(' ')}</p>`;
+    return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
 }
 SUBMIT['spentSet'] = (data, form) => {
     const week = form.dataset['week'] ?? '', c = parseEuros(String(data.get('eur') ?? ''));

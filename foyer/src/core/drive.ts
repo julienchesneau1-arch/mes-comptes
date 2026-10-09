@@ -4,7 +4,7 @@
 import { type Q, q, mul, div, sub, cmp, parseQ, qFrom, qStr } from './rational.ts';
 import { type Unit, UNIT, matchUnit, toBase, showQty } from './units.ts';
 import type { LocalDate } from './dates.ts';
-import { type State, type Product, PRODUCT_URL_RE } from './model.ts';
+import { type State, type Product, type Paid, PRODUCT_URL_RE } from './model.ts';
 import { type ShopLine, type ShoppingList, lineQty, parseSig, checkSig, wholeUp } from './shopping.ts';
 import { ingredientKey } from './ingredients.ts';
 import { nameKey, capitalize } from './text.ts';
@@ -43,7 +43,7 @@ export const sizeDraft = (r: { size: Q; unit: Unit }): { size: string; unit: str
 
 // Paquets pour couvrir ce qui reste à acheter. Pas de nombre si la contenance n'est pas dans la même dimension que le besoin.
 export type Packs = { n: number; text: string } | { n: null; why: string };
-export function packsFor(l: ShopLine, p: Product): Packs {
+export function packsFor(l: ShopLine, p: Pick<Product, 'size' | 'unit'>): Packs {
   const u = p.unit ? UNIT[p.unit] : undefined, size = p.size ? qFrom(p.size) : null;
   if (!u || !size) return { n: null, why: 'contenance non renseignée' };
   if (!l.toBuy || !l.dim) return { n: null, why: 'quantité de la recette non renseignée' };
@@ -57,13 +57,17 @@ export function packsFor(l: ShopLine, p: Product): Packs {
   return { n, text: `${n} × ${showQty(per, u.dim, u)}${more}` };
 }
 
+// Dernier prix payé pour un ingrédient : sous sa clé exacte (avec la forme : surgelé, en conserve…), sinon sous son seul nom.
+export const paidFor = (s: State, name: string, form: string | null): Paid | null => s.paid[ingredientKey(name, form)] ?? s.paid[nameKey(name)] ?? null;
+
 export interface DriveItem {
   id: string;               // « l:<clé de ligne> » ou « m:<id d'article> »
   week: LocalDate;
   name: string; qty: string;
   productKey: string;
   product: Product | null;
-  url: string;              // page du produit retenu, sinon recherche Auchan
+  paid: Paid | null;        // dernier achat lu sur une facture : sa recherche retrouve le même produit
+  url: string;              // page du produit retenu, sinon recherche du produit déjà acheté, sinon de l'ingrédient
   packs: Packs | null;      // null pour un article ajouté à la main (quantité libre)
 }
 
@@ -72,15 +76,15 @@ export function driveItems(s: State, list: ShoppingList): DriveItem[] {
   const out: DriveItem[] = [];
   for (const l of list.lines) {
     if (l.done) continue;
-    const productKey = ingredientKey(l.name, l.form), product = s.products[productKey] ?? null;
+    const productKey = ingredientKey(l.name, l.form), product = s.products[productKey] ?? null, paid = paidFor(s, l.name, l.form);
     const qty = lineQty(l), unk = l.unknown.length ? (qty ? ' + quantité à voir' : 'quantité à voir') : '';
-    out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: `${qty}${unk}`, productKey, product,
-      url: product?.url ?? searchUrl(l.name), packs: product ? packsFor(l, product) : null });
+    out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: `${qty}${unk}`, productKey, product, paid,
+      url: product?.url ?? searchUrl(paid?.label ?? l.name), packs: product ? packsFor(l, product) : paid && !paid.loose ? packsFor(l, paid) : null });
   }
   for (const m of list.manual) {
     if (m.checked) continue;
-    const productKey = nameKey(m.name), product = s.products[productKey] ?? null;
-    out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, url: product?.url ?? searchUrl(m.name), packs: null });
+    const productKey = nameKey(m.name), product = s.products[productKey] ?? null, paid = s.paid[productKey] ?? null;
+    out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, paid, url: product?.url ?? searchUrl(paid?.label ?? m.name), packs: null });
   }
   return out;
 }

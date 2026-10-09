@@ -244,4 +244,17 @@ Demande : « comme Jow, que l'import au drive se fasse pareil, sans noter les pr
 
 [ANOMALIE_LOGIQUE] « Exactement comme Jow » : Jow remplit le panier Auchan par un partenariat privé ; Auchan n'a pas d'API publique et ses CGU (art. 8) interdisent l'extraction automatisée sans licence. Décision du foyer : Foyer prépare tout, un toucher par article sur Auchan. Les prix « en temps réel » d'Auchan restent hors d'atteinte ; remplacés par des relevés datés et les moyennes Insee.
 
-Fin du PRD V2.1 (révisions V2.2 à V3.0 incluses).
+## 17. V3.1 — les prix réellement payés, lus sur nos factures (9 octobre 2026)
+
+Demande : « avoir comme Jow tous les prix en direct des enseignes » ; choix du foyer : relevés Open Prices chaque semaine et lecture de nos factures Auchan (« mets cela en place, je te fournis des factures après »).
+
+| Règle | Contenu |
+|---|---|
+| Sur le téléphone | PDF lu localement (pdf.js embarqué), sans IA, sans envoi, sans compte Auchan |
+| Rien de deviné | Chaque ligne vérifiée par le calcul ou signalée ; ingrédient proposé, validé par la personne ; total de la facture comparé aux lignes lues |
+| RGPD | Seuls produits, contenances et prix sont retenus ; jamais nom, adresse, carte, numéro de commande |
+| Un geste de moins | Le montant payé se note avec la facture ; la commande suivante cherche le même produit |
+
+[DONNÉE_MANQUANTE] Format exact des factures Auchan : règles génériques en attendant la facture promise ; une copie anonymisée servira de test et calera la lecture.
+
+Fin du PRD V2.1 (révisions V2.2 à V3.1 incluses).

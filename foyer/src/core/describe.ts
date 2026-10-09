@@ -40,6 +40,7 @@ export function describeEvent(s: State, e: AnyEv): string {
     case 'staple.set': return `mémoriser ${e.p.name}`;
     case 'aisle.set': return 'changer un rayon';
     case 'product.set': return e.p.url ? `retenir un produit Auchan (${e.p.label})` : 'oublier un produit Auchan';
+    case 'price.paid': return e.p.cents === null ? `oublier le prix payé (${e.p.label})` : `retenir le prix payé : ${e.p.label}, ${eur(e.p.cents)}${e.p.loose ? ' le kg' : ''}`;
     case 'agenda.set': return e.p.url ? `brancher l'agenda ${e.p.label}` : `débrancher l'agenda ${e.p.label}`;
     case 'agenda.rule': return e.p.effect === 'auto' ? 'appliquer automatiquement un événement d\'agenda' : e.p.effect === 'jamais' ? 'ignorer un événement d\'agenda' : 'oublier une décision d\'agenda';
     case 'agenda.mark': return e.p.presence ? `noter ${member(s, e.p.member)} ${e.p.presence === 'dehors' ? 'absent·e' : 'à la maison'} ${when(e.p.slot)} (agenda : ${e.p.title})` : `retirer « ${e.p.title} » ${when(e.p.slot)} (plus dans l'agenda)`;
