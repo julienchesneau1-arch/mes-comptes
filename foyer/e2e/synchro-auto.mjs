@@ -112,7 +112,7 @@ await step('B rejoint avec le seul code (aucun lien à copier)', async () => {
 });
 await step('mêmes courses sur les deux téléphones', async () => {
   const a = await courses(A), b = await courses(B);
-  if (a !== b || !/Pommes de terre/.test(a)) { let i = 0; while (i < a.length && a[i] === b[i]) i++; throw new Error(`différence à ${i} (A ${a.length}, B ${b.length}) — B suite : ${b.slice(i, i + 200)}`); }
+  if (a !== b || !/Pommes de terre/.test(a)) { let i = 0; while (i < a.length && a[i] === b[i]) i++; throw new Error(`différence à ${i} (A ${a.length}, B ${b.length}) — A suite : ${a.slice(Math.max(0, i - 60), i + 160)} — B suite : ${b.slice(Math.max(0, i - 60), i + 160)}`); }
   console.log('   ', a.slice(0, 140));
 });
 await step('B coche un article ; A le voit coché sans rien faire d\'autre que revenir dans l\'app', async () => {
