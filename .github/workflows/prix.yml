@@ -9,7 +9,9 @@ on:
     paths: ['foyer/scripts/prix.mjs', 'foyer/scripts/produits.mjs', 'foyer/src/core/refprice.ts', 'foyer/src/core/products.ts', '.github/workflows/prix.yml']
 permissions:
   contents: write
-concurrency: { group: prix-${{ github.ref }}, cancel-in-progress: false }
+concurrency:
+  group: prix-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   prix:
     runs-on: ubuntu-latest
