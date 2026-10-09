@@ -240,7 +240,7 @@ Demande : « comme Jow, que l'import au drive se fasse pareil, sans noter les pr
 | Zéro saisie | Aucun prix demandé ; estimation automatique, source et couverture affichées |
 | Le panier suit le menu | Prêt dès « Valider la semaine » ; après un changement, seulement ce qui change (＋ / −) |
 | Qualité-prix lisible | Trois choix par article (meilleur rapport, moins cher, mieux noté), règles de points affichées, prix daté et lieu du relevé |
-| Zéro token | Aucune IA ; données ouvertes figées chaque mois par la CI, aucun appel pendant l'usage |
+| Zéro token | Aucune IA ; données ouvertes figées chaque semaine par la CI, aucun appel pendant l'usage |
 
 [ANOMALIE_LOGIQUE] « Exactement comme Jow » : Jow remplit le panier Auchan par un partenariat privé ; Auchan n'a pas d'API publique et ses CGU (art. 8) interdisent l'extraction automatisée sans licence. Décision du foyer : Foyer prépare tout, un toucher par article sur Auchan. Les prix « en temps réel » d'Auchan restent hors d'atteinte ; remplacés par des relevés datés et les moyennes Insee.
 
