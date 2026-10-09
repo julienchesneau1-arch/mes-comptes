@@ -6,43 +6,44 @@
 import { type Per } from './refprice.ts';
 import { parseSize } from './drive.ts';
 import { toBase } from './units.ts';
-import { nameKey } from './text.ts';
+import { nameKey, norm } from './text.ts';
 
 // Un groupe = des ingrédients de recette (noms normalisés) → une catégorie Open Food Facts.
-export interface GroupDef { id: string; label: string; keys: readonly string[]; tags: readonly string[]; per: Per }
+// name / not : garde-fou sur le nom du produit (sans accent, minuscules), car une catégorie Open Food Facts peut être large
+// (une compote « sans sucres ajoutés » classée dans les sucres, un croque-monsieur dans les jambons).
+export interface GroupDef { id: string; label: string; keys: readonly string[]; tags: readonly string[]; per: Per; name?: RegExp; not?: RegExp }
 export const GROUP_DEFS: readonly GroupDef[] = [
-  { id: 'creme', label: 'Crème fraîche', keys: ['crème fraîche', 'crème fraîche épaisse', 'crème épaisse', 'crème'], tags: ['fr:cremes-fraiches'], per: 'l' },
-  { id: 'creme-liquide', label: 'Crème liquide', keys: ['crème liquide', 'crème fleurette', 'crème fraîche liquide', 'crème entière liquide'], tags: ['fr:cremes-liquides', 'en:liquid-creams'], per: 'l' },
-  { id: 'beurre', label: 'Beurre', keys: ['beurre', 'beurre doux', 'beurre demi-sel'], tags: ['en:butters'], per: 'kg' },
-  { id: 'lait', label: 'Lait demi-écrémé', keys: ['lait', 'lait demi-écrémé'], tags: ['en:semi-skimmed-milks'], per: 'l' },
-  { id: 'oeufs', label: 'Œufs', keys: ['œuf', 'œufs', 'oeuf', 'oeufs', 'œuf frais', 'gros œuf'], tags: ['en:eggs', 'en:chicken-eggs'], per: 'piece' },
-  { id: 'pates', label: 'Pâtes', keys: ['pâtes', 'pâte sèche', 'spaghetti', 'penne', 'tagliatelle', 'fusilli', 'coquillette', 'macaroni', 'farfalle', 'linguine', 'rigatoni'], tags: ['en:pastas', 'en:dry-pastas'], per: 'kg' },
-  { id: 'riz', label: 'Riz', keys: ['riz', 'riz basmati', 'riz long', 'riz thaï', 'riz rond'], tags: ['en:rices'], per: 'kg' },
-  { id: 'farine', label: 'Farine de blé', keys: ['farine', 'farine de blé', 'farine t45', 'farine t55'], tags: ['en:wheat-flours'], per: 'kg' },
-  { id: 'sucre', label: 'Sucre', keys: ['sucre', 'sucre en poudre', 'sucre semoule'], tags: ['en:white-sugars', 'en:sugars'], per: 'kg' },
-  { id: 'huile-olive', label: 'Huile d\'olive', keys: ['huile d\'olive', 'huile d\'olive vierge extra'], tags: ['en:extra-virgin-olive-oils', 'en:olive-oils'], per: 'l' },
-  { id: 'huile', label: 'Huile de tournesol', keys: ['huile', 'huile de tournesol', 'huile végétale', 'huile neutre'], tags: ['en:sunflower-oils'], per: 'l' },
-  { id: 'emmental', label: 'Emmental râpé', keys: ['emmental', 'emmental râpé', 'fromage râpé', 'gruyère râpé'], tags: ['en:grated-emmental', 'en:emmentals'], per: 'kg' },
-  { id: 'parmesan', label: 'Parmesan', keys: ['parmesan', 'parmigiano', 'parmigiano reggiano'], tags: ['en:parmigiano-reggiano'], per: 'kg' },
-  { id: 'mozzarella', label: 'Mozzarella', keys: ['mozzarella'], tags: ['en:mozzarella'], per: 'kg' },
-  { id: 'lardons', label: 'Lardons', keys: ['lardons', 'lardons fumés', 'lardon'], tags: ['fr:lardons'], per: 'kg' },
-  { id: 'jambon', label: 'Jambon blanc', keys: ['jambon', 'jambon blanc', 'jambon de paris', 'jambon cuit'], tags: ['en:white-hams', 'en:cooked-hams'], per: 'kg' },
-  { id: 'thon', label: 'Thon en boîte', keys: ['thon', 'thon au naturel', 'thon en boîte'], tags: ['en:canned-tunas'], per: 'kg' },
-  { id: 'tomates-concassees', label: 'Tomates concassées', keys: ['tomates concassées', 'pulpe de tomate', 'tomates pelées', 'tomate concassée'], tags: ['en:crushed-tomatoes', 'en:peeled-tomatoes'], per: 'kg' },
-  { id: 'concentre', label: 'Concentré de tomate', keys: ['concentré de tomate', 'double concentré de tomate'], tags: ['en:tomato-pastes'], per: 'kg' },
-  { id: 'sauce-tomate', label: 'Sauce tomate', keys: ['sauce tomate', 'coulis de tomate', 'passata'], tags: ['en:tomato-sauces'], per: 'kg' },
-  { id: 'lentilles', label: 'Lentilles', keys: ['lentilles', 'lentilles vertes', 'lentilles corail'], tags: ['en:lentils'], per: 'kg' },
-  { id: 'pois-chiches', label: 'Pois chiches', keys: ['pois chiches'], tags: ['en:chickpeas'], per: 'kg' },
-  { id: 'lait-coco', label: 'Lait de coco', keys: ['lait de coco'], tags: ['en:coconut-milks'], per: 'l' },
-  { id: 'moutarde', label: 'Moutarde', keys: ['moutarde', 'moutarde de dijon'], tags: ['en:dijon-mustards', 'en:mustards'], per: 'kg' },
-  { id: 'chapelure', label: 'Chapelure', keys: ['chapelure'], tags: ['en:breadcrumbs'], per: 'kg' },
-  { id: 'yaourt', label: 'Yaourt nature', keys: ['yaourt', 'yaourt nature'], tags: ['en:plain-yogurts'], per: 'kg' },
-  { id: 'fromage-blanc', label: 'Fromage blanc', keys: ['fromage blanc'], tags: ['en:fromages-blancs'], per: 'kg' },
-  { id: 'poulet', label: 'Filets de poulet', keys: ['blanc de poulet', 'filet de poulet', 'filets de poulet', 'escalope de poulet'], tags: ['en:chicken-breasts', 'fr:filets-de-poulet'], per: 'kg' },
-  { id: 'steak-hache', label: 'Steaks hachés', keys: ['steak haché', 'bœuf haché', 'viande hachée', 'haché de bœuf'], tags: ['fr:steaks-haches', 'en:ground-beef'], per: 'kg' },
-  { id: 'pate-feuilletee', label: 'Pâte feuilletée', keys: ['pâte feuilletée'], tags: ['en:puff-pastries'], per: 'kg' },
-  { id: 'pate-brisee', label: 'Pâte brisée', keys: ['pâte brisée'], tags: ['en:shortcrust-pastries'], per: 'kg' },
-  { id: 'chocolat', label: 'Chocolat noir', keys: ['chocolat noir', 'chocolat noir pâtissier', 'chocolat pâtissier'], tags: ['en:dark-chocolates'], per: 'kg' },
+  { id: 'creme', label: 'Crème fraîche', keys: ['crème fraîche', 'crème fraîche épaisse', 'crème épaisse', 'crème'], tags: ['fr:cremes-fraiches'], per: 'l', name: /creme/, not: /dessert|glace|vanille|chocolat|caramel|marron/ },
+  { id: 'creme-liquide', label: 'Crème liquide', keys: ['crème liquide', 'crème fleurette', 'crème fraîche liquide', 'crème entière liquide'], tags: ['en:uht-creams', 'en:unfermented-creams'], per: 'l', name: /creme/, not: /dessert|glace|vanille|chocolat|caramel/ },
+  { id: 'beurre', label: 'Beurre', keys: ['beurre', 'beurre doux', 'beurre demi-sel'], tags: ['en:butters'], per: 'kg', name: /beurre/, not: /cacahuete|biscuit|sable|croissant|brioche|galette|pate/ },
+  { id: 'lait', label: 'Lait demi-écrémé', keys: ['lait', 'lait demi-écrémé'], tags: ['en:semi-skimmed-milks'], per: 'l', name: /lait/, not: /coco|amande|avoine|soja|riz|chocolat|fermente|croissance/ },
+  { id: 'oeufs', label: 'Œufs', keys: ['œuf', 'œufs', 'oeuf', 'oeufs', 'œuf frais', 'gros œuf'], tags: ['en:eggs', 'en:chicken-eggs'], per: 'piece', name: /oeuf/, not: /chocolat|paques|pate|nouille/ },
+  { id: 'pates', label: 'Pâtes', keys: ['pâtes', 'pâte sèche', 'spaghetti', 'penne', 'tagliatelle', 'fusilli', 'coquillette', 'macaroni', 'farfalle', 'linguine', 'rigatoni'], tags: ['en:pastas', 'en:dry-pastas'], per: 'kg', not: /ravioli|raviole|tortellini|gnocchi|lasagne|sauce/ },
+  { id: 'riz', label: 'Riz', keys: ['riz', 'riz basmati', 'riz long', 'riz thaï', 'riz rond'], tags: ['en:rices'], per: 'kg', name: /riz/, not: /galette|gateau|au lait|souffle|cake|boisson|creme/ },
+  { id: 'farine', label: 'Farine de blé', keys: ['farine', 'farine de blé', 'farine t45', 'farine t55'], tags: ['en:wheat-flours'], per: 'kg', name: /farine/ },
+  { id: 'sucre', label: 'Sucre', keys: ['sucre', 'sucre en poudre', 'sucre semoule'], tags: ['en:white-sugars', 'en:sugars'], per: 'kg', name: /sucre/, not: /sans sucre|sucres ajoutes|compote|confiture|sirop|boisson/ },
+  { id: 'huile-olive', label: 'Huile d\'olive', keys: ['huile d\'olive', 'huile d\'olive vierge extra'], tags: ['en:extra-virgin-olive-oils', 'en:olive-oils'], per: 'l', name: /olive/ },
+  { id: 'huile', label: 'Huile de tournesol', keys: ['huile', 'huile de tournesol', 'huile végétale', 'huile neutre'], tags: ['en:sunflower-oils'], per: 'l', name: /tournesol/ },
+  { id: 'emmental', label: 'Emmental râpé', keys: ['emmental', 'emmental râpé', 'fromage râpé', 'gruyère râpé'], tags: ['en:grated-emmentaler', 'en:emmentaler'], per: 'kg', name: /emmental/ },
+  { id: 'parmesan', label: 'Parmesan', keys: ['parmesan', 'parmigiano', 'parmigiano reggiano'], tags: ['en:parmigiano-reggiano'], per: 'kg', name: /parm/ },
+  { id: 'mozzarella', label: 'Mozzarella', keys: ['mozzarella'], tags: ['en:mozzarella'], per: 'kg', name: /mozzarella/, not: /pizza|salade/ },
+  { id: 'lardons', label: 'Lardons', keys: ['lardons', 'lardons fumés', 'lardon'], tags: ['en:lardons'], per: 'kg', name: /lardon/ },
+  { id: 'jambon', label: 'Jambon blanc', keys: ['jambon', 'jambon blanc', 'jambon de paris', 'jambon cuit'], tags: ['en:white-hams', 'en:cooked-hams'], per: 'kg', name: /jambon/, not: /croque|pizza|sandwich|quiche|feuillete|crepe|cordon|melon|salade|wrap/ },
+  { id: 'thon', label: 'Thon en boîte', keys: ['thon', 'thon au naturel', 'thon en boîte'], tags: ['en:canned-tunas'], per: 'kg', name: /thon/, not: /salade|rillette|pate|sauce|plat/ },
+  { id: 'tomates-concassees', label: 'Tomates concassées', keys: ['tomates concassées', 'pulpe de tomate', 'tomates pelées', 'tomate concassée'], tags: ['en:crushed-tomatoes', 'en:peeled-tomatoes'], per: 'kg', name: /tomate/, not: /ketchup|sauce|soupe|gaspacho|sechee/ },
+  { id: 'concentre', label: 'Concentré de tomate', keys: ['concentré de tomate', 'double concentré de tomate'], tags: ['en:tomato-pastes'], per: 'kg', name: /concentre/ },
+  { id: 'sauce-tomate', label: 'Sauce tomate', keys: ['sauce tomate', 'coulis de tomate', 'passata'], tags: ['en:tomato-sauces'], per: 'kg', name: /tomate|coulis|passata/, not: /ketchup|soupe|gaspacho/ },
+  { id: 'lentilles', label: 'Lentilles', keys: ['lentilles', 'lentilles vertes', 'lentilles corail'], tags: ['en:lentils'], per: 'kg', name: /lentille/, not: /soupe|salade|plat|cuisine/ },
+  { id: 'pois-chiches', label: 'Pois chiches', keys: ['pois chiches'], tags: ['en:chickpeas'], per: 'kg', name: /pois chiche/, not: /houmous|hummus|salade|soupe/ },
+  { id: 'lait-coco', label: 'Lait de coco', keys: ['lait de coco'], tags: ['en:coconut-milks'], per: 'l', name: /coco/, not: /boisson|dessert/ },
+  { id: 'moutarde', label: 'Moutarde', keys: ['moutarde', 'moutarde de dijon'], tags: ['en:dijon-mustards', 'en:mustards'], per: 'kg', name: /moutarde/, not: /sauce|vinaigrette/ },
+  { id: 'yaourt', label: 'Yaourt nature', keys: ['yaourt', 'yaourt nature'], tags: ['en:plain-yogurts'], per: 'kg', name: /yaourt|yogourt/, not: /fruit|vanille|sucre|aromatise|chocolat|citron|fraise/ },
+  { id: 'fromage-blanc', label: 'Fromage blanc', keys: ['fromage blanc'], tags: ['en:fromages-blancs'], per: 'kg', name: /fromage blanc|faisselle/, not: /fruit|vanille|sucre|aromatise/ },
+  { id: 'poulet', label: 'Filets de poulet', keys: ['blanc de poulet', 'filet de poulet', 'filets de poulet', 'escalope de poulet'], tags: ['en:chicken-breasts', 'fr:filets-de-poulet'], per: 'kg', name: /poulet/, not: /pane|nugget|cordon|roti|sandwich|salade|wrap/ },
+  { id: 'steak-hache', label: 'Steaks hachés', keys: ['steak haché', 'bœuf haché', 'viande hachée', 'haché de bœuf'], tags: ['en:ground-beef-steaks'], per: 'kg', name: /hache/, not: /vegetal|soja/ },
+  { id: 'pate-feuilletee', label: 'Pâte feuilletée', keys: ['pâte feuilletée'], tags: ['en:puff-pastry-sheets'], per: 'kg', name: /feuillet/ },
+  { id: 'pate-brisee', label: 'Pâte brisée', keys: ['pâte brisée'], tags: ['en:shortcrust-pastry'], per: 'kg', name: /brisee/ },
+  { id: 'chocolat', label: 'Chocolat noir', keys: ['chocolat noir', 'chocolat noir pâtissier', 'chocolat pâtissier'], tags: ['en:dark-chocolates'], per: 'kg', name: /chocolat/, not: /au lait|blanc|orange|amande|noisette|caramel|menthe|fourre|praline|biscuit|barre|cookie/ },
 ];
 
 export interface Product {
@@ -128,7 +129,8 @@ export function toProduct(h: Hit, per: Per, rows: readonly PriceRow[]): Product 
 }
 
 export function buildGroup(d: GroupDef, tag: string, hits: readonly Hit[], rows: readonly PriceRow[]): Group {
-  const products = hits.map(h => toProduct(h, d.per, rows)).filter((p): p is Product => !!p);
+  const fits = (h: Hit): boolean => { const n = norm(s(h.product_name, 200)); return (!d.name || d.name.test(n)) && !(d.not && d.not.test(n)); };
+  const products = hits.filter(fits).map(h => toProduct(h, d.per, rows)).filter((p): p is Product => !!p);
   // Gardés : les 8 premiers (popularité Open Food Facts) plus tout produit chiffré, pour un fichier court.
   const kept = products.filter((p, i) => i < 8 || p.price).slice(0, 14);
   return { id: d.id, label: d.label, keys: [...d.keys], tag, per: d.per, products: kept, ...picks(kept) };

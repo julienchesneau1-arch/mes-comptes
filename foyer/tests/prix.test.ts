@@ -152,3 +152,11 @@ test('à l\'unité : ce qui a été arrondi à l\'achat couvre une petite hausse
   a.emit({ t: 'prep.extra', p: { prep: 'prepsou2', extra: 2 } });                                             // 4 portions : 2,5 → 3 : un de plus
   assert.deepEqual(cartChanges(a.s, deriveShopping(a.s, MON)).map(c => [c.kind, c.qty]), [['plus', '1 pièce']]);
 });
+
+test('qualité-prix : le nom du produit doit correspondre au groupe (catégories Open Food Facts trop larges)', () => {
+  const sucre = GROUP_DEFS.find(d => d.id === 'sucre')!, sauce = GROUP_DEFS.find(d => d.id === 'sauce-tomate')!;
+  const h = (code: string, product_name: string) => ({ code, product_name, quantity: '1 kg', nutriscore_grade: 'a', nova_group: 1, labels_tags: [] });
+  const g = buildGroup(sucre, 'en:sugars', [h('3000000000001', 'Compote Pomme Vanille Sans Sucres Ajoutés'), h('3000000000002', 'Sucre en poudre')], []);
+  assert.deepEqual(g.products.map(p => p.name), ['Sucre en poudre']);
+  assert.deepEqual(buildGroup(sauce, 'en:tomato-sauces', [h('3000000000003', 'Ketchup'), h('3000000000004', 'Coulis de tomates')], []).products.map(p => p.name), ['Coulis de tomates']);
+});
