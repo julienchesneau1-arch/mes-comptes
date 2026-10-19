@@ -4,8 +4,8 @@
  "license": "Licence ouverte, « Source : Insee »",
  "weights": "USDA FoodData Central (SR Legacy), domaine public",
  "weightsUrl": "https://fdc.nal.usda.gov/",
- "generated": "2026-10-12",
- "period": "2026-08",
+ "generated": "2026-10-19",
+ "period": "2026-09",
  "refs": [
   {
    "id": "tomate",
@@ -19,8 +19,8 @@
    "series": "000641429",
    "pieceG": 123,
    "fdc": 170457,
-   "cents": 426,
-   "period": "2026-08",
+   "cents": 523,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -31,8 +31,8 @@
    ],
    "per": "kg",
    "series": "000641428",
-   "cents": 273,
-   "period": "2026-08",
+   "cents": 347,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -46,8 +46,8 @@
    "series": "000641427",
    "pieceG": 110,
    "fdc": 170000,
-   "cents": 285,
-   "period": "2026-08",
+   "cents": 283,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -61,7 +61,7 @@
    "pieceG": 61,
    "fdc": 170393,
    "cents": 221,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -73,8 +73,8 @@
    ],
    "per": "kg",
    "series": "000641359",
-   "cents": 757,
-   "period": "2026-08",
+   "cents": 732,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -88,8 +88,8 @@
    "series": "000641423",
    "pieceG": 18,
    "fdc": 169251,
-   "cents": 660,
-   "period": "2026-08",
+   "cents": 653,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -105,8 +105,8 @@
    "series": "010596274",
    "pieceG": 119,
    "fdc": 170108,
-   "cents": 487,
-   "period": "2026-08",
+   "cents": 473,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -119,8 +119,8 @@
    "series": "000641425",
    "pieceG": 196,
    "fdc": 169291,
-   "cents": 243,
-   "period": "2026-08",
+   "cents": 320,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -131,8 +131,8 @@
    ],
    "per": "kg",
    "series": "000641426",
-   "cents": 464,
-   "period": "2026-08",
+   "cents": 478,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -148,7 +148,7 @@
    "pieceG": 213,
    "fdc": 170026,
    "cents": 194,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -160,7 +160,7 @@
    "per": "kg",
    "series": "000641430",
    "cents": 310,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -172,8 +172,8 @@
    ],
    "per": "piece",
    "series": "001791254",
-   "cents": 458,
-   "period": "2026-08",
+   "cents": 360,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -184,8 +184,8 @@
    ],
    "per": "piece",
    "series": "001791256",
-   "cents": 333,
-   "period": "2026-08",
+   "cents": 334,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -196,8 +196,8 @@
    ],
    "per": "piece",
    "series": "001791255",
-   "cents": 150,
-   "period": "2026-08",
+   "cents": 154,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -209,7 +209,7 @@
    "per": "piece",
    "series": "001791257",
    "cents": 94,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -221,8 +221,8 @@
    ],
    "per": "piece",
    "series": "010536481",
-   "cents": 100,
-   "period": "2026-08",
+   "cents": 96,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -235,8 +235,8 @@
    "series": "000641367",
    "pieceG": 182,
    "fdc": 171688,
-   "cents": 319,
-   "period": "2026-08",
+   "cents": 315,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -249,8 +249,8 @@
    "series": "000641369",
    "pieceG": 178,
    "fdc": 169118,
-   "cents": 384,
-   "period": "2026-08",
+   "cents": 382,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -261,8 +261,8 @@
    ],
    "per": "kg",
    "series": "000641432",
-   "cents": 214,
-   "period": "2026-08",
+   "cents": 205,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -273,8 +273,8 @@
    ],
    "per": "kg",
    "series": "000641365",
-   "cents": 276,
-   "period": "2026-08",
+   "cents": 281,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -286,8 +286,8 @@
    ],
    "per": "kg",
    "series": "000641434",
-   "cents": 416,
-   "period": "2026-08",
+   "cents": 412,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -298,8 +298,8 @@
    ],
    "per": "kg",
    "series": "000641435",
-   "cents": 422,
-   "period": "2026-08",
+   "cents": 423,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -312,8 +312,8 @@
    ],
    "per": "kg",
    "series": "000442434",
-   "cents": 3088,
-   "period": "2026-08",
+   "cents": 3103,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -325,8 +325,8 @@
    ],
    "per": "kg",
    "series": "000442433",
-   "cents": 3209,
-   "period": "2026-08",
+   "cents": 3188,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -337,8 +337,8 @@
    ],
    "per": "kg",
    "series": "000442435",
-   "cents": 3251,
-   "period": "2026-08",
+   "cents": 3252,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -351,8 +351,8 @@
    ],
    "per": "kg",
    "series": "000442436",
-   "cents": 3201,
-   "period": "2026-08",
+   "cents": 3235,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -363,8 +363,8 @@
    ],
    "per": "kg",
    "series": "000442432",
-   "cents": 5013,
-   "period": "2026-08",
+   "cents": 5042,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -375,8 +375,8 @@
    ],
    "per": "kg",
    "series": "000442437",
-   "cents": 3067,
-   "period": "2026-08",
+   "cents": 3084,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -387,8 +387,8 @@
    ],
    "per": "kg",
    "series": "000442441",
-   "cents": 2965,
-   "period": "2026-08",
+   "cents": 2957,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -400,8 +400,8 @@
    ],
    "per": "kg",
    "series": "000442450",
-   "cents": 1214,
-   "period": "2026-08",
+   "cents": 1211,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -412,8 +412,8 @@
    ],
    "per": "kg",
    "series": "000442448",
-   "cents": 1399,
-   "period": "2026-08",
+   "cents": 1398,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -424,8 +424,8 @@
    ],
    "per": "kg",
    "series": "000442453",
-   "cents": 1377,
-   "period": "2026-08",
+   "cents": 1384,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -436,8 +436,8 @@
    ],
    "per": "kg",
    "series": "000442454",
-   "cents": 3493,
-   "period": "2026-08",
+   "cents": 3514,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -451,8 +451,8 @@
    ],
    "per": "kg",
    "series": "000849397",
-   "cents": 1985,
-   "period": "2026-08",
+   "cents": 1956,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -464,8 +464,8 @@
    ],
    "per": "kg",
    "series": "000641408",
-   "cents": 2537,
-   "period": "2026-08",
+   "cents": 2467,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -476,8 +476,8 @@
    ],
    "per": "kg",
    "series": "000641413",
-   "cents": 4098,
-   "period": "2026-08",
+   "cents": 3912,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -489,8 +489,8 @@
    ],
    "per": "kg",
    "series": "000641405",
-   "cents": 2954,
-   "period": "2026-08",
+   "cents": 2989,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -502,8 +502,8 @@
    ],
    "per": "kg",
    "series": "000641418",
-   "cents": 644,
-   "period": "2026-08",
+   "cents": 633,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -514,8 +514,8 @@
    ],
    "per": "kg",
    "series": "000641417",
-   "cents": 3468,
-   "period": "2026-08",
+   "cents": 3461,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -528,8 +528,8 @@
    ],
    "per": "kg",
    "series": "000641354",
-   "cents": 1720,
-   "period": "2026-08",
+   "cents": 1695,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -541,8 +541,8 @@
    ],
    "per": "kg",
    "series": "000442423",
-   "cents": 411,
-   "period": "2026-08",
+   "cents": 412,
+   "period": "2026-09",
    "method": "mesuré"
   },
   {
@@ -553,8 +553,8 @@
    ],
    "per": "kg",
    "series": "000442484",
-   "cents": 888,
-   "period": "2026-08",
+   "cents": 886,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -575,7 +575,7 @@
    "per": "kg",
    "series": "000849396",
    "cents": 1590,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -593,8 +593,8 @@
    ],
    "per": "kg",
    "series": "000442490",
-   "cents": 1205,
-   "period": "2026-08",
+   "cents": 1206,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -611,8 +611,8 @@
    ],
    "per": "l",
    "series": "000442491",
-   "cents": 1063,
-   "period": "2026-08",
+   "cents": 1061,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -631,8 +631,8 @@
    ],
    "per": "l",
    "series": "000442493",
-   "cents": 299,
-   "period": "2026-08",
+   "cents": 298,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -650,8 +650,8 @@
    ],
    "per": "kg",
    "series": "000442487",
-   "cents": 1092,
-   "period": "2026-08",
+   "cents": 1090,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -677,8 +677,8 @@
    ],
    "per": "kg",
    "series": "000442429",
-   "cents": 189,
-   "period": "2026-08",
+   "cents": 188,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -694,8 +694,8 @@
    ],
    "per": "l",
    "series": "000442479",
-   "cents": 157,
-   "period": "2026-08",
+   "cents": 156,
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -713,7 +713,7 @@
    "per": "l",
    "series": "000442480",
    "cents": 116,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -732,7 +732,7 @@
    "per": "kg",
    "series": "000442544",
    "cents": 141,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -750,7 +750,7 @@
    "per": "kg",
    "series": "000849398",
    "cents": 179,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2019-12",
@@ -769,7 +769,7 @@
    "per": "kg",
    "series": "000442470",
    "cents": 1540,
-   "period": "2026-08",
+   "period": "2026-09",
    "method": "actualisé",
    "base": {
     "period": "2020-02",
