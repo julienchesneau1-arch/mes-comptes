@@ -81,4 +81,5 @@ test('résumé d’un autre mois ou ancien : dit comme tel', async t => {
   assert.ok(outcome.ok);
   assert.match(outcome.presentation.summary, /Résumé d’octobre 2026, pas du mois en cours/);
   assert.match(outcome.presentation.summary, /date de 31 jours/);
+  assert.match(outcome.presentation.primaryValue ?? '', / en octobre 2026$/);
 });

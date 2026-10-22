@@ -23,9 +23,16 @@ async function relay(code = CODE): Promise<{ tag: string; rows: Row[] }> {
 const served = (tag: string, rows: Row[]) => (request: AddonHttpRequest) => {
   if (!request.url.startsWith(TABLE)) return { status: 404, body: '' };
   if (request.headers?.['x-foyer'] !== tag) return []; // règle RLS : autre étiquette, aucune ligne
-  const after = Number(new URL(request.url).searchParams.get('seq')?.replace('gt.', '') ?? '0');
-  return rows.filter(r => r.seq > after);
+  const q = new URL(request.url).searchParams;
+  const after = Number(q.get('seq')?.replace('gt.', '') ?? '0');
+  return rows.filter(r => r.seq > after).slice(0, Number(q.get('limit') ?? Infinity)); // pages, comme PostgREST
 };
+// Le journal en deux temps : un premier événement, puis tout le reste (dont le curry de ce soir).
+async function split(code = CODE): Promise<{ tag: string; first: string; rest: string }> {
+  const k = await relayKeys(code);
+  const log = demoLog(new Date(NOW));
+  return { tag: k.tag, first: await sealEvents(k, log.slice(0, 1)), rest: await sealEvents(k, log.slice(1)) };
+}
 
 test('définition acceptée par le chargeur de Cornelius', () => {
   assert.equal(validateAddonDefinition(addon), null);
@@ -53,6 +60,31 @@ test('lecture seule : uniquement des GET vers la table du relais, sans écriture
     assert.equal(c.body, undefined);
     assert.ok(c.url.startsWith(TABLE));
   }
+});
+
+test('au-delà de 10 000 blocs : les plus récents sont lus aussi, jamais un vieux menu', async t => {
+  const { tag, first, rest } = await split();
+  const rows: Row[] = Array.from({ length: 10_000 }, (_, i) => ({ seq: i + 1, blob: first }));
+  rows.push({ seq: 10_001, blob: rest });
+  const f = createTestModule(t, addon, { at: NOW, secrets: { code: CODE }, routes: served(tag, rows) });
+  const outcome = await f.read();
+  assert.ok(outcome.ok);
+  assert.match(outcome.presentation.summary, /Ce soir : Curry de poulet/);
+});
+
+test('relevé suivant : seuls les blocs nouveaux sont demandés', async t => {
+  const { tag, first, rest } = await split();
+  const rows: Row[] = [{ seq: 1, blob: first }];
+  const f = createTestModule(t, addon, { at: NOW, secrets: { code: CODE }, routes: served(tag, rows) });
+  assert.ok((await f.read()).ok);
+  rows.push({ seq: 2, blob: rest });
+  f.advance(11 * 60_000);
+  const before = f.calls.length;
+  const outcome = await f.read();
+  assert.ok(outcome.ok && !outcome.stale);
+  assert.match(outcome.presentation.summary, /Curry de poulet/);
+  assert.ok(f.calls.length > before);
+  for (const c of f.calls.slice(before)) assert.doesNotMatch(c.url, /seq=gt\.0&/);
 });
 
 test('vue courses à la demande : liste de la semaine', async t => {

@@ -3,7 +3,8 @@
 // Aucun dépôt, aucune modification : seules des requêtes GET vers la table du relais partent.
 import { AddonCollectError, type AddonDefinition, type ModuleSnapshot } from '#cornelius/addons';
 import { RELAY } from '../../foyer/src/ui/config.ts';
-import { relayKeys, pull, RelayError, type Fetch } from '../../foyer/src/core/relay.ts';
+import { relayKeys, pull, RelayError, type Fetch, type RelayKeys } from '../../foyer/src/core/relay.ts';
+import type { AnyEv } from '../../foyer/src/core/model.ts';
 import { validCode } from '../../foyer/src/core/sync.ts';
 import { replay, openConflicts } from '../../foyer/src/core/reduce.ts';
 import { deriveToday } from '../../foyer/src/core/today.ts';
@@ -26,6 +27,11 @@ type FoyerData = {
 };
 
 const TABLE = `${RELAY?.url ?? ''}/rest/v1/foyer_relais?`;
+
+// Journal déjà lu, par source : chaque relevé ne demande que les blocs nouveaux, avec le même curseur
+// que les téléphones. Repart de zéro si le code change ; un redémarrage de Cornelius vide tout.
+type Lu = { code: string; keys: RelayKeys; cursor: number; events: Map<string, AnyEv>; unreadable: number };
+const journals = new Map<string, Lu>();
 const cut = (t: string, n: number): string => (t.length <= n ? t : `${t.slice(0, n - 1).trimEnd()}…`);
 const str = (n: number) => ({ type: 'string', minLength: 1, maxLength: n });
 const plural = (n: number, one: string, many: string): string => `${n} ${n > 1 ? many : one}`;
@@ -116,7 +122,7 @@ function presentToday(d: FoyerData) {
   ].slice(0, 5);
   const missing = d.manque.map(m => `${m.quand} : ${m.articles.join(', ')}`).join(' · ');
   const said = [
-    d.repas.length ? `${d.repas.slice(0, 2).map(meal).join('. ')}.` : 'Aucun repas prévu ce soir ni demain midi dans Foyer.',
+    d.repas.length ? `${d.repas.slice(0, 2).map(meal).join('. ')}.` : 'Aucun repas prévu à la maison dans les prochains jours, d’après Foyer.',
     todo.length ? `À faire : ${todo.slice(0, 3).map(t => t.texte.toLowerCase()).join(', ')}.` : '',
     d.manque.length ? `Pas encore acheté : ${d.manque.map(m => `${m.quand.toLowerCase()}, ${m.articles.slice(0, 5).join(', ')}`).join(' ; ')}.` : '',
     d.conflits ? `${plural(d.conflits, 'changement', 'changements')} en conflit à voir dans Foyer.` : '',
@@ -188,7 +194,11 @@ const addon: AddonDefinition<FoyerConfig, FoyerData> = {
     const code = context.secret('code');
     if (!code) throw new AddonCollectError('config_invalid', 'Code du foyer manquant : saisissez-le dans Mise en route › Clés et jetons.', false);
     if (!validCode(code)) throw new AddonCollectError('config_invalid', 'Code du foyer invalide : 12 lettres et chiffres, tel qu’affiché dans Foyer › Réglages.', false);
-    const keys = await relayKeys(code);
+    let lu = journals.get(context.instance.id);
+    if (lu?.code !== code) {
+      lu = { code, keys: await relayKeys(code), cursor: 0, events: new Map(), unreadable: 0 };
+      journals.set(context.instance.id, lu);
+    }
     // Lecture seule : tout ce qui n'est pas un GET de la table du relais est refusé avant de partir.
     const get: Fetch = async (url, init) => {
       if ((init?.method ?? 'GET') !== 'GET' || !url.startsWith(TABLE))
@@ -203,20 +213,27 @@ const addon: AddonDefinition<FoyerConfig, FoyerData> = {
         },
       };
     };
-    let got: Awaited<ReturnType<typeof pull>>;
     try {
-      got = await pull(RELAY, keys, 0, get);
+      // pull s'arrête à 50 pages de 200 blocs : relancé tant que le curseur avance, sinon au-delà de
+      // 10 000 blocs seuls les plus anciens seraient lus, et un vieux menu dit comme celui du jour.
+      for (;;) {
+        const got = await pull(RELAY, lu.keys, lu.cursor, get);
+        for (const e of got.events) lu.events.set(e.id, e);
+        lu.unreadable += got.unreadable;
+        if (got.cursor === lu.cursor) break;
+        lu.cursor = got.cursor;
+      }
     } catch (e) {
       throw e instanceof RelayError ? relayError(e) : e;
     }
     // Rien de lisible : mauvais code ou foyer sans synchro. Jamais présenté comme « rien de prévu ».
-    if (!got.events.length) {
-      throw got.unreadable
+    if (!lu.events.size) {
+      throw lu.unreadable
         ? new AddonCollectError('auth', 'Relais Foyer : aucun bloc lisible avec ce code.', false)
         : new AddonCollectError('not_found', 'Aucune donnée Foyer pour ce code : vérifiez le code et la synchro automatique des téléphones.', false);
     }
     const now = context.now();
-    const r = replay(got.events);
+    const r = replay(lu.events.values());
     const s = r.state;
     const today = deriveToday(r, new Date(now));
     const list = deriveShopping(s, weekOf(today.date, s.settings.weekStart));
@@ -240,7 +257,7 @@ const addon: AddonDefinition<FoyerConfig, FoyerData> = {
       aDecider: Math.min(today.empty, 100),
       conflits: openConflicts(r).length,
       evenements: r.count,
-      illisibles: got.unreadable,
+      illisibles: Math.min(lu.unreadable, 100_000),
     };
     return { data, source: { provider: 'foyer-relais', sourceId: 'repas' }, freshMs: freshUntilBoundary(today.date, today.hour, now) };
   },

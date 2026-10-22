@@ -76,7 +76,7 @@ function present(snapshot: ModuleSnapshot<ComptesData>, context: AddonPresentCon
   ].filter(Boolean).join(' ');
   return {
     title: cut(`Mes comptes · ${monthName(d.month)}`, 80),
-    primaryValue: `${rest} ce mois-ci`,
+    primaryValue: `${rest} ${otherMonth ? `en ${monthName(d.month)}` : 'ce mois-ci'}`,
     subtitle: cut(`Résumé du ${dayName(d.at, context.timeZone)}${old > 7 ? ` · il y a ${old} jours` : ''}`, 120),
     description: d.top.length ? cut(`Plus grosses dépenses : ${d.top.map(t => `${t.name} ${eur(t.spent)}`).join(', ')}.`, 500) : null,
     items,
