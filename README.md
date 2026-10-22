@@ -22,4 +22,4 @@ Deuxième app du foyer, même philosophie (données sur vos téléphones, synchr
 
 ## Cornelius (dans `cornelius/`)
 
-Modules pour l'assistant [Cornelius](https://github.com/lfpoulain/Cornelius) : `foyer` (repas, tâches, courses, en lecture seule) et `comptes` (résumé personnel du mois), plus la configuration d'une tablette familiale. Voir [cornelius/README.md](cornelius/README.md).
+Modules pour l'assistant [Cornelius](https://github.com/lfpoulain/Cornelius) : `foyer` (repas, tâches, courses, en lecture seule) et `comptes` (résumé personnel du mois) ; correctifs de Cornelius (plein écran, lisibilité, page **Écrire** pour les téléphones, accès hors de la maison par Tailscale) ; script d'installation du labo macOS ; configuration d'une tablette familiale et des téléphones. Voir [cornelius/README.md](cornelius/README.md).

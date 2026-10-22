@@ -1,0 +1,168 @@
+From 95b99f7e6267f6cb8d6b76fed33b64d9e0a250ab Mon Sep 17 00:00:00 2001
+From: Cornelius maison <maison@localhost>
+Date: Thu, 22 Oct 2026 18:35:06 +0000
+Subject: [PATCH 2/5] =?UTF-8?q?R=C3=A9seau=20:=20t=C3=A9l=C3=A9phones=20ho?=
+ =?UTF-8?q?rs=20de=20la=20maison=20par=20r=C3=A9seau=20priv=C3=A9=20virtue?=
+ =?UTF-8?q?l=20(CORNELIUS=5FVPN,=20100.64.0.0/10)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .env.example          |  4 ++++
+ server/app.ts         |  5 +++--
+ server/config.ts      |  8 ++++++++
+ server/network.ts     | 16 ++++++++++++----
+ tests/network.test.ts | 29 +++++++++++++++++++++++++++++
+ 5 files changed, 56 insertions(+), 6 deletions(-)
+
+diff --git a/.env.example b/.env.example
+index 83ab9d5..7a2e0d6 100644
+--- a/.env.example
++++ b/.env.example
+@@ -33,6 +33,10 @@ CORNELIUS_PERCEPTION_TOKEN=
+ # CORNELIUS_TLS_KEY=
+ # Noms d’hôte acceptés en plus des adresses IP locales et du nom de la machine (virgules).
+ # CORNELIUS_ALLOWED_HOSTS=miroir.maison
++# Réseau privé virtuel (Tailscale) : admet aussi les adresses 100.64.0.0/10, pour vos téléphones hors
++# de la maison. Cornelius reste invisible depuis Internet. Ajoutez le nom Tailscale de l’ordinateur à
++# CORNELIUS_ALLOWED_HOSTS et, pour un certificat reconnu, CORNELIUS_TLS_CERT/KEY (tailscale cert).
++# CORNELIUS_VPN=1
+ 
+ # --- Modules -------------------------------------------------------------------------------
+ # Les jetons et la clé OpenAI se saisissent aussi dans l’administration (Mise en route, Clés et
+diff --git a/server/app.ts b/server/app.ts
+index 6dd180a..31b35f3 100644
+--- a/server/app.ts
++++ b/server/app.ts
+@@ -555,9 +555,10 @@ export async function createApp(
+     // Clients : la machine elle-même, et le réseau local quand il est ouvert. Une adresse
+     // publique (port redirigé par un routeur) est toujours refusée.
+     const lan = config.lan === true;
+-    if (!fromMachine(request) && !(lan && isPrivateAddress(request.raw.socket?.remoteAddress)))
++    const vpn = lan && config.vpn === true;
++    if (!fromMachine(request) && !(lan && isPrivateAddress(request.raw.socket?.remoteAddress, vpn)))
+       return reply.code(403).send({ error: 'Accès réservé au réseau local.' });
+-    if (!allowedHostname(request.hostname, lan, config.allowedHosts ?? []))
++    if (!allowedHostname(request.hostname, lan, config.allowedHosts ?? [], vpn))
+       return reply.code(403).send({ error: 'Hôte non autorisé.' });
+     // La perception et le générateur d'images tournent sur la machine : jamais par le réseau.
+     if (
+diff --git a/server/config.ts b/server/config.ts
+index 62c8c1b..d9f0a37 100644
+--- a/server/config.ts
++++ b/server/config.ts
+@@ -21,6 +21,11 @@ export interface AppConfig {
+   lan?: boolean;
+   /** Annonce mDNS (_cornelius._tcp) pour les satellites audio ; vraie par défaut. */
+   mdns?: boolean;
++  /**
++   * Réseau privé virtuel (CORNELIUS_VPN=1) : les adresses 100.64.0.0/10 (Tailscale) sont admises
++   * comme celles de la maison, pour les téléphones hors de chez soi. Fausse par défaut.
++   */
++  vpn?: boolean;
+   /** Port HTTPS du réseau local (le port HTTP, lui, ne sert que la machine). */
+   httpsPort?: number;
+   tlsCert?: string;
+@@ -63,6 +68,9 @@ export function loadConfig(): AppConfig & { port: number } {
+     mdns: !['0', 'false', 'non', 'no'].includes(
+       (process.env.CORNELIUS_MDNS ?? '1').trim().toLowerCase(),
+     ),
++    vpn: ['1', 'true', 'oui', 'yes'].includes(
++      (process.env.CORNELIUS_VPN ?? '').trim().toLowerCase(),
++    ),
+     tlsCert: process.env.CORNELIUS_TLS_CERT || undefined,
+     tlsKey: process.env.CORNELIUS_TLS_KEY || undefined,
+     allowedHosts: (process.env.CORNELIUS_ALLOWED_HOSTS ?? '')
+diff --git a/server/network.ts b/server/network.ts
+index 385c9ea..5f5f874 100644
+--- a/server/network.ts
++++ b/server/network.ts
+@@ -15,8 +15,10 @@ export function isLoopback(address: string | undefined): boolean {
+ /**
+  * Adresse du réseau local (RFC 1918, lien local, IPv6 locale unique) ou de la machine
+  * elle-même. Une adresse publique n'en fait jamais partie, même si un routeur la redirige.
++ * Avec `vpn`, la plage 100.64.0.0/10 d'un réseau privé virtuel (Tailscale) compte aussi :
++ * elle n'est pas routée sur Internet et n'arrive qu'à travers le tunnel.
+  */
+-export function isPrivateAddress(address: string | undefined): boolean {
++export function isPrivateAddress(address: string | undefined, vpn = false): boolean {
+   if (!address) return false;
+   if (isLoopback(address)) return true;
+   const ip = address.replace(/^::ffff:/i, '');
+@@ -26,7 +28,8 @@ export function isPrivateAddress(address: string | undefined): boolean {
+       a === 10 ||
+       (a === 172 && b >= 16 && b <= 31) ||
+       (a === 192 && b === 168) ||
+-      (a === 169 && b === 254)
++      (a === 169 && b === 254) ||
++      (vpn && a === 100 && b >= 64 && b <= 127)
+     );
+   }
+   if (isIP(ip) === 6) {
+@@ -58,11 +61,16 @@ export function localAddresses(): string[] {
+  * de la machine ou un nom ajouté dans CORNELIUS_ALLOWED_HOSTS. Refuser les autres noms
+  * protège contre le « DNS rebinding » (un site extérieur qui se ferait passer pour Cornelius).
+  */
+-export function allowedHostname(hostname: string, lan: boolean, extra: readonly string[]): boolean {
++export function allowedHostname(
++  hostname: string,
++  lan: boolean,
++  extra: readonly string[],
++  vpn = false,
++): boolean {
+   const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+   if (host === 'localhost' || isLoopback(host)) return true;
+   if (!lan) return false;
+-  if (isIP(host)) return isPrivateAddress(host);
++  if (isIP(host)) return isPrivateAddress(host, vpn);
+   return (
+     machineHostnames().includes(host) || extra.map((item) => item.toLowerCase()).includes(host)
+   );
+diff --git a/tests/network.test.ts b/tests/network.test.ts
+index 52e69b6..40193f6 100644
+--- a/tests/network.test.ts
++++ b/tests/network.test.ts
+@@ -45,6 +45,19 @@ test('hôtes acceptés : boucle locale toujours, réseau local seulement s’il
+   if (name) assert.ok(allowedHostname(name, true, []));
+ });
+ 
++test('réseau privé virtuel : 100.64.0.0/10 seulement sur option, jamais une adresse publique', () => {
++  for (const address of ['100.64.0.1', '100.101.102.103', '100.127.255.254', '::ffff:100.80.1.2']) {
++    assert.ok(!isPrivateAddress(address), `${address} sans option`);
++    assert.ok(isPrivateAddress(address, true), `${address} avec option`);
++  }
++  for (const address of ['100.63.255.255', '100.128.0.1', '8.8.8.8', '203.0.113.9'])
++    assert.ok(!isPrivateAddress(address, true), address);
++  assert.ok(allowedHostname('100.101.102.103', true, [], true));
++  assert.ok(!allowedHostname('100.101.102.103', true, []));
++  assert.ok(!allowedHostname('100.101.102.103', false, [], true));
++  assert.ok(allowedHostname('mac.tail1234.ts.net', true, ['mac.tail1234.ts.net'], true));
++});
++
+ test('certificat autosigné : créé une fois, réutilisé, recréé si les adresses changent', async (t) => {
+   const directory = mkdtempSync(join(tmpdir(), 'cornelius-tls-'));
+   t.after(() => rmSync(directory, { recursive: true, force: true }));
+@@ -122,6 +135,22 @@ test('réseau local : un appareil de la maison ouvre Cornelius, une adresse publ
+   assert.equal(rebinding.statusCode, 403);
+ });
+ 
++test('réseau privé virtuel : un téléphone hors de la maison passe seulement si CORNELIUS_VPN est actif', async (t) => {
++  const request = {
++    url: '/api/health',
++    remoteAddress: '100.101.102.103',
++    headers: { host: '100.90.1.2:3443' },
++  };
++  const closed = await fixture(t);
++  assert.equal((await closed.inject(request)).statusCode, 403);
++  const open = await fixture(t, { vpn: true });
++  assert.equal((await open.inject(request)).statusCode, 200);
++  const outside = await open.inject({ ...request, remoteAddress: '203.0.113.9' });
++  assert.equal(outside.statusCode, 403);
++  const off = await fixture(t, { vpn: true, lan: false });
++  assert.equal((await off.inject(request)).statusCode, 403);
++});
++
+ test('réseau local fermé : seule la machine elle-même est servie', async (t) => {
+   const app = await fixture(t, { lan: false });
+   const lan = await app.inject({

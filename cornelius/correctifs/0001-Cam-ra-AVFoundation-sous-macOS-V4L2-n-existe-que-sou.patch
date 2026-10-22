@@ -1,0 +1,36 @@
+From f8d14f719c20798659316072c93bd6b5e2d0d949 Mon Sep 17 00:00:00 2001
+From: Cornelius maison <maison@localhost>
+Date: Thu, 22 Oct 2026 18:34:01 +0000
+Subject: [PATCH 1/5] =?UTF-8?q?Cam=C3=A9ra=20:=20AVFoundation=20sous=20mac?=
+ =?UTF-8?q?OS=20(V4L2=20n=E2=80=99existe=20que=20sous=20Linux)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ perception/camera.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/perception/camera.py b/perception/camera.py
+index 5890f00..b392a94 100644
+--- a/perception/camera.py
++++ b/perception/camera.py
+@@ -1,6 +1,7 @@
+ """One capture shared by local recognition and the on-demand admin preview."""
+ import hashlib
+ import os
++import sys
+ import threading
+ import time
+ import uuid
+@@ -25,7 +26,9 @@ def valid_mode(mode):
+ 
+ class Camera:
+     def __init__(self, index=0, enabled=True):
+-        self.backend = cv2.CAP_DSHOW if os.name == "nt" else cv2.CAP_V4L2
++        # macOS : AVFoundation ; V4L2 n’existe que sous Linux.
++        self.backend = (cv2.CAP_DSHOW if os.name == "nt"
++                        else cv2.CAP_AVFOUNDATION if sys.platform == "darwin" else cv2.CAP_V4L2)
+         self.lock = threading.RLock()
+         self.devices = {}
+         self.selected_id = None

@@ -1,0 +1,177 @@
+From fc09b8f1c0f221e631b2d42e733253d687d357e3 Mon Sep 17 00:00:00 2001
+From: Cornelius maison <maison@localhost>
+Date: Thu, 22 Oct 2026 18:39:27 +0000
+Subject: [PATCH 4/5] =?UTF-8?q?Miroir=20:=20tablette=20tactile=20en=20pays?=
+ =?UTF-8?q?age=20lisible=20de=20loin=20(textes=2040=20%=20plus=20grands,?=
+ =?UTF-8?q?=20aucun=20d=C3=A9tail=20perdu)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ tests/e2e/mirror.spec.ts | 105 +++++++++++++++++++++++++++++++++++++++
+ web/styles.css           |  22 +++++++-
+ 2 files changed, 125 insertions(+), 2 deletions(-)
+
+diff --git a/tests/e2e/mirror.spec.ts b/tests/e2e/mirror.spec.ts
+index 2e32148..5880b5f 100644
+--- a/tests/e2e/mirror.spec.ts
++++ b/tests/e2e/mirror.spec.ts
+@@ -654,3 +654,108 @@ test('la taille de l’orbe choisie dans l’administration s’applique au miro
+     fixture.close();
+   }
+ });
++
++test.describe('tablette tactile', () => {
++  test.use({ hasTouch: true });
++
++  test('paysage : textes 40 % plus grands sans perdre de détail ; portrait inchangé', async ({
++    page,
++  }) => {
++    const fixture = await mirrorFixture(page, (state) => {
++      converse(state);
++      state.ambientDisplays = ambientDisplays();
++      const main = answerCard(state, 'main', 'Ce soir : curry de poulet');
++      main.content = {
++        ...main.content,
++        primaryValue: '4 portions',
++        subtitle: 'Sortir le poulet du congélateur',
++        items: [
++          { label: 'Demain midi', value: 'Restes du curry' },
++          { label: 'À acheter', value: 'Lait de coco, riz basmati' },
++        ],
++      } as DisplayCard['content'];
++      state.cards = [
++        main,
++        answerCard(state, 'second', 'Bus 91 vers Montparnasse'),
++        answerCard(state, 'third', 'Météo de demain'),
++      ];
++    });
++    try {
++      await page.goto('/');
++      await expect(page.locator('.display-card')).toHaveCount(3);
++      expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
++      for (const viewport of [
++        { width: 820, height: 1180 },
++        { width: 1180, height: 820 },
++        { width: 768, height: 1024 },
++        { width: 1024, height: 768 },
++        { width: 800, height: 1280 },
++        { width: 1280, height: 800 },
++      ]) {
++        await page.setViewportSize(viewport);
++        await expectCenteredMirror(page);
++        const where = `${viewport.width}x${viewport.height}`;
++        const layout = await page.evaluate(() => {
++          const rect = (selector: string) =>
++            document.querySelector(selector)!.getBoundingClientRect();
++          const size = (selector: string) =>
++            parseFloat(getComputedStyle(document.querySelector(selector)!).fontSize);
++          let smallest = Infinity;
++          for (const element of document.querySelectorAll<HTMLElement>('.mirror-page *')) {
++            const text = [...element.childNodes].some(
++              (node) => node.nodeType === Node.TEXT_NODE && node.textContent!.trim(),
++            );
++            if (!text || element.closest('.sr-only') || !element.getClientRects().length) continue;
++            smallest = Math.min(smallest, parseFloat(getComputedStyle(element).fontSize));
++          }
++          return {
++            portrait: innerHeight > innerWidth,
++            center: { x: innerWidth / 2, y: innerHeight / 2 },
++            orb: rect('.mirror-orb-anchor').width,
++            main: rect('.mirror-card-rail-main .display-card'),
++            secondary: rect('.mirror-card-rail-secondary'),
++            ambient: rect('.mirror-ambient'),
++            footer: rect('.mirror-status'),
++            title: size('.mirror-card-rail-main h2'),
++            // Détails de la carte principale réellement visibles (portions, demain midi, tâche).
++            details: [
++              ...document.querySelectorAll('.mirror-card-rail-main .display-card *'),
++            ].filter(
++              (element) =>
++                element.children.length === 0 &&
++                /4 portions|Demain midi|Sortir le poulet/.test(element.textContent ?? '') &&
++                element.getBoundingClientRect().height > 0 &&
++                element.getBoundingClientRect().bottom <=
++                  rect('.mirror-card-rail-main .display-card').bottom + 1,
++            ).length,
++            smallest,
++            scroll: document.documentElement.scrollHeight <= innerHeight + 1,
++          };
++        });
++        if (layout.portrait) expect(layout.title, where).toBe(19);
++        else {
++          // 19 px sans écran tactile ; 1,4 fois l’échelle de l’écran, jamais un détail perdu.
++          expect(layout.title, where).toBeGreaterThanOrEqual(21);
++          expect(layout.details, where).toBe(3);
++          expect(layout.smallest, where).toBeGreaterThanOrEqual(12.5);
++        }
++        expect(layout.scroll, where).toBe(true);
++        expect(layout.footer.top, where).toBeGreaterThanOrEqual(layout.main.bottom);
++        const visibleOrb = (layout.orb * 0.63) / 2;
++        expect(layout.ambient.bottom, where).toBeLessThan(layout.center.y - visibleOrb);
++        if (layout.portrait) {
++          expect(layout.main.top, where).toBeGreaterThan(layout.center.y + visibleOrb);
++          if (layout.secondary.height > 0)
++            expect(layout.secondary.top, where).toBeGreaterThanOrEqual(layout.main.bottom);
++        } else {
++          expect(layout.main.right, where).toBeLessThan(layout.center.x - visibleOrb);
++          expect(layout.secondary.left, where).toBeGreaterThan(layout.center.x + visibleOrb);
++        }
++        await page.waitForTimeout(400);
++        await page.screenshot({ path: `${screenshots}/tablet-touch-${where}.png` });
++      }
++    } finally {
++      fixture.close();
++    }
++  });
++});
+diff --git a/web/styles.css b/web/styles.css
+index 33ff322..a501e01 100644
+--- a/web/styles.css
++++ b/web/styles.css
+@@ -98,9 +98,12 @@ body {
+  * Portrait : pile verticale (informations, orbe, carte principale, cartes complémentaires).
+  * --mirror-scale suit la plus petite dimension de l’écran pour rester lisible à distance :
+  * aucun texte sous 14 px, aucune étiquette sous 12 px. DM Sans n’existe qu’en 400 et 500.
++ * --mirror-touch l’agrandit sur un écran tactile (tablette posée dans la pièce), lu de plus loin
++ * qu’un écran de même taille : voir la règle (pointer: coarse) plus bas.
+  */
+ .mirror-page {
+-  --mirror-scale: clamp(1px, calc(100vmin / 760), 3px);
++  --mirror-touch: 1;
++  --mirror-scale: clamp(1px, calc(100vmin / 760 * var(--mirror-touch)), 3px);
+   --mirror-text-label: calc(12 * var(--mirror-scale));
+   --mirror-text: calc(14 * var(--mirror-scale));
+   --mirror-text-lead: calc(16 * var(--mirror-scale));
+@@ -520,7 +523,10 @@ body {
+  * ne peut pas se redéfinir à partir d’elle-même.
+  */
+ .mirror-card-rail {
+-  --mirror-scale: max(1px, calc(clamp(1px, calc(100vmin / 760), 3px) * 0.8));
++  --mirror-scale: max(
++    1px,
++    calc(clamp(1px, calc(100vmin / 760 * var(--mirror-touch, 1)), 3px) * 0.8)
++  );
+   --mirror-text-label: calc(12 * var(--mirror-scale));
+   --mirror-text: calc(14 * var(--mirror-scale));
+   --mirror-text-lead: calc(16 * var(--mirror-scale));
+@@ -1039,6 +1045,18 @@ body {
+   font-size: 20px;
+ }
+ 
++/*
++ * Tablette familiale en paysage (écran tactile) : textes et cartes 40 % plus grands, pour être lus
++ * de l’autre côté de la pièce ; c’est le plus grand facteur qui garde tous les détails de la carte
++ * principale de 1024 x 768 à 1280 x 800. En portrait, l’orbe centrale laisse trop peu de hauteur :
++ * tout agrandissement masquerait des détails, l’échelle reste celle de l’écran.
++ */
++@media (pointer: coarse) and (orientation: landscape) {
++  .mirror-page {
++    --mirror-touch: 1.4;
++  }
++}
++
+ @media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
