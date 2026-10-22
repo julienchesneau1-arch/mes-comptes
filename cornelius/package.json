@@ -1,0 +1,6 @@
+{
+  "name": "mes-comptes-cornelius",
+  "private": true,
+  "type": "module",
+  "description": "Modules Cornelius de Mes Comptes et de Foyer (CORNELIUS_MODULES_DIR=…/mes-comptes/cornelius)."
+}

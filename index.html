@@ -234,9 +234,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=40"></script>
+<script src="core.js?v=41"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 40;
+const KEY = 'mescomptes-v1', VERSION = 41;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
@@ -1441,7 +1441,8 @@ function settings() {
       <p class="sm mute hint">Ce qui n'est pas sur vos comptes importés. Mettez la valeur à jour de temps en temps : elle compte dans le patrimoine net (écran Comptes).</p></section>
     <section class="card span"><h2>Sauvegarde & synchro</h2>
       <p class="sm">Tout est stocké uniquement sur cet appareil. <b>Exporter</b> (${CLOUD.how}) met vos données à l'abri.</p>
-      <div class="chips"><button class="btn sm" data-a="syncSheet">🔄 Synchro avec ${esc(otherName())}</button><button class="btn sm ghost" data-a="selfBackup">💾 Sauvegarde éclair (lien)</button><button class="btn sm ghost" data-a="export">Exporter un fichier</button><button class="btn sm ghost" data-a="restore">Depuis un fichier</button></div>
+      <div class="chips"><button class="btn sm" data-a="syncSheet">🔄 Synchro avec ${esc(otherName())}</button><button class="btn sm ghost" data-a="selfBackup">💾 Sauvegarde éclair (lien)</button><button class="btn sm ghost" data-a="export">Exporter un fichier</button><button class="btn sm ghost" data-a="restore">Depuis un fichier</button><button class="btn sm ghost" data-a="cornelius">🪞 Résumé pour Cornelius</button></div>
+      <p class="sm mute hint">Résumé pour Cornelius : seulement les totaux du mois en cours de ce profil (reste, budgets, épargne, objectifs), chiffrés avec le code du foyer. Aucune opération, aucun marchand, aucun solde. À coller dans Cornelius › Modules › Mes comptes, pour une source à votre nom.</p>
       <p class="sm mute hint">La synchro passe par un simple lien envoyé par message : pas de fichier à chercher. Le fichier sert de sauvegarde (iCloud, Drive) ; « Depuis un fichier » ouvre forcément vos documents, car une app web ne peut pas lire vos fichiers sans vous.</p>
       <h2 style="margin-top:18px">Versions précédentes</h2>
       <p class="sm mute hint">L'app garde toute seule une copie avant chaque import, fusion ou suppression (les 5 dernières). Une erreur ? Revenez en arrière.</p>
@@ -1574,7 +1575,7 @@ const A = {
   badgeOn: () => badgeOn(),
   syncSheet: () => syncSheet(),
   sendSync: () => { closeSheet(); if (!S.codeShown) return codeIntro('sync'); sendSync(); },
-  codeOk: d => { S.codeShown = true; save(); closeSheet(); ({ sync: sendSync, self: selfBackup, export: () => A.export(), show: () => {} })[d.then]?.(); },
+  codeOk: d => { S.codeShown = true; save(); closeSheet(); ({ sync: sendSync, self: selfBackup, export: () => A.export(), cornelius: () => A.cornelius(), show: () => {} })[d.then]?.(); },
   codeCopy: async () => { try { await navigator.clipboard.writeText(myCode()); toast('Code copié : collez-le dans un endroit sûr'); } catch { toast('Recopiez-le à la main'); } },
   codeShow: () => codeIntro('show'),
   codeNew: () => ask('Changer le code du foyer ?<div class="sm mute" style="text-transform:none;letter-spacing:0;font-weight:400;margin-top:6px">Vos anciens liens et sauvegardes demanderont l\'ancien code. L\'autre téléphone devra taper le nouveau.</div>', 'Changer', () => { S.code = newCode(); S.codeShown = false; save(); codeIntro('show'); }, true),
@@ -1674,6 +1675,18 @@ const A = {
     S.lastBackup = new Date().toISOString(); save(); render(); toast('Sauvegarde faite ✔');
   },
   restore: () => $('#backup').click(),
+  // Totaux du mois en cours pour le profil affiché, chiffrés : rien d'autre ne quitte le téléphone.
+  cornelius: async () => {
+    if (!S.codeShown) return codeIntro('cornelius');
+    let text;
+    try { text = 'cornelius:' + await within(sealSummary(cornSummary(S, ui.who, thisMonth()), myCode()), 20000, 'préparation du résumé'); }
+    catch (e) { jlog('ÉCHEC résumé Cornelius : ' + e.message); return toast('Résumé impossible : ' + e.message); }
+    jlog(`résumé Cornelius prêt · ${whoName(ui.who)} · ${thisMonth()}`);
+    try {
+      if (navigator.share) await navigator.share({ title: 'Résumé pour Cornelius', text });
+      else { await navigator.clipboard.writeText(text); toast('Résumé copié : collez-le dans Cornelius › Modules › Mes comptes'); }
+    } catch (e) { if (e.name !== 'AbortError') toast('Envoi impossible : ' + e.message); }
+  },
   undo: async d => {
     const x = (await idb.all().catch(() => [])).find(v => v.id === +d.id);
     if (!x) return toast('Cette version n\'est plus disponible');

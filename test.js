@@ -788,3 +788,23 @@ console.log('OK — fichier de rappels publié');
   assert.strictEqual(await C.unzip(await C.zip(big)), big);
   console.log('OK — coffre chiffré par le code d\'entrée');
 })();
+
+// Résumé pour Cornelius : les totaux d'un profil seulement, chiffrés avec le code du foyer ; refusé avec un autre code ou abîmé.
+(async () => {
+  const st = C.demoState('2026-10-20'), month = '2026-10';
+  const s = C.cornSummary(st, 'p1', month, new Date('2026-10-20T10:00:00Z'));
+  assert.ok(C.validSummary(s));
+  assert.strictEqual(s.who, 'p1');
+  assert.strictEqual(s.month, month);
+  assert.ok(!/CARREFOUR|AUCHAN|NETFLIX|SPOTIFY|DEMO-|Compte de|Livret|balance/i.test(JSON.stringify(s))); // ni libellé, ni marchand, ni compte, ni solde
+  assert.ok(C.cornSummary(st, 'foyer', month).spent >= s.spent);                                          // le foyer compte tous les comptes
+  const code = C.newCode(), text = await C.sealSummary(s, code);
+  assert.ok(text.startsWith('mcr1.'));
+  assert.deepStrictEqual(await C.openSummary('cornelius:' + text, code), s);
+  await assert.rejects(C.openSummary(text, C.newCode()), e => e.needCode);                                // autre code : refusé
+  await assert.rejects(C.openSummary(text.slice(0, -6) + 'AAAAAA', code), e => e.bad || e.needCode);      // abîmé : refusé
+  await assert.rejects(C.openSummary('bonjour', code), e => e.notSummary);
+  assert.ok(!C.validSummary({ ...s, budgets: [{ name: 'Restaurants', limit: 0, spent: 1 }] }));
+  assert.ok(!C.validSummary({ ...s, tx: undefined, pots: [{ name: '', target: 1, saved: 1 }] }));
+  console.log('OK — résumé pour Cornelius');
+})();

@@ -3,6 +3,7 @@
 releves/
 *.json
 !manifest.json
+!cornelius/package.json
 presentation/
 node_modules
 !foyer/package.json

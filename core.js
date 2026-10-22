@@ -1344,6 +1344,44 @@ async function openBackup(text, code) {
   return d;
 }
 
+// Résumé pour Cornelius (le miroir de la maison) : les totaux d'un profil pour un mois — jamais une opération,
+// un libellé, un marchand ni un solde. Chiffré avec le code du foyer comme les liens, collé à la main dans Cornelius.
+function cornSummary(state, who, month, now = new Date()) {
+  const acc = who === 'foyer' ? 'all' : Object.keys(state.accounts).filter(id => state.accounts[id].owner === who);
+  const st = monthStats(state, month, acc), pace = paceCompare(state, month, acc), eu = v => Math.round(v);
+  const budgets = Object.entries((state.budgets || {})[who] || {}).filter(([c, l]) => CAT[c] && l > 0)
+    .map(([c, l]) => ({ name: cat(c).name, limit: eu(l), spent: eu(Math.max(0, st.by[c] || 0)) }))
+    .filter(b => b.limit > 0).sort((a, b) => b.spent / b.limit - a.spent / a.limit).slice(0, 8);
+  const top = Object.entries(st.by).filter(([c, v]) => CAT[c] && v >= 0.5).map(([c, v]) => ({ name: cat(c).name, spent: eu(v) }))
+    .sort((a, b) => b.spent - a.spent).slice(0, 5);
+  const pots = (state.pots || []).filter(p => p.owner === who).slice(0, 5)
+    .map(p => ({ name: String(p.name || 'Objectif').slice(0, 60) || 'Objectif', target: eu(Math.max(0, +p.target || 0)), saved: eu((p.moves || []).reduce((s, m) => s + (+m.amount || 0), 0)) }));
+  return { v: 1, app: 'mescomptes', who: String(who).slice(0, 40), month, at: now.toISOString(), income: eu(st.income), spent: eu(st.spent), saved: eu(st.saved), rest: eu(st.rest),
+    pace: pace ? { day: pace.day, spent: pace.spent, usual: pace.usual } : null, budgets, top, pots };
+}
+const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+const isTxt = (v, n) => typeof v === 'string' && v.length >= 1 && v.length <= n;
+function validSummary(d) {
+  const M = 1e9;
+  return !!d && d.v === 1 && d.app === 'mescomptes' && isTxt(d.who, 40) && /^\d{4}-\d{2}$/.test(d.month) && isTxt(d.at, 40) && !isNaN(Date.parse(d.at))
+    && [d.income, d.spent, d.saved, d.rest].every(x => isInt(x, -M, M))
+    && (d.pace === null || (!!d.pace && isInt(d.pace.day, 1, 31) && isInt(d.pace.spent, -M, M) && isInt(d.pace.usual, -M, M)))
+    && Array.isArray(d.budgets) && d.budgets.length <= 8 && d.budgets.every(b => b && isTxt(b.name, 60) && isInt(b.limit, 1, M) && isInt(b.spent, 0, M))
+    && Array.isArray(d.top) && d.top.length <= 5 && d.top.every(b => b && isTxt(b.name, 60) && isInt(b.spent, 0, M))
+    && Array.isArray(d.pots) && d.pots.length <= 5 && d.pots.every(p => p && isTxt(p.name, 60) && isInt(p.target, 0, M) && isInt(p.saved, -M, M));
+}
+async function sealSummary(summary, code) { return 'mcr1.' + b64u.enc(await seal(await zip(JSON.stringify(summary)), code)); }
+async function openSummary(text, code) {
+  const m = String(text || '').match(/mcr1\.([A-Za-z0-9_-]+)/);
+  if (!m) { const e = new Error('ce n\'est pas un résumé Mes Comptes'); e.notSummary = true; throw e; }
+  if (!validCode(code)) { const e = new Error('code du foyer nécessaire'); e.needCode = true; throw e; }
+  let d;
+  try { d = JSON.parse(await unzip(await unseal(b64u.dec(m[1]), code))); }
+  catch (e) { if (e.needCode) throw e; const x = new Error('résumé abîmé'); x.bad = true; throw x; }
+  if (!validSummary(d)) { const e = new Error('résumé illisible'); e.bad = true; throw e; }
+  return d;
+}
+
 // Série : jours d'affilée où l'on a fait son point du jour. Pas encore fait aujourd'hui = la série tient jusqu'à ce soir.
 const prevDay = d => new Date(Date.parse(d + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
 function streak(days = {}, today) {
@@ -1424,7 +1462,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 }
 
 if (typeof module !== 'undefined') module.exports = {
-  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
+  streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, cornSummary, validSummary, sealSummary, openSummary, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
   CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };
