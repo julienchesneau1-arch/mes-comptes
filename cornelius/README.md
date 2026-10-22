@@ -25,6 +25,10 @@ Le script vérifie le Mac (Intel, macOS 13.5 ou plus, 6 Go libres), télécharge
 
 Mise à jour : `bash ~/cornelius-lab/stop.sh && git -C ~/cornelius-lab/mes-comptes pull && bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh && bash ~/cornelius-lab/start.sh`. Le `-b claude/tender-cori-m8232m` disparaîtra une fois ces fichiers sur `main`. Un dépôt privé demande d'être connecté à GitHub sur le Mac. Les modules apparaissent dans **Administration → Modules** ; un module refusé y est signalé « Module non chargé » avec la raison.
 
+Bilan en lecture seule, sans aucun secret, à coller tel quel dans une conversation : `bash ~/cornelius-lab/mes-comptes/cornelius/verifier-macos.sh --tests` (installation, réglages non secrets, processus, page Écrire, journaux, réseau, mémoire, tests des modules).
+
+Pour qu'une session Claude **sur le Mac** fasse l'installation et la validation avec vous : [PASSATION-MAC.md](PASSATION-MAC.md).
+
 Tests (depuis le dossier de Cornelius) :
 
 ```sh
