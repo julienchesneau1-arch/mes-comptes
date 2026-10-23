@@ -9,8 +9,12 @@ import { isUpcoming, leftovers } from './propose.ts';
 import { capital, prepTitle } from './status.ts';
 import { weekRange } from './batch.ts';
 import type { Today } from './today.ts';
+import { placardKey, surpluses } from './placard.ts';
+import { lineQty } from './shopping.ts';
+import { qStr } from './rational.ts';
+import { showQty } from './units.ts';
 
-export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'menu' | 'semaine';
+export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine';
 export type ExcAction =
   | { label: string; drafts: Draft[] }                                                        // un toucher = ces événements
   | { label: string; open: 'slot' | 'watch' | 'ack' | 'propose'; arg: string };                // un toucher = l'écran qui règle
@@ -24,7 +28,7 @@ export interface Exception {
 }
 export const MAX_SHOWN = 5;   // au-delà : « + N autres », repliées ; une file de 12 cartes est une corvée
 export const RULE_AFTER = 3;
-const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, menu: 350, semaine: 300 };
+const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300 };
 const HAS_RULE: ReadonlySet<ExcCode> = new Set(['restes']);
 
 // Créneaux à venir (14 prochains repas) où un plat peut être posé sans conflit : vide, pas mangé, quelqu'un y mange.
@@ -93,8 +97,18 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
       actions: picks.map(k => ({ label: capital(fmtSlot(k, today)), drafts: [{ t: 'slot.from', p: { slot: k, prep: x.prep } }] as Draft[] })) });
   }
 
-  // Menu généré en attente d'approbation (sur ce téléphone ou l'autre) : il remplace la carte « repas sans plat » de sa semaine.
+  // Reste d'un paquet acheté la semaine précédente, que la liste redemande : « déjà au placard ? » d'un toucher.
   const thisWk = weekOf(today, s.settings.weekStart), nextWk = addDays(thisWk, 7);
+  for (const w of [thisWk, nextWk]) for (const x of surpluses(s, w)) {
+    const l = x.line, dim = l.dim ?? 'piece', left = showQty(x.left, dim, x.unit);
+    add({ key: `placard:${`${w}|${l.key}`.slice(0, 100)}`, code: 'placard', prio: BASE.placard + (w === thisWk ? 10 : 0),
+      title: `${capital(l.name)} : il devrait en rester ${left}`,
+      sub: `Paquet de ${showQty(x.pack, dim, x.unit)} pris pour la semaine ${weekRange(x.from)}, où il en fallait ${showQty(x.bought, dim, x.unit)}. ${w === thisWk ? 'Cette semaine' : capital(weekRange(w))}, il en faut ${lineQty(l)}.`,
+      actions: [{ label: `On en a (${left})`, drafts: [{ t: 'shop.pantry', p: { week: w, key: l.key, qty: qStr(x.left), needAt: l.needAt } }] },
+        { label: 'Plus rien', drafts: [{ t: 'task.set', p: { key: placardKey(w, l.key), done: true } }] }] });
+  }
+
+  // Menu généré en attente d'approbation (sur ce téléphone ou l'autre) : il remplace la carte « repas sans plat » de sa semaine.
   for (const w of [thisWk, nextWk]) {
     const d = s.drafts[w];
     if (!d) continue;

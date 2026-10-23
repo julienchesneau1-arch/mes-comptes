@@ -62,6 +62,7 @@ await step('rythme', async () => {
 await step('classiques', async () => {
   for (const c of ['Curry de poulet', 'Lasagnes', 'Omelette', 'Soupe de légumes']) await page.getByRole('button', { name: c, exact: true }).click();
   await shot('03-classiques');
+  await page.getByRole('button', { name: 'Continuer' }).click(); // budget et allergies : facultatifs
   await page.getByRole('button', { name: /Créer le foyer avec 4 plats/ }).click();
   await page.getByRole('heading', { name: 'Semaine', level: 1 }).waitFor();
 });

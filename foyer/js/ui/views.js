@@ -4,6 +4,7 @@ import { current } from '../core/model.js';
 import { deriveToday } from '../core/today.js';
 import { slotView, STATUS_LABEL, prepTitle, capital } from '../core/status.js';
 import { deriveShopping, lineQty, shoppingText, orderedAisles, checkSig, exactNeed } from '../core/shopping.js';
+import { lineAlert } from '../core/allergens.js';
 import { activeWatch, DGCCRF_URL } from '../core/watch.js';
 import { portions } from '../core/plan.js';
 import { showQty } from '../core/units.js';
@@ -26,6 +27,7 @@ import { RELAY } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { cartChangesCard, shopWeekFor } from './sheets/drive.js';
 import { reglerSection, decisionsSummary } from './sheets/decisions.js';
+import { exclusionsSummary } from './sheets/allergies.js';
 import { packsFor } from '../core/drive.js';
 import { ingredientKey } from '../core/ingredients.js';
 import { dishLook } from '../core/visual.js';
@@ -211,9 +213,9 @@ function lineRow(l, week) {
     const packs = prod ? packsFor(l, prod) : null;
     if (packs?.n)
         sub.push(`Auchan : ${packs.text}`);
-    const label = `${l.name}${l.form ? ` (${l.form})` : ''}`;
+    const label = `${l.name}${l.form ? ` (${l.form})` : ''}`, alert = l.done ? '' : lineAlert(S().settings.exclude, l.name);
     return `<li class="${l.done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="shopCheck" data-week="${week}" data-key="${esc(l.key)}" ${l.done ? 'checked' : ''} aria-label="${esc(label)} : pris"><span></span></label>
-    <button class="item-btn grow" data-a="line" data-week="${week}" data-key="${esc(l.key)}"><span class="grow"><span class="title">${esc(label)}</span><br><span class="sub">${esc(sub.filter(Boolean).join(' · '))}</span></span>
+    <button class="item-btn grow" data-a="line" data-week="${week}" data-key="${esc(l.key)}"><span class="grow"><span class="title">${esc(label)}</span><br>${alert ? `<span class="sub alert">⚠️ ${esc(alert)}</span><br>` : ''}<span class="sub">${esc(sub.filter(Boolean).join(' · '))}</span></span>
     <span class="qty">${esc(l.done && !l.check?.delta ? '' : qty || (l.unknown.length ? '?' : ''))}</span></button></div></li>`;
 }
 export function shopView() {
@@ -338,6 +340,8 @@ function settingsView() {
     <section class="card stack"><h2>Propositions de repas</h2>
       <div class="seg" role="radiogroup" aria-label="Nouveautés dans les propositions">${VARIETIES.map(v => `<label><input type="radio" name="variety" value="${v}" data-c="varietySet" ${(s.settings.variety ?? 'max') === v ? 'checked' : ''}>${VARIETY_TEXT[v]}</label>`).join('')}</div>
       <p class="small muted">Maximum : une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite. Toujours : jamais deux fois le même plat dans la semaine, pas un plat déjà prévu à moins de 2 semaines s'il reste autre chose, pas deux plats du même genre.</p></section>
+    <section class="card stack"><h2>Allergies et refus</h2><p>${esc(exclusionsSummary(s.settings.exclude))}</p>
+      <button class="btn ghost" data-a="allergies">${s.settings.exclude?.allergens.length || s.settings.exclude?.foods.length ? 'Changer' : 'Indiquer des allergies ou des refus'}</button></section>
     <section class="card stack"><h2>Décisions automatiques</h2><p>${esc(decisionsSummary())}</p>
       <p class="small muted">Décidées une fois : Aujourd'hui ne montre ensuite que ce qu'aucune règle ne tranche.</p><button class="btn ghost" data-a="decisions">Voir et changer</button></section>
     ${ritualSection()}

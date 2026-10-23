@@ -1,7 +1,7 @@
 // Rituel batch : réglage (jours et heures), feuille du batch (plats, boîtes J+n, mise en place commune, « c'est prêt »),
 // cartes d'Aujourd'hui (jour des courses, jour du batch) et budget de la semaine.
 import { addDays, fmtDay, fmtDayShort, fmtSlot, fmtRelDay, parseSlot, daysBetween } from '../../core/dates.js';
-import { current } from '../../core/model.js';
+import { current, MAX_CENTS } from '../../core/model.js';
 import { DEFAULT_RITUAL, ANSES_FROID, batchView, batchDrafts, batchDayFor, defaultIn, miseEnPlace, sharedIngredients, batchStreak, batchOrder, hm, weekRange } from '../../core/batch.js';
 import { declarePrepared } from '../../core/commands.js';
 import { deriveShopping } from '../../core/shopping.js';
@@ -63,7 +63,7 @@ CHANGE['ritualSet'] = (d, el) => {
 };
 SUBMIT['budgetSet'] = data => {
     const c = parseEuros(String(data.get('eur') ?? ''));
-    if (!c) {
+    if (!c || c > MAX_CENTS) {
         toast('Montant non compris : par exemple 90 ou 92,50');
         return;
     }

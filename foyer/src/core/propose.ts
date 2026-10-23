@@ -15,6 +15,7 @@ import { defaultIn, lastWeekday } from './batch.ts';
 import { dishType } from './visual.ts';
 import { type Running, weekBalance, running, balanceBonus, addToRunning } from './balance.ts';
 import { weekOf } from './dates.ts';
+import { dishBlocked } from './allergens.ts';
 
 export type ProposedDish =
   | { kind: 'cook'; recipe: string; extra: number }
@@ -35,7 +36,7 @@ export function lastPlanned(s: State): Map<string, LocalDate> {
   return m;
 }
 
-export interface Ranked { recipe: string; name: string; score: number; reason: string }
+export interface Ranked { recipe: string; name: string; score: number; reason: string; blocked?: string } // blocked : « contient arachides »
 
 // Aucune redondance : un plat prévu à moins de 2 semaines (avant ou après) n'est pas reproposé tant qu'il reste autre chose.
 export const NO_REPEAT = 13;
@@ -56,6 +57,7 @@ export interface RankOpts {
   noRepeat?: boolean;                    // écarter les plats prévus à moins de NO_REPEAT jours
   types?: ReadonlyMap<string, number>;   // types de plats déjà dans la semaine : on varie
   run?: Running;                         // repères d'équilibre de la semaine (poisson, légumes secs, viande)
+  keepBlocked?: boolean;                 // choix à la main : garder les plats exclus (allergie, refus), en dernier et signalés
 }
 const typeOfRecipe = (s: State, id: string): string | null => { const r = s.recipes[id]; if (!r) return null; const c = current(r); return dishType(c.name, c.ingredients.map(l => l.name)); };
 
@@ -116,6 +118,8 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
     if (r.archived || exclude.has(r.id)) continue;
     if (opts.noRepeat && (dates.get(r.id) ?? []).some(d => Math.abs(daysBetween(d, p.date)) <= NO_REPEAT)) continue;
     const c = current(r);
+    const no = dishBlocked(s.settings.exclude, c.ingredients.map(l => l.name));
+    if (no && !opts.keepBlocked) continue; // allergie ou refus du foyer : jamais proposé
     const tags = new Set(c.tags);
     const seen = last.get(r.id);
     const since = seen ? daysBetween(seen, today) : null;
@@ -145,7 +149,7 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
     if (main && neighbourMains.has(main)) score -= 15;
     if (since !== null && Math.abs(since) < 4) score -= 30; // pas deux fois en quelques jours
     why.push(since === null ? 'jamais encore au menu' : since < 0 ? `déjà prévu ${fmtDayShort(seen as string)}` : since === 0 ? 'prévu aujourd\'hui' : `pas au menu depuis ${since} j`);
-    out.push({ recipe: r.id, name: c.name, score, reason: why.join(' · ') });
+    out.push({ recipe: r.id, name: c.name, score: no ? score - 1000 : score, reason: why.join(' · '), ...(no ? { blocked: `${no.why} (${no.name.toLowerCase()})` } : {}) });
   }
   return out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr') || (a.recipe < b.recipe ? -1 : 1));
 }

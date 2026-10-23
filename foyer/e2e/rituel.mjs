@@ -42,6 +42,7 @@ await step('foyer créé (samedi)', async () => {
   await page.getByText('le midi en boîte').click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   for (const c of ['Curry de poulet', 'Lasagnes', 'Chili con carne', 'Soupe de légumes', 'Gratin dauphinois']) await page.getByRole('button', { name: c, exact: true }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click(); // budget et allergies : facultatifs
   await page.getByRole('button', { name: /Créer le foyer avec 5 plats/ }).click();
   await page.getByRole('heading', { name: 'Semaine', level: 1 }).waitFor();
   // Deux recettes complètes : de quoi calculer courses, mise en place commune et ingrédients partagés.

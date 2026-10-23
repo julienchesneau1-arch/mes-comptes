@@ -41,6 +41,7 @@ await step('foyer créé, menu de la semaine avec oignons, tomates et pâtes', a
   await page.getByText('le midi en boîte').click();
   await page.getByRole('button', { name: 'Continuer' }).click();
   for (const c of ['Curry de poulet', 'Lasagnes', 'Chili con carne', 'Soupe de légumes', 'Gratin dauphinois']) await page.getByRole('button', { name: c, exact: true }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click(); // budget et allergies : facultatifs
   await page.getByRole('button', { name: /Créer le foyer avec 5 plats/ }).click();
   await page.getByRole('heading', { name: 'Semaine', level: 1 }).waitFor();
   await page.getByRole('link', { name: 'Maison', exact: true }).click();

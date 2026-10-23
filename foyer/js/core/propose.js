@@ -14,6 +14,7 @@ import { defaultIn, lastWeekday } from './batch.js';
 import { dishType } from './visual.js';
 import { weekBalance, running, balanceBonus, addToRunning } from './balance.js';
 import { weekOf } from './dates.js';
+import { dishBlocked } from './allergens.js';
 export const TAGS = ['rapide', 'week-end', 'favori', 'plat entier', 'placard', 'végétarien', 'batch'];
 // Dernier jour où chaque plat a été prévu (cuisiné).
 export function lastPlanned(s) {
@@ -110,6 +111,9 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
         if (opts.noRepeat && (dates.get(r.id) ?? []).some(d => Math.abs(daysBetween(d, p.date)) <= NO_REPEAT))
             continue;
         const c = current(r);
+        const no = dishBlocked(s.settings.exclude, c.ingredients.map(l => l.name));
+        if (no && !opts.keepBlocked)
+            continue; // allergie ou refus du foyer : jamais proposé
         const tags = new Set(c.tags);
         const seen = last.get(r.id);
         const since = seen ? daysBetween(seen, today) : null;
@@ -168,7 +172,7 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
         if (since !== null && Math.abs(since) < 4)
             score -= 30; // pas deux fois en quelques jours
         why.push(since === null ? 'jamais encore au menu' : since < 0 ? `déjà prévu ${fmtDayShort(seen)}` : since === 0 ? 'prévu aujourd\'hui' : `pas au menu depuis ${since} j`);
-        out.push({ recipe: r.id, name: c.name, score, reason: why.join(' · ') });
+        out.push({ recipe: r.id, name: c.name, score: no ? score - 1000 : score, reason: why.join(' · '), ...(no ? { blocked: `${no.why} (${no.name.toLowerCase()})` } : {}) });
     }
     return out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr') || (a.recipe < b.recipe ? -1 : 1));
 }

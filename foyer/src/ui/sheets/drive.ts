@@ -5,11 +5,13 @@ import { type LocalDate, addDays, parseSlot, weekday, fmtDayShort } from '../../
 import type { Draft } from '../../core/reduce.ts';
 import type { Product } from '../../core/model.ts';
 import { deriveShopping, checkSig } from '../../core/shopping.ts';
-import { lineCost, cartEstimate, cartText, coverText } from '../../core/budget.ts';
+import { lineCost, cartEstimate, cartText, coverText, calibration } from '../../core/budget.ts';
 import { monthText, perText } from '../../core/refprice.ts';
 import { type Product as Offer, groupFor, productOf, VALUE_POINT } from '../../core/products.ts';
 import { DRIVE_HOME, driveItems, cartChanges, type CartChange, productLink, parseSize, sizeDraft, sizeText, searchUrl, type DriveItem } from '../../core/drive.ts';
 import { eur } from '../../core/money.ts';
+import { lineAlert } from '../../core/allergens.ts';
+import { capitalize } from '../../core/text.ts';
 import { S, dispatch } from '../state.ts';
 import { openSheet, sheetHead, esc, toast, refreshSheet } from '../dom.ts';
 import { CLICK, SUBMIT } from '../registry.ts';
@@ -27,7 +29,8 @@ function costLine(week: LocalDate, it: DriveItem): string {
   if (!c) return '';
   if (c.how === 'facture' && c.paid) return `<p class="small muted">≈ ${esc(eur(c.cents))} au prix payé le ${esc(dateText(c.paid.day))} (facture du drive) : ${esc(eur(c.paid.cents))}${c.paid.loose ? ' le kg' : ''}</p>`;
   if (c.how === 'relevé' && c.product?.price && c.group) return `<p class="small muted">≈ ${esc(eur(c.cents))} au prix relevé du produit conseillé (${esc(eur(c.product.price.perCents))} ${perText(c.group)})</p>`;
-  return c.ref ? `<p class="small muted">≈ ${esc(eur(c.cents))} · prix moyen Insee ${esc(c.ref.label.toLowerCase())} : ${esc(eur(c.ref.cents))} ${perText(c.ref)} (${esc(monthText(c.ref.period))})</p>`
+  const f = calibration(S()).factor;
+  return c.ref ? `<p class="small muted">≈ ${esc(eur(c.cents))} · prix moyen Insee ${esc(c.ref.label.toLowerCase())} : ${esc(eur(c.ref.cents))} ${perText(c.ref)} (${esc(monthText(c.ref.period))})${f && f !== 1 ? `, × ${esc(String(f).replace('.', ','))} d'après vos factures` : ''}</p>`
     : `<p class="small muted">≈ ${esc(eur(c.cents))} (prix noté sur le produit retenu)</p>`;
 }
 
@@ -87,6 +90,7 @@ function driveHtml(week: LocalDate): string {
   <section class="card stack" aria-live="polite">
     <p class="small muted">Article ${addedNow + items.length - todo.length + 1} sur ${addedNow + items.length}${skipped.size ? ` · ${skipped.size} passé${skipped.size > 1 ? 's' : ''}` : ''}</p>
     <h3>${esc(cur.name)}</h3>
+    ${lineAlert(S().settings.exclude, cur.name) ? `<p class="banner partial">⚠️ ${esc(capitalize(lineAlert(S().settings.exclude, cur.name)))} : lisez la composition sur la fiche Auchan avant d'ajouter.</p>` : ''}
     ${cur.qty ? `<p>Besoin : <strong>${esc(cur.qty)}</strong></p>` : ''}
     ${cur.product ? `<p>Produit retenu : ${esc(cur.product.label)}</p>${packsLine(cur)}`
       : cur.paid ? `<p>Déjà acheté : <strong>${esc(cur.paid.label)}</strong></p>${packsLine(cur)}<p class="small muted">La recherche Auchan s'ouvre sur ce produit.</p>`

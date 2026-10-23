@@ -6,6 +6,7 @@ import type { IngredientLine } from './ingredients.ts';
 import { AISLE } from './ingredients.ts';
 import { UNIT } from './units.ts';
 import { qFrom } from './rational.ts';
+import { type Exclusions, isAllergen, MAX_FOODS } from './allergens.ts';
 
 export type MemberId = string;
 export type Presence = 'maison' | 'boite' | 'dehors'; // boîte = mange un plat de la maison, emporté
@@ -20,6 +21,7 @@ export interface Settings {
   budget?: number | null;        // budget courses par semaine, en centimes, choisi par le foyer
   variety?: Variety;             // part de recettes nouvelles dans les propositions (absent = « max »)
   leftovers?: LeftoverRule;      // règle par défaut des restes (absent = « auto »)
+  exclude?: Exclusions;          // allergies et refus du foyer : jamais proposés (absent = rien d'exclu)
 }
 // Restes libres : « auto » = le prochain déjeuner libre est proposé d'office (un toucher pour confirmer, posé tout seul dans une
 // semaine générée) ; « suggest » = des créneaux proposés ; « manual » = rien n'est signalé.
@@ -100,7 +102,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule; exclude?: Exclusions };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -134,9 +136,9 @@ export interface Payloads {
   'watch.save': { id: string; name: string; qty: string; date: DateDecl | null; state: ItemState; slot: SlotKey | null };
   'watch.close': { id: string; outcome: 'utilise' | 'jete' };
   'conflict.ack': { event: string };
-  'exc.snooze': { key: string; until: string };
+  'exc.snooze': { key: string; until: string };             // « plus tard » sur une exception, par personne, 24 h au plus
   'week.draft': { week: LocalDate; items: DraftItem[] };   // remplace le brouillon de la semaine (14 repas au plus)
-  'week.discard': { week: LocalDate };                     // approuvé ou abandonné   // « plus tard » sur une exception, par personne, 24 h au plus
+  'week.discard': { week: LocalDate };                     // approuvé ou abandonné
   'undo': { event: string };
 }
 export type EventType = keyof Payloads;
@@ -179,6 +181,12 @@ const isHHMM = (v: unknown): v is string => typeof v === 'string' && /^([01]\d|2
 export const validRitual = (v: unknown): v is Ritual => isObj(v) && int(v['shop'], 0, 6) && int(v['cook'], 0, 6) && isHHMM(v['shopAt']) && isHHMM(v['cookAt']);
 const optRitual = (v: unknown): boolean => v === undefined || v === null || validRitual(v);
 const optCents = (v: unknown, hi: number): boolean => v === undefined || v === null || int(v, 1, hi);
+const FOOD_RE = /^[^\u0000-\u001f,;]{1,40}$/;
+export const validExclusions = (v: unknown): v is Exclusions => isObj(v) && Array.isArray(v['allergens']) && v['allergens'].length <= 14
+  && new Set(v['allergens']).size === v['allergens'].length && v['allergens'].every(isAllergen)
+  && Array.isArray(v['foods']) && v['foods'].length <= MAX_FOODS && new Set(v['foods']).size === v['foods'].length
+  && v['foods'].every(f => typeof f === 'string' && FOOD_RE.test(f) && f.trim() === f);
+const optExclusions = (v: unknown): boolean => v === undefined || validExclusions(v);
 export const MAX_CENTS = 1_000_000; // 10 000 € : borne de saisie
 
 function validMembers(v: unknown): v is Member[] {
@@ -197,7 +205,7 @@ const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.len
 function validSettings(v: unknown): v is Settings {
   return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
     && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
-    && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers']));
+    && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']);
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -241,7 +249,7 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
     && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
     && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
-    && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])),
+    && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude']),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -317,8 +325,8 @@ export interface State {
   tasks: Record<string, Mark & { done: boolean }>;
   acked: Set<string>;
   snooze: Record<string, string>;          // « personne|clé d'exception » → masquée jusqu'à (instant ISO)
-  snoozed: Record<string, number>;
-  drafts: Record<LocalDate, WeekDraft>;    // semaines générées en attente d'approbation         // code d'exception → nombre de « plus tard » (3 et plus : proposer une règle)
+  snoozed: Record<string, number>;         // code d'exception → nombre de « plus tard » (3 et plus : proposer une règle)
+  drafts: Record<LocalDate, WeekDraft>;    // semaines générées en attente d'approbation
 }
 
 export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Presence, weekendMidi: Presence = 'maison'): RhythmDay[] =>

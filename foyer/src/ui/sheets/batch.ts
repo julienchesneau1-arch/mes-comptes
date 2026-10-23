@@ -1,7 +1,7 @@
 // Rituel batch : réglage (jours et heures), feuille du batch (plats, boîtes J+n, mise en place commune, « c'est prêt »),
 // cartes d'Aujourd'hui (jour des courses, jour du batch) et budget de la semaine.
 import { type LocalDate, addDays, fmtDay, fmtDayShort, fmtSlot, fmtRelDay, parseSlot, daysBetween } from '../../core/dates.ts';
-import { type Ritual, current } from '../../core/model.ts';
+import { type Ritual, current, MAX_CENTS } from '../../core/model.ts';
 import { type BatchDish, type RitualNow, DEFAULT_RITUAL, ANSES_FROID, batchView, batchDrafts, batchDayFor, defaultIn, miseEnPlace, sharedIngredients, batchStreak, batchOrder, hm, weekRange } from '../../core/batch.ts';
 import { declarePrepared } from '../../core/commands.ts';
 import { deriveShopping } from '../../core/shopping.ts';
@@ -63,7 +63,7 @@ CHANGE['ritualSet'] = (d, el) => {
 };
 SUBMIT['budgetSet'] = data => {
   const c = parseEuros(String(data.get('eur') ?? ''));
-  if (!c) { toast('Montant non compris : par exemple 90 ou 92,50'); return; }
+  if (!c || c > MAX_CENTS) { toast('Montant non compris : par exemple 90 ou 92,50'); return; }
   dispatch([{ t: 'settings.set', p: { budget: c } }], { toast: `Budget : ${eur(c)} par semaine` });
 };
 CLICK['budgetOff'] = () => dispatch([{ t: 'settings.set', p: { budget: null } }], { toast: 'Budget retiré' });

@@ -9,7 +9,7 @@ import { ingredientKey } from './ingredients.ts';
 import { toPrepare, servings } from './plan.ts';
 import { type Q, cmp, mul, q, qFrom, ZERO } from './rational.ts';
 import { UNIT, toBase } from './units.ts';
-import { type Ref, refFor, refCost } from './refprice.ts';
+import { type Ref, type RefPrices, refFor, refCost, refPrices } from './refprice.ts';
 import { type Group, type Product, groupFor, productOf } from './products.ts';
 import { nameKey } from './text.ts';
 
@@ -31,6 +31,47 @@ export const isSeasoning = (name: string): boolean => {
 };
 
 export interface LineCost { cents: number; how: 'facture' | 'noté' | 'relevé' | 'référence'; ref: Ref | null; group: Group | null; product: Product | null; qty: Q | null; paid: Paid | null }
+
+/* ---------- Calage sur vos factures (Pimzi cale ses prix par enseigne ; Foyer, sur vos propres achats) ---------- */
+
+// Pour chaque article payé dont l'Insee publie aussi un prix moyen (même unité : kg, litre ou pièce) : prix payé ÷ prix Insee.
+// La médiane de ces rapports corrige les seules estimations Insee (« référence ») ; les prix payés, notés ou relevés restent tels quels.
+// Moins de 5 articles comparables : rien n'est corrigé. Facteur borné entre 0,5 et 2 (un rapprochement erroné ne fait pas tout dérailler).
+export interface Calibration { factor: number | null; n: number; low: number | null; high: number | null }
+export const CALIB_MIN = 5;
+export const CALIB_BOUNDS = [0.5, 2] as const;
+function paidPerRef(pd: Paid, ref: Ref): number | null {
+  if (pd.loose) return (pd.unit === 'kg' && ref.per === 'kg') || (pd.unit === 'l' && ref.per === 'l') ? pd.cents : null;
+  const u = pd.unit ? UNIT[pd.unit] : undefined, size = pd.size ? qFrom(pd.size) : null;
+  if (!u || !size || size.n <= 0) return null;
+  const b = toBase(size, u), base = b.n / b.d;
+  if ((ref.per === 'kg' && u.dim === 'masse') || (ref.per === 'l' && u.dim === 'volume')) return pd.cents * 1000 / base;
+  return ref.per === 'piece' && u.dim === 'piece' ? pd.cents / base : null;
+}
+const CALIB = new WeakMap<State, { refs: RefPrices | null; cal: Calibration }>();
+export function calibration(s: State): Calibration {
+  const refs = refPrices(), hit = CALIB.get(s);
+  if (hit && hit.refs === refs) return hit.cal;
+  const ratios: number[] = [];
+  for (const [key, pd] of Object.entries(s.paid)) {
+    if (key.includes('|')) continue; // surgelé, en conserve… : pas le produit frais que relève l'Insee
+    const ref = refFor(key), per = ref ? paidPerRef(pd, ref) : null;
+    if (ref && per) ratios.push(per / ref.cents);
+  }
+  ratios.sort((a, b) => a - b);
+  const n = ratios.length, mid = n % 2 ? ratios[(n - 1) / 2] as number : ((ratios[n / 2 - 1] ?? 0) + (ratios[n / 2] ?? 0)) / 2;
+  const cal: Calibration = { factor: n >= CALIB_MIN ? Math.min(CALIB_BOUNDS[1], Math.max(CALIB_BOUNDS[0], Math.round(mid * 100) / 100)) : null, n,
+    low: n ? ratios[0] as number : null, high: n ? ratios[n - 1] as number : null };
+  CALIB.set(s, { refs, cal });
+  return cal;
+}
+// « Estimations Insee calées sur vos factures : −8 % (médiane de 7 articles) ».
+export function calibrationText(c: Calibration): string {
+  if (c.factor === null) return c.n ? `Calage sur vos factures : ${c.n} article${c.n > 1 ? 's' : ''} comparable${c.n > 1 ? 's' : ''} sur ${CALIB_MIN} nécessaires.` : '';
+  const pct = Math.round((c.factor - 1) * 100);
+  return `Estimations Insee calées sur vos factures : ${pct === 0 ? 'au même niveau' : `${pct > 0 ? '+' : '−'}${Math.abs(pct)} %`} (médiane de ${c.n} articles payés comparés au prix moyen Insee).`;
+}
+const calibrated = (s: State, cents: number): number => { const f = calibration(s).factor; return f ? Math.round(cents * f) : cents; };
 
 // Au prix payé sur la dernière facture : au poids (prix au kg × quantité exacte) ou en articles entiers de la contenance achetée.
 // Contenance inconnue ou d'une autre dimension que le besoin : pas de montant (on ne devine pas combien en prendre).
@@ -63,7 +104,7 @@ export function lineCost(s: State, l: ShopLine): LineCost | null {
   const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, l.dim, qty) : null;
   if (seen !== null) return { cents: seen, how: 'relevé', ref: null, group: g, product: adv, qty, paid: null };
   const ref = refFor(l.name), cents = ref ? refCost(ref, l.dim, qty) : null;
-  return ref && cents !== null ? { cents, how: 'référence', ref, group: g, product: null, qty, paid: null } : null;
+  return ref && cents !== null ? { cents: calibrated(s, cents), how: 'référence', ref, group: g, product: null, qty, paid: null } : null;
 }
 
 /* ---------- Coût d'un plat (proposition de la semaine, coût par portion) ---------- */
@@ -86,8 +127,8 @@ export function unitCost(s: State, name: string, form: string | null, dim: strin
   const g = groupFor(name), adv = g ? productOf(g, g.value ?? g.cheap) : null;
   const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, dim, qty) : null;
   if (seen !== null) return seen;
-  const ref = refFor(name);
-  return ref ? refCost(ref, dim, qty) : null;
+  const ref = refFor(name), cents = ref ? refCost(ref, dim, qty) : null;
+  return cents === null ? null : calibrated(s, cents);
 }
 export interface DishCost { cents: number; priced: number; unpriced: number; perPortion: number | null; partial: boolean; reliable: boolean }
 // Coût d'un plat pour n portions ; null si le rendement de la recette n'est pas renseigné (pas de quantités à calculer).

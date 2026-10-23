@@ -16,6 +16,7 @@ import { openSheet, sheetHead, closeSheet, esc, toast } from '../dom.ts';
 import { CLICK, CHANGE, SUBMIT, INPUT, num } from '../registry.ts';
 import { setLeftovers } from '../../core/commands.ts';
 import { productSection, adviceHtml } from './drive.ts';
+import { lineAlert } from '../../core/allergens.ts';
 
 const when = (iso: string): string => { const p = paris(new Date(iso)); return `${fmtDayShort(p.date)} ${String(p.hour).padStart(2, '0')} h ${String(p.minute).padStart(2, '0')}`; };
 
@@ -36,6 +37,7 @@ function lineHtml(week: LocalDate, key: string): string {
     <ul class="parsed">${explain(l).map(x => `<li>${esc(x)}</li>`).join('')}</ul>
     ${l.unknown.length ? `<div class="actions">${[...new Set(l.unknown.map(u => u.recipe))].map(id => `<button class="btn small-btn ghost" data-a="recipe" data-id="${id}">Compléter ${esc(l.unknown.find(u => u.recipe === id)?.recipeName ?? '')}</button>`).join('')}</div>` : ''}
   </section>
+  ${lineAlert(S().settings.exclude, l.name) ? `<p class="banner partial">⚠️ ${esc(capitalize(lineAlert(S().settings.exclude, l.name)))}. La composition fait foi sur l'étiquette du produit.</p>` : ''}
   ${adviceHtml(l.name) ? `<section class="card stack">${adviceHtml(l.name)}</section>` : ''}
   <section class="card stack"><h3 class="section-title">On en a déjà ?</h3>
     <p class="small muted">Vérification ponctuelle pour ces repas, pas un stock : elle ne dit pas ce qui restera demain, et ne vaut pas pour une autre semaine.</p>

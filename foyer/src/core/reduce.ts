@@ -86,6 +86,7 @@ function apply(s: State, e: AnyEv): void {
       if (e.p.budget !== undefined) s.settings.budget = e.p.budget;
       if (e.p.variety !== undefined) s.settings.variety = e.p.variety;
       if (e.p.leftovers !== undefined) s.settings.leftovers = e.p.leftovers;
+      if (e.p.exclude !== undefined) s.settings.exclude = { allergens: [...e.p.exclude.allergens], foods: [...e.p.exclude.foods] };
       return;
     }
     case 'recipe.save': {

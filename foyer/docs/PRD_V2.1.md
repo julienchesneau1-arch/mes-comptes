@@ -277,4 +277,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Budget d'abord (Pimzi) | Plats chers remplacés d'office quand le prix est bien connu ; sinon le dépassement est dit, jamais un prix inventé |
 | À deux | Le menu proposé attend sur les deux téléphones ; un repas rempli entre-temps n'est jamais écrasé |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.3 incluses).
+## 20. V3.4 — ce que Pimzi fait de mieux, sans rien deviner (23 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Allergies et refus | 14 allergènes réglementaires et des aliments refusés : jamais proposés ; produits transformés signalés « étiquette à vérifier ». Lecture du nom, pas un avis médical |
+| Prix calés sur nos achats | Estimations Insee corrigées par la médiane de nos factures (5 articles comparables au moins), dit en clair |
+| Budget dès le départ | Budget et allergies demandés à la création du foyer, facultatifs |
+| Pas de double achat | Le reste d'un paquet de la semaine précédente est proposé « déjà au placard ? », jamais déduit sans réponse |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.4 incluses).
