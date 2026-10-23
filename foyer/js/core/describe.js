@@ -44,6 +44,7 @@ export function describeEvent(s, e) {
         case 'watch.save': return `surveiller ${e.p.name}`;
         case 'watch.close': return 'retirer un produit surveillé';
         case 'conflict.ack': return 'marquer un conflit comme vu';
+        case 'exc.snooze': return 'remettre une question à plus tard';
         case 'undo': return 'annuler une action';
     }
 }

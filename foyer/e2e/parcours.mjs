@@ -16,7 +16,9 @@ await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
 });
 // Agenda : la fonction foyer-agenda est simulée (événements de demain et après-demain, heures de Paris) ; on vérifie ce que l'app envoie.
 const { paris, parisToUtc, addDays } = await import('../js/core/dates.js');
-const today = paris(new Date()).date, d1 = addDays(today, 1), d2 = addDays(today, 2);
+// Horloge figée (vendredi 9 octobre 2026, 10 h à Paris) : l'agenda lit 31 jours, un jour férié entrant dans la fenêtre changerait le résultat.
+const NOW = new Date('2026-10-09T08:00:00Z');
+const today = paris(NOW).date, d1 = addDays(today, 1), d2 = addDays(today, 2);
 const OCC = [
   { id: '00000000000000f1', title: 'Foot', allDay: false, start: parisToUtc(d1, '1930').getTime(), end: parisToUtc(d1, '2130').getTime(), days: null, busy: true, recurring: true, tzGuess: false },
   { id: '00000000000000f2', title: 'Déjeuner client', allDay: false, start: parisToUtc(d2, '1230').getTime(), end: parisToUtc(d2, '1400').getTime(), days: null, busy: true, recurring: false, tzGuess: false },
@@ -33,6 +35,7 @@ const CATALOGUE = readFileSync(new globalThis.URL('./catalogue-essai.json', impo
 await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: CATALOGUE }));
 const page = await ctx.newPage();
 page.setDefaultTimeout(6000);
+await page.clock.setFixedTime(NOW);
 const errors = [];
 page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
 page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));

@@ -7,6 +7,7 @@ class Reject extends Error {
     severity;
     constructor(reason, severity = 'conflict') { super(reason); this.severity = severity; }
 }
+export const SNOOZE_MAX_MS = 24 * 3600e3;
 function noop(why) { throw new Reject(why, 'noop'); }
 function conflict(why) { throw new Reject(why, 'conflict'); }
 // Ordre commun : horloge logique, puis appareil, puis identifiant. Indépendant de l'ordre de réception.
@@ -97,6 +98,8 @@ function apply(s, e) {
                 s.settings.budget = e.p.budget;
             if (e.p.variety !== undefined)
                 s.settings.variety = e.p.variety;
+            if (e.p.leftovers !== undefined)
+                s.settings.leftovers = e.p.leftovers;
             return;
         }
         case 'recipe.save': {
@@ -458,6 +461,20 @@ function apply(s, e) {
             if (w.closed)
                 noop('déjà retiré');
             w.closed = e.p.outcome;
+            return;
+        }
+        case 'exc.snooze': {
+            // Jamais plus de 24 h : au-delà, l'exception revient (une règle par défaut se décide, elle ne s'oublie pas).
+            const until = Math.min(Date.parse(e.p.until), Date.parse(e.at) + SNOOZE_MAX_MS);
+            if (until <= Date.parse(e.at))
+                noop('déjà passé');
+            const who = e.by ?? '-';
+            for (const [k, v] of Object.entries(s.snooze))
+                if (Date.parse(v) <= Date.parse(e.at))
+                    delete s.snooze[k]; // les échus ne s'accumulent pas
+            s.snooze[`${who}|${e.p.key}`] = new Date(until).toISOString();
+            const code = e.p.key.slice(0, e.p.key.indexOf(':'));
+            s.snoozed[code] = (s.snoozed[code] ?? 0) + 1;
             return;
         }
         case 'conflict.ack': {

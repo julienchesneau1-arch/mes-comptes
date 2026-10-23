@@ -53,7 +53,7 @@ function rhythmHtml() {
     ${['midi', 'soir'].map(sl => s.members.map(m => `<div class="person"><span>${sl === 'midi' ? 'Midi' : 'Soir'} · ${esc(m.name)}</span><div class="seg" role="radiogroup" aria-label="${DAYS[i]} ${sl}, ${esc(m.name)}">
       ${['maison', 'boite', 'dehors'].map(p => `<label><input type="radio" name="rh-${i}-${sl}-${m.id}" value="${p}" data-c="rhSet" data-day="${i}" data-sl="${sl}" data-m="${m.id}" ${(d[sl][m.id] ?? 'maison') === p ? 'checked' : ''}>${PRES[p]}</label>`).join('')}</div></div>`).join('')).join('')}
   </div></details>`).join('')}
-  <label class="item"><input type="checkbox" data-c="boxes" ${s.settings.boxesFromDinner ? 'checked' : ''}><span>Les boîtes du midi viennent du dîner de la veille (proposition automatique, toujours à valider)</span></label>
+  <p class="small muted">Boîtes du midi et restes : Réglages › Décisions automatiques.</p>
   <label class="field">La semaine commence le<select data-c="weekStart">${DAYS.map((d, i) => `<option value="${i}" ${s.settings.weekStart === i ? 'selected' : ''}>${d.toLowerCase()}</option>`).join('')}</select></label>
   <button class="btn" data-a="rhSave">Enregistrer le rythme</button>`;
 }

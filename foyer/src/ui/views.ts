@@ -1,5 +1,5 @@
 // Les quatre écrans : Aujourd'hui, Semaine, Courses, Maison. HTML calculé depuis l'état ; tout texte est échappé.
-import { type LocalDate, type SlotKey, addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, weekOf, fmtSlot, paris } from '../core/dates.ts';
+import { type LocalDate, type SlotKey, addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, fmtSlot, paris } from '../core/dates.ts';
 import { current } from '../core/model.ts';
 import { deriveToday } from '../core/today.ts';
 import { slotView, STATUS_LABEL, prepTitle, capital, type SlotView } from '../core/status.ts';
@@ -21,12 +21,12 @@ import { agendaSection } from './sheets/agenda.ts';
 import { guideCard } from './sheets/help.ts';
 import { ritualCard, ritualPromo, weekBatchButton, ritualSection } from './sheets/batch.ts';
 import { budgetCard, reportView } from './sheets/budget.ts';
-import { weekRange } from '../core/batch.ts';
 import { weekBalance, TARGET, SOURCES } from '../core/balance.ts';
 import { VARIETIES, type Variety } from '../core/model.ts';
 import { RELAY } from './config.ts';
 import { openLine } from './sheets/shop.ts';
 import { cartChangesCard, shopWeekFor } from './sheets/drive.ts';
+import { reglerSection, decisionsSummary } from './sheets/decisions.ts';
 import { packsFor } from '../core/drive.ts';
 import { ingredientKey } from '../core/ingredients.ts';
 import { dishLook, type Look } from '../core/visual.ts';
@@ -101,16 +101,8 @@ export function todayView(): string {
       ${t.tasks.every(x => x.done) ? '<p class="small muted">Aucune autre tâche enregistrée aujourd\'hui.</p>' : ''}</section>` : '';
   const toBuy = t.toBuy.length ? `<section class="card" aria-labelledby="buy-h"><h2 id="buy-h">Pas encore acheté</h2>${t.toBuy.map(x => `<p><strong>${esc(x.label)} :</strong> ${esc(x.names.join(', '))}</p>`).join('')}
       <a class="btn ghost" href="#courses">Voir les courses</a></section>` : '';
-  const checks = t.checks.length ? `<section class="card" aria-labelledby="chk-h"><h2 id="chk-h">À vérifier</h2><ul class="list">${t.checks.map(p => `<li><div class="item">
-      <span class="chip ${p.level}">${p.level === 'conflit' ? 'À résoudre' : p.level === 'attention' ? 'Attention' : 'À compléter'}</span><span class="grow">${esc(p.text)}</span>
-      ${p.event ? `<button class="btn small-btn ghost" data-a="ack" data-id="${p.event}">Vu</button>` : p.slot ? `<button class="btn small-btn ghost" data-a="slot" data-k="${p.slot}">Ouvrir</button>` : p.watch ? `<button class="btn small-btn ghost" data-a="watch" data-id="${p.watch}">Ouvrir</button>` : ''}</div></li>`).join('')}</ul></section>` : '';
-  // À décider : chaque bouton dit pour quels jours ; rien de ce que la carte du rituel propose déjà.
-  const nextWeek = addDays(weekOf(t.date, s.settings.weekStart), 7);
-  const ritualMenu = !!t.ritual && (t.ritual.kind === 'menu' || t.ritual.kind === 'choose' || (t.ritual.kind === 'courses' && t.ritual.menuEmpty));
-  const showNext = t.nextWeekEmpty && !ritualMenu;
-  const plan = t.empty || showNext ? `<section class="card stack" aria-labelledby="plan-h"><h2 id="plan-h">À décider</h2>
-      ${t.empty ? `<p>${plural(t.empty, 'repas', 'repas')} sans plat d'ici dimanche.</p><button class="btn soft" data-a="propose">✨ Compléter cette semaine (${plural(t.empty, 'repas', 'repas')})</button>` : ''}
-      ${showNext ? `<p>La semaine prochaine est vide.</p><button class="btn soft" data-a="propose" data-week="${nextWeek}">✨ Choisir les repas ${esc(weekRange(nextWeek))}</button>` : ''}</section>` : '';
+  // À régler : conflits, repas sans personne, cuisson à confirmer, restes, repas à décider — une seule file, un toucher par carte.
+  const regler = reglerSection(t);
   const partnerJoined = A.log.some(e => e.dev !== A.device.dev);
   const sync = A.demo || s.members.length < 2 ? '' : autoOn()
     ? (partnerJoined || !A.device.code ? '' : `<div class="banner info"><p class="grow"><strong>${esc(otherNames())} n'a pas encore Foyer.</strong> Sur son téléphone : ouvrir Foyer → « L'autre téléphone a déjà Foyer » → taper le code <span class="kbd">${esc(fmtCode(A.device.code))}</span>. Ensuite, tout se synchronise seul.</p></div>`)
@@ -126,7 +118,7 @@ export function todayView(): string {
   const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
   return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
-    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${checks}${tasks}${toBuy}${plan}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
+    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
 }
 
 /* ---------- Semaine ---------- */
@@ -341,6 +333,8 @@ function settingsView(): string {
     <section class="card stack"><h2>Propositions de repas</h2>
       <div class="seg" role="radiogroup" aria-label="Nouveautés dans les propositions">${VARIETIES.map(v => `<label><input type="radio" name="variety" value="${v}" data-c="varietySet" ${(s.settings.variety ?? 'max') === v ? 'checked' : ''}>${VARIETY_TEXT[v]}</label>`).join('')}</div>
       <p class="small muted">Maximum : une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite. Toujours : jamais deux fois le même plat dans la semaine, pas un plat déjà prévu à moins de 2 semaines s'il reste autre chose, pas deux plats du même genre.</p></section>
+    <section class="card stack"><h2>Décisions automatiques</h2><p>${esc(decisionsSummary())}</p>
+      <p class="small muted">Décidées une fois : Aujourd'hui ne montre ensuite que ce qu'aucune règle ne tranche.</p><button class="btn ghost" data-a="decisions">Voir et changer</button></section>
     ${ritualSection()}
     ${agendaSection()}
     <section class="card stack"><h2>Affichage</h2><label class="field">Thème<select data-c="theme"><option value="auto" ${A.device.theme === 'auto' ? 'selected' : ''}>Comme le téléphone</option><option value="light" ${A.device.theme === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${A.device.theme === 'dark' ? 'selected' : ''}>Sombre</option></select></label>

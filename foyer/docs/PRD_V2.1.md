@@ -257,4 +257,16 @@ Demande : « avoir comme Jow tous les prix en direct des enseignes » ; choix du
 
 [DONNÉE_MANQUANTE] Format exact des factures Auchan : règles génériques en attendant la facture promise ; une copie anonymisée servira de test et calera la lecture.
 
-Fin du PRD V2.1 (révisions V2.2 à V3.1 incluses).
+## 18. V3.2 — on ne voit que des exceptions (23 octobre 2026)
+
+Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (specs du foyer), analyse de Pimzi.
+
+| Règle | Contenu |
+|---|---|
+| Une seule file | Aujourd'hui › « À régler » : 5 cartes au plus, un toucher par carte, triées par échéance puis gravité |
+| Règles décidées une fois | Réglages › Décisions automatiques ; une règle est un réglage rejoué et synchronisé |
+| Plus tard, pas jamais | 24 h au plus, par personne ; trois fois → proposer une règle |
+
+[ANOMALIE_LOGIQUE] La spec place la file unique dans Mes Comptes et y écrit des événements (`defaults.set`, `tx.set`) : Mes Comptes n'a pas de journal, et deux apps installées n'ont pas de stockage commun garanti. Décision du foyer (23 octobre) : chaque app sa liste. Mes Comptes reçoit ses deux exceptions dans sa liste d'actions existante (PR B).
+
+Fin du PRD V2.1 (révisions V2.2 à V3.2 incluses).

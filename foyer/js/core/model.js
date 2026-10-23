@@ -2,6 +2,8 @@ import { isDate, isSlotKey } from './dates.js';
 import { AISLE } from './ingredients.js';
 import { UNIT } from './units.js';
 import { qFrom } from './rational.js';
+export const LEFTOVER_RULES = ['auto', 'suggest', 'manual'];
+const isLeftoverRule = (v) => typeof v === 'string' && LEFTOVER_RULES.includes(v);
 export const VARIETIES = ['max', 'equilibre', 'mes-plats'];
 const isVariety = (v) => typeof v === 'string' && VARIETIES.includes(v);
 export const PRODUCT_URL_RE = /^https:\/\/www\.auchan\.fr\/[a-z0-9-]{1,200}\/pr-[A-Za-z0-9]{1,20}$/;
@@ -9,7 +11,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
     'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
-    'watch.close', 'conflict.ack', 'undo']);
+    'watch.close', 'conflict.ack', 'exc.snooze', 'undo']);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -52,7 +54,8 @@ export function validRhythm(v) {
 const validAisleOrder = (v) => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v) {
     return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
-        && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']));
+        && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
+        && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers']));
 }
 export function validIngredient(v) {
     if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120))
@@ -95,7 +98,7 @@ const P = {
     'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
         && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
         && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
-        && (p['variety'] === undefined || isVariety(p['variety'])),
+        && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])),
     'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
     'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
     'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -136,6 +139,7 @@ const P = {
         && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
     'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
     'conflict.ack': p => isId(p['event']),
+    'exc.snooze': p => typeof p['key'] === 'string' && /^[a-z]{2,12}:[^\u0000-\u001f]{1,100}$/.test(p['key']) && str(p['until'], 40, 10) && !Number.isNaN(Date.parse(p['until'])),
     'undo': p => isId(p['event']),
 };
 // Renvoie l'événement s'il est conforme, sinon null. Taille bornée : un lien reçu ne peut pas saturer le téléphone.
@@ -154,6 +158,6 @@ export const defaultRhythm = (ids, midi, soir, weekendMidi = 'maison') => Array.
 }));
 export const emptyState = () => ({
     hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
+    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {},
 });
 export const current = (r) => r.versions[r.versions.length - 1];
