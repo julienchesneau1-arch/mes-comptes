@@ -472,6 +472,7 @@ const monthName = m => new Date(m + '-15').toLocaleDateString('fr-FR', { month: 
 const dayName = d => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 const accName = a => (S.accounts[a] && S.accounts[a].name) || a;
 const nice = s => s.charAt(0) + s.slice(1).toLowerCase();
+const elide = w => (/^[aeiouyéèêh]/i.test(w) ? 'd\'' : 'de ') + w; // « d'alimentation », « de logement »
 const plural = (n, w) => `${n} ${w}${n > 1 && !/s$/.test(w) ? 's' : ''}`; // « mois » est invariable
 const potSaved = p => { const b = p.acc ? balanceOf(S, p.acc) : null; return b !== null ? b : p.moves.reduce((a, m) => a + m.amount, 0); };
 const lastDay = m => shiftMonth(m, 1) + '-01' > today() ? today() : new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 0)).toISOString().slice(0, 10);
@@ -904,6 +905,22 @@ function actionList(st) {
     body: (/^(VIR|VIREMENT|PRLV|ENVOI)\b|WERO/.test(norm(t0.label)) ? ['interne', 'epargne', 'enfants', 'cadeaux'] : QUICK.slice(0, 4)).map(c => `<button class="btn sm ghost" data-a="sortAs" data-id="${esc(t0.id)}" data-c="${c}">${cat(c).emoji} ${cat(c).name}</button>`).join('')
       + `<button class="btn sm ghost" data-a="opSheet" data-id="${esc(t0.id)}">Autre famille…</button>`
       + (toSort().length > 5 ? `<button class="btn sm ghost" data-a="goSort">Tout ranger par marchand (${toSort().length})</button>` : '') });
+
+  // Prévus échus : le relevé couvre ces jours-là et ne les montre pas. Un toucher : gardé, toujours attendu, ou retiré.
+  for (const t of overduePending(S, today()).filter(x => inAcc(V(), x.acc)).slice(0, 2)) L.push({ pri: 870, icon: '⏳', title: `${esc(nice(t.label))} du ${dayName(t.date)} n'apparaît pas`,
+    sub: `${eur(t.amount, 2)} prévus sur ${esc(accName(t.acc))} ; le relevé couvre ces jours-là. Il est passé ?`,
+    body: `${t.auto ? '' : `<button class="btn sm" data-a="pendKeep" data-id="${esc(t.id)}">Oui, payé autrement</button>`}<button class="btn sm${t.auto ? '' : ' ghost'}" data-a="pendLater" data-id="${esc(t.id)}">Toujours attendu</button><button class="btn sm ghost" data-a="pendDrop" data-id="${esc(t.id)}">Il n'aura pas lieu</button>` });
+
+  // Dépense commune payée en perso : une question, puis ce que le compte commun doit à chacun jusqu'au virement.
+  if (ui.who !== 'commun') {
+    const sh = personalShared(S, ui.month).filter(t => inAcc(V(), t.acc)), s0 = sh[0];
+    if (s0) L.push({ pri: 760, icon: '🤝', title: `${eur(-s0.amount, 2)} ${esc(elide(cat(s0.cat).name.toLowerCase()))} sur le compte de ${esc(whoName(S.accounts[s0.acc].owner))}`,
+      sub: `« ${esc(s0.label)} », le ${dayName(s0.date)}. Dépense commune ?${sh.length > 1 ? ` (+ ${plural(sh.length - 1, 'autre')})` : ''}`,
+      body: `<button class="btn sm" data-a="shareDue" data-id="${esc(s0.id)}">Oui, commune</button><button class="btn sm ghost" data-a="sharePerso" data-id="${esc(s0.id)}">Non, perso</button>` });
+  }
+  for (const [owner, d] of Object.entries(sharedDue(S))) if (['foyer', 'commun', owner].includes(ui.who)) L.push({ pri: 740, icon: '💸', title: `Le compte commun doit ${eur(d.amount, 2)} à ${esc(whoName(owner))}`,
+    sub: `${plural(d.ids.length, 'dépense commune')} payée${d.ids.length > 1 ? 's' : ''} sur son compte perso.`,
+    body: `<button class="btn sm" data-a="sharePaid" data-o="${esc(owner)}">Virement fait</button>` });
 
   if (['foyer', 'commun'].includes(ui.who) && Object.values(S.accounts).some(a => a.owner === 'commun' && !a.hist)) {
     const u = jointSplit(S, ui.month).unknown[0];
@@ -1618,6 +1635,16 @@ const A = {
   splitSheet: d => { const t = S.tx.find(x => x.id === d.id); openSheet(opSheetHtml(t, true)); setTimeout(() => $('#spAmt')?.focus(), 80); },
   pickCat: d => { const t = S.tx.find(x => x.id === d.id); delete t.splits; closeSheet(); learn(d.id, d.c); render(); },
   unsplit: d => { const t = S.tx.find(x => x.id === d.id); delete t.splits; save(); render(); openSheet(opSheetHtml(t, false)); },
+  pendKeep: d => { const t = S.tx.find(x => x.id === d.id); if (!t) return; delete t.pending; delete t.auto; t.manual = true; t.conf = 'sure'; save(); render(); toast(`Gardé comme payé : ${t.label}`); },
+  pendLater: d => { const t = S.tx.find(x => x.id === d.id); if (!t) return; const was = t.date; t.date = today(); save(); render(); toastUndo(`Toujours attendu : ${t.label}`, () => { t.date = was; save(); render(); }); },
+  pendDrop: d => {
+    const i = S.tx.findIndex(x => x.id === d.id); if (i < 0) return;
+    const t = S.tx[i]; S.tx.splice(i, 1); (S.reconciled ||= []).push(t.id); save(); render();
+    toastUndo(`Retiré : ${t.label}`, () => { S.tx.push(t); S.reconciled = S.reconciled.filter(x => x !== t.id); save(); render(); });
+  },
+  shareDue: d => { (S.shared ||= {})[d.id] = 'due'; save(); render(); toast('Noté : le compte commun la rembourse.'); },
+  sharePerso: d => { (S.shared ||= {})[d.id] = 'perso'; save(); render(); },
+  sharePaid: d => { const due = sharedDue(S)[d.o]; if (!due) return; for (const id of due.ids) S.shared[id] = 'paid'; save(); render(); toast(`Remboursement à ${whoName(d.o)} noté 👍`); },
   delPending: d => { const i = S.tx.findIndex(x => x.id === d.id), t = S.tx[i]; S.tx.splice(i, 1); closeSheet(); save(); render(); toastUndo(`Saisie supprimée : ${t.label}`, () => { S.tx.push(t); save(); render(); }); },
   leverSheet: d => openSheet(`<h2 style="margin:0 0 4px">${esc(d.n)} : que peut-on faire ?</h2>
     ${['diminuer', 'nego', 'passer', 'essentiel'].map(l => `<button class="big-choice" data-a="setLever" data-kind="${d.kind}" data-k="${esc(d.k)}" data-l="${l}" aria-pressed="${l === d.cur}"><span style="font-size:22px">${LEVERS[l].emoji}</span><span class="grow"><b>${LEVERS[l].label}</b>

@@ -798,6 +798,41 @@ function reconcilePending(state) {
   }
 }
 
+// File d'exceptions (spec « Décisions par défaut », docs du Foyer) : ce qu'aucune règle ne tranche, calculé à partir de l'état.
+// Prévu échu : saisie ou prélèvement prévu, daté de plus de 2 jours, alors que le relevé du compte couvre déjà au moins 4 jours
+// après sa date sans le montrer (sinon, c'est seulement un relevé pas encore importé : la mise à jour express le dit déjà).
+const OVERDUE_DAYS = 2, OVERDUE_COVER = 4;
+function overduePending(state, today) {
+  const lastReal = {};
+  for (const t of state.tx) if (!t.pending && !(lastReal[t.acc] >= t.date)) lastReal[t.acc] = t.date;
+  return state.tx.filter(t => t.pending && !isHist(state, t.acc) && dayNum(today) - dayNum(t.date) > OVERDUE_DAYS
+      && lastReal[t.acc] && dayNum(lastReal[t.acc]) - dayNum(t.date) >= OVERDUE_COVER)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.id < b.id ? -1 : 1));
+}
+// Dépense commune payée sur un compte perso (courses, logement) au-delà du petit montant décidé une fois (20 € par défaut) :
+// « dépense commune ? » ; oui → le compte commun la doit à la personne jusqu'au virement. Rien ne change dans les soldes ni les
+// statistiques par compte : la décision est gardée dans state.shared (id d'opération → 'due' | 'perso' | 'paid').
+const COMMON_CATS = ['courses', 'logement'], SMALL_EXPENSE = 20;
+function personalShared(state, month, threshold = SMALL_EXPENSE) {
+  if (!Object.values(state.accounts).some(a => a.owner === 'commun' && !a.hist)) return [];
+  const sh = state.shared || {};
+  return state.tx.filter(t => {
+    const a = state.accounts[t.acc];
+    return t.date.startsWith(month) && !t.pending && !t.splits && !t.refunded && t.amount < -threshold && COMMON_CATS.includes(t.cat) && !sh[t.id]
+      && a && !a.hist && a.owner && a.owner !== 'commun';
+  }).sort((a, b) => a.amount - b.amount || (a.id < b.id ? -1 : 1));
+}
+function sharedDue(state) {
+  const byId = new Map(state.tx.map(t => [t.id, t])), due = {};
+  for (const [id, v] of Object.entries(state.shared || {})) {
+    const t = byId.get(id), owner = t && state.accounts[t.acc] && state.accounts[t.acc].owner;
+    if (v !== 'due' || !owner || owner === 'commun') continue;
+    const d = (due[owner] ||= { amount: 0, ids: [] });
+    d.amount = round2(d.amount - t.amount); d.ids.push(id);
+  }
+  return due;
+}
+
 // Prélèvements et rentrées réguliers inscrits tout seuls le jour où ils tombent (« prévus »), entre le dernier relevé
 // et aujourd'hui. Le relevé les remplace ensuite par les vraies opérations (montant exact).
 function autoRecurring(state, now) {
@@ -1028,11 +1063,15 @@ function mergeStates(local, other) {
   for (const t of o.tx || []) {
     const m = byId.get(t.id);
     if (!m) { out.tx.push(t); byId.set(t.id, t); } else if (t.manual && !m.manual) { m.cat = t.cat; m.manual = true; }
+    if (m && m.pending && !t.pending) { delete m.pending; delete m.auto; m.manual = true; m.conf = 'sure'; } // prévu gardé comme payé sur l'autre téléphone
   }
   out.rules = { ...(o.rules || {}), ...out.rules };
   out.payers = { ...(o.payers || {}), ...(out.payers || {}) };
   out.claimed = { ...(o.claimed || {}), ...(out.claimed || {}) };
   out.annualHide = { ...(o.annualHide || {}), ...(out.annualHide || {}) };
+  const RANK = { perso: 1, due: 2, paid: 3 }; // le remboursement fait l'emporte, puis la dette
+  out.shared = { ...(out.shared || {}) };
+  for (const [id, v] of Object.entries(o.shared || {})) if (!out.shared[id] || (RANK[v] || 0) > (RANK[out.shared[id]] || 0)) out.shared[id] = v;
   out.levers = { cat: { ...((o.levers || {}).cat || {}), ...((out.levers || {}).cat || {}) }, merchant: { ...((o.levers || {}).merchant || {}), ...((out.levers || {}).merchant || {}) } };
   out.histBal ||= o.histBal || null;
   out.reconciled = [...new Set([...(out.reconciled || []), ...(o.reconciled || [])])];
@@ -1235,6 +1274,7 @@ function sanitizeState(d) {
     challenges: {},
     payers: Object.fromEntries(Object.entries(obj(o.payers)).map(([k, v]) => [str(k, 200), who.has(v) || v === 'autre' ? v : 'autre'])),
     annualHide: Object.fromEntries(Object.entries(obj(o.annualHide)).map(([k]) => [str(k, 120), true])),
+    shared: Object.fromEntries(Object.entries(obj(o.shared)).filter(([, v]) => ['due', 'perso', 'paid'].includes(v)).map(([k, v]) => [str(k, 400), v])),
     levers: { cat: Object.fromEntries(Object.entries(obj(levers.cat)).filter(([c]) => CAT[c]).map(([c, l]) => [c, lv(l)])),
       // un mot-clé de marchand devient une expression régulière : lettres, chiffres et espaces seulement
       merchant: Object.fromEntries(Object.entries(obj(levers.merchant)).filter(([k]) => /^[a-z0-9 ]{1,60}$/.test(k)).map(([k, l]) => [k, lv(l)])) },
@@ -1409,7 +1449,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
     add('B', m, 17, -pick(25, 80), 'CB ZARA'); add('A', m, 22, -pick(20, 60), 'CB FNAC'); add('A', m, 24, -pick(35, 60), 'CB SNCF'); add('B', m, 13, -pick(8, 22), 'CB PHARMACIE');
     if (i % 2) add('C', m, 18, -pick(60, 140), 'CB IKEA');
   }
-  const S = { people, accounts: {}, tx: [], rules: {}, budgets: { foyer: { fastfood: 70 } }, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
+  const S = { people, accounts: {}, tx: [], rules: {}, budgets: { foyer: { fastfood: 70 } }, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, shared: {}, loans: [],
     levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: { foyer: {} }, noSpend: {}, rit: { foyer: { ics: end } }, cv: 3 };
   const meta = { A: ['Compte de ' + people[0].name, 'p1', 1240.5], B: ['Compte de ' + people[1].name, 'p2', 980.2], C: ['Compte commun', 'commun', 1615.8], LA: ['Livret A', 'commun', 6320] };
   for (const id of Object.keys(R)) {
@@ -1426,5 +1466,5 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
   CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
-  parsePDF, learnable, addPending, autoRecurring, reconcilePending, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
+  parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

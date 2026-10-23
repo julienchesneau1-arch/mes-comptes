@@ -788,3 +788,33 @@ console.log('OK — fichier de rappels publié');
   assert.strictEqual(await C.unzip(await C.zip(big)), big);
   console.log('OK — coffre chiffré par le code d\'entrée');
 })();
+
+// File d'exceptions (spec « Décisions par défaut ») : prévus échus, dépenses communes payées sur un compte perso.
+{
+  const tx = o => ({ id: o.id, acc: o.acc, date: o.date, amount: o.amount, label: o.label || 'X', detail: '', bpCat: '', cat: o.cat || 'autres', manual: false, conf: 'sure',
+    ...(o.pending ? { pending: true } : {}), ...(o.auto ? { auto: true } : {}) });
+  const X = { people: [{ id: 'p1', name: 'Léa' }, { id: 'p2', name: 'Hugo' }], accounts: { A: { name: 'Compte de Léa', owner: 'p1' }, J: { name: 'Joint', owner: 'commun' } },
+    tx: [tx({ id: 'r1', acc: 'A', date: '2026-10-10', amount: -5 }), tx({ id: 'q1', acc: 'A', date: '2026-10-05', amount: -800, label: 'LOYER', pending: true, auto: true }),
+      tx({ id: 'q2', acc: 'A', date: '2026-10-08', amount: -30, pending: true })], shared: {} };
+  // Relevé jusqu'au 10 : le loyer prévu le 5 (couvert 5 jours après) est échu ; la saisie du 8 (couverte 2 jours) ne l'est pas encore.
+  assert.deepStrictEqual(C.overduePending(X, '2026-10-12').map(t => t.id), ['q1']);
+  assert.deepStrictEqual(C.overduePending(X, '2026-10-07').map(t => t.id), []);          // daté de 2 jours seulement
+  X.tx.push(tx({ id: 'c1', acc: 'A', date: '2026-10-09', amount: -84, cat: 'courses', label: 'CARREFOUR' }), tx({ id: 'c2', acc: 'A', date: '2026-10-09', amount: -12, cat: 'courses' }),
+    tx({ id: 'c3', acc: 'A', date: '2026-10-09', amount: -60, cat: 'shopping' }), tx({ id: 'c4', acc: 'J', date: '2026-10-09', amount: -90, cat: 'courses' }));
+  // Seule c1 : plus de 20 €, catégorie commune, compte perso (c2 trop petite, c3 pas commune, c4 déjà sur le joint).
+  assert.deepStrictEqual(C.personalShared(X, '2026-10').map(t => t.id), ['c1']);
+  assert.deepStrictEqual(C.personalShared({ ...X, accounts: { A: X.accounts.A } }, '2026-10'), []); // pas de compte commun : pas de question
+  X.shared.c1 = 'due';
+  assert.deepStrictEqual(C.personalShared(X, '2026-10'), []);                                // décidée : la question disparaît
+  assert.deepStrictEqual(C.sharedDue(X), { p1: { amount: 84, ids: ['c1'] } });
+  X.shared.c1 = 'paid';
+  assert.deepStrictEqual(C.sharedDue(X), {});
+  // Synchro : le remboursement fait l'emporte ; un prévu gardé comme payé sur un téléphone l'est aussi sur l'autre.
+  const kept = { ...X, tx: X.tx.map(t => (t.id === 'q2' ? { ...t, pending: undefined, manual: true } : t)), shared: { c1: 'paid', c9: 'perso' } };
+  delete kept.tx.find(t => t.id === 'q2').pending;
+  const m = C.mergeStates({ ...X, shared: { c1: 'due' } }, kept);
+  assert.deepStrictEqual(m.shared, { c1: 'paid', c9: 'perso' });
+  assert.strictEqual(m.tx.find(t => t.id === 'q2').pending, undefined);
+  assert.deepStrictEqual(C.sanitizeState({ ...X, shared: { c1: 'due', c2: 'n\'importe quoi' } }).shared, { c1: 'due' });
+  console.log('OK — file d\'exceptions : prévus échus, dépenses communes payées en perso');
+}
