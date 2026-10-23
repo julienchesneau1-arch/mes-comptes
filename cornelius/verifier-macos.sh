@@ -34,14 +34,14 @@ fi
 [ "${free_gb:-0}" -ge 3 ] && ok "Espace libre : ${free_gb} Go" || nok "Espace libre : ${free_gb:-?} Go (3 Go au moins)"
 
 part "Installation"
-git -C "$APP" rev-parse --git-dir >/dev/null 2>&1 && ok "Cornelius : $(git -C "$APP" log -1 --format='%h %s' 2>/dev/null | cut -c1-90)" || nok "Cornelius absent de $APP : lancer labo-macos.sh"
+[ -f "$APP/package.json" ] && ok "Cornelius : $(cat "$LAB/cornelius.version" 2>/dev/null || echo 'version non notée')" || nok "Cornelius absent de $APP : lancer installer-mac.sh"
 node="$LAB/node/bin/node"; [ -x "$node" ] || node="$(command -v node || true)"
 [ -n "$node" ] && ok "Node $("$node" --version)" || nok "Node absent"
-if ls "$PATCHES"/*.patch >/dev/null 2>&1; then
-  sum="$(cat "$PATCHES"/*.patch | shasum -a 256 2>/dev/null | awk '{print $1}')"
+if [ -f "$PATCHES/fichiers.tar.gz" ]; then
+  sum="$(shasum -a 256 "$PATCHES/fichiers.tar.gz" 2>/dev/null | awk '{print $1}')"
   [ "$sum" = "$(cat "$LAB/correctifs.sha256" 2>/dev/null)" ] \
-    && ok "Correctifs maison à jour ($(find "$PATCHES" -name '*.patch' | wc -l | tr -d ' '))" \
-    || nok "Correctifs pas à jour : stop.sh, labo-macos.sh, start.sh"
+    && ok "Correctifs maison à jour" \
+    || nok "Correctifs pas à jour : relancer installer-mac.sh"
 fi
 [ -f "$APP/dist/web/index.html" ] && ok "Interface construite" || nok "Interface non construite (dist/web)"
 [ -x "$APP/.venv/bin/python" ] && ok "Python de la perception présent" || nok "Python de la perception absent"

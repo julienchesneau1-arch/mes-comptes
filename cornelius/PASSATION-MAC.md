@@ -12,12 +12,12 @@ Consignes pour une session Claude qui tourne **sur le Mac** (application Claude,
 
 ## Étapes
 
-1. **Dépôt** : `~/cornelius-lab/mes-comptes`. Absent : `git clone -b claude/tender-cori-m8232m https://github.com/julienchesneau1-arch/mes-comptes.git ~/cornelius-lab/mes-comptes` (si macOS propose les outils de ligne de commande, la personne accepte). Présent : `git -C ~/cornelius-lab/mes-comptes pull`.
-2. **Installation** : si Cornelius tourne, `bash ~/cornelius-lab/stop.sh`. Puis `bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh` (long la première fois : Node, Python, modèles). En cas d'échec : lire l'erreur, corriger seulement dans `~/cornelius-lab`, relancer ; un échec d'application des correctifs se signale, il ne se contourne pas.
-3. **Modules** : `grep -q '^CORNELIUS_MODULES_DIR=' ~/cornelius-lab/cornelius/.env || echo "CORNELIUS_MODULES_DIR=$HOME/cornelius-lab/mes-comptes/cornelius" >> ~/cornelius-lab/cornelius/.env` (seule écriture permise dans `.env` avec l'étape 7).
-4. **Démarrage par la personne** : lui demander de lancer elle-même `bash ~/cornelius-lab/start.sh` dans l'app **Terminal**. macOS y demande l'accès à la **caméra** et au **micro** pour Terminal : accepter. Lancé depuis une autre application, l'autorisation irait à celle-ci.
+1. **Installation** : demander à la personne de coller dans l'app **Terminal** la commande de `cornelius/README.md`, section « Installer » (`curl … installer-mac.sh … && bash ~/installer-cornelius.sh`). Elle télécharge le dépôt, installe, branche les modules, démarre et affiche le bilan ; lancée depuis Terminal, l'accès caméra et micro va à Terminal. En cas d'échec : `tail -40 ~/cornelius-lab/logs/installation.log` (sans secret), corriger seulement dans `~/cornelius-lab`, relancer la même commande ; une archive refusée (« différente de la version auditée ») se signale, elle ne se contourne pas.
+2. *(fait par l'installation)*
+3. *(fait par l'installation)*
+4. **Redémarrage** (après un arrêt) : la personne lance elle-même `bash ~/cornelius-lab/start.sh` dans l'app **Terminal** ; lancé depuis une autre application, l'accès caméra et micro irait à celle-ci.
 5. **Bilan** : `bash ~/cornelius-lab/mes-comptes/cornelius/verifier-macos.sh --tests`. Corriger chaque KO qui dépend de l'installation. Restent normalement : clé OpenAI absente.
-6. **Réglages par la personne** (guider, ne pas regarder) : elle affiche son mot de passe dans son propre Terminal (`cat ~/cornelius-lab/mot-de-passe-admin.txt`), ouvre `http://127.0.0.1:3000/admin`, puis :
+6. **Réglages par la personne** (guider, ne pas regarder) : le mot de passe est dans son presse-papiers (copié par l'installation ou `start.sh`) ; elle ouvre `http://127.0.0.1:3000/admin#start`, puis :
    - **Mise en route** : clé OpenAI ;
    - **Modules → Foyer** : code du foyer, source du foyer, « Afficher en permanence » ;
    - **Modules → Mes comptes** (facultatif) : code de Mes Comptes, source avec elle-même pour propriétaire, résumé collé depuis Mes Comptes ;

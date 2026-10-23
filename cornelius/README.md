@@ -11,19 +11,15 @@ Les deux réutilisent le code des applications (`foyer/src/core`, `core.js`) : r
 
 ## Installer (labo macOS Intel)
 
-Tout s'installe dans `~/cornelius-lab`, sans Homebrew ni droits administrateur (seuls les outils de ligne de commande d'Apple, s'ils manquent, demandent le mot de passe du Mac). Dans le Terminal :
+**Une seule commande**, à coller dans l'app **Terminal** du Mac (sans git, sans Homebrew, sans droits administrateur) :
 
 ```sh
-xcode-select --install   # une fois, si macOS le propose ; sinon passer
-git clone -b claude/tender-cori-m8232m https://github.com/julienchesneau1-arch/mes-comptes.git ~/cornelius-lab/mes-comptes
-bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh
-echo "CORNELIUS_MODULES_DIR=$HOME/cornelius-lab/mes-comptes/cornelius" >> ~/cornelius-lab/cornelius/.env
-bash ~/cornelius-lab/start.sh
+curl -fsSL https://raw.githubusercontent.com/julienchesneau1-arch/mes-comptes/refs/heads/claude/tender-cori-m8232m/cornelius/installer-mac.sh -o ~/installer-cornelius.sh && bash ~/installer-cornelius.sh
 ```
 
-Le script vérifie le Mac (Intel, macOS 13.5 ou plus, 6 Go libres), télécharge Node 24.2.0 et uv avec vérification d'empreinte, récupère la version auditée de Cornelius, applique les correctifs, installe la perception (onnxruntime 1.23.2, dernière version publiée pour Mac Intel) et ses modèles, puis crée un `.env` local avec un mot de passe administrateur aléatoire (`~/cornelius-lab/mot-de-passe-admin.txt`). Relancé, il ne refait que ce qui manque.
+Elle télécharge ce dépôt, installe Cornelius dans `~/cornelius-lab` (Node 24.2.0 et uv à empreinte vérifiée ; version auditée de Cornelius vérifiée fichier par fichier ; correctifs ; perception avec onnxruntime 1.23.2, dernière version publiée pour Mac Intel ; modèles), branche les modules, démarre, affiche le bilan, copie le mot de passe administrateur dans le presse-papiers et ouvre l'administration pour saisir la clé OpenAI. macOS demande l'accès à la caméra et au micro pour Terminal : accepter. La même commande sert aux mises à jour ; elle ne refait que ce qui manque. En cas d'échec, elle indique la commande pour afficher la fin du journal (`~/cornelius-lab/logs/installation.log`, sans secret).
 
-Mise à jour : `bash ~/cornelius-lab/stop.sh && git -C ~/cornelius-lab/mes-comptes pull && bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh && bash ~/cornelius-lab/start.sh`. Le `-b claude/tender-cori-m8232m` disparaîtra une fois ces fichiers sur `main`. Un dépôt privé demande d'être connecté à GitHub sur le Mac. Les modules apparaissent dans **Administration → Modules** ; un module refusé y est signalé « Module non chargé » avec la raison.
+Le mot de passe administrateur n'est jamais affiché : il est dans `~/cornelius-lab/mot-de-passe-admin.txt`, et `bash ~/cornelius-lab/start.sh` le recopie dans le presse-papiers. Le `refs/heads/claude/tender-cori-m8232m` du lien deviendra `main` une fois ces fichiers fusionnés. Les modules apparaissent dans **Administration → Modules** ; un module refusé y est signalé « Module non chargé » avec la raison.
 
 Bilan en lecture seule, sans aucun secret, à coller tel quel dans une conversation : `bash ~/cornelius-lab/mes-comptes/cornelius/verifier-macos.sh --tests` (installation, réglages non secrets, processus, page Écrire, journaux, réseau, mémoire, tests des modules).
 

@@ -1,6 +1,12 @@
 # Correctifs maison pour Cornelius
 
-Cinq modifications de [Cornelius](https://github.com/lfpoulain/Cornelius), au format `git format-patch`, à appliquer sur la version auditée `ad056d46c129a1ed8b199af8271cb21a6a5849af`. Le script [`../labo-macos.sh`](../labo-macos.sh) les applique tout seul et les réapplique quand ils changent.
+Cinq modifications de [Cornelius](https://github.com/lfpoulain/Cornelius), au format `git format-patch`, à appliquer sur la version auditée `ad056d46c129a1ed8b199af8271cb21a6a5849af`. Le script [`../labo-macos.sh`](../labo-macos.sh) les applique sans git, depuis `fichiers.tar.gz` : les 24 fichiers modifiés ou ajoutés, tels qu'après application des 5 correctifs (vérifié : version auditée + archive = arbre corrigé, à l'identique). Il les réapplique quand l'archive change.
+
+Régénérer l'archive après une modification (depuis le dépôt Cornelius, branche des correctifs) :
+
+```sh
+git diff --name-only -z ad056d4 HEAD | xargs -0 git archive --format=tar.gz -o <mes-comptes>/cornelius/correctifs/fichiers.tar.gz HEAD --
+```
 
 | Correctif | Ce qu'il change | Tests ajoutés |
 | --- | --- | --- |

@@ -1,6 +1,8 @@
 #!/bin/bash
-# Labo Cornelius sur macOS Intel : tout dans ~/cornelius-lab, sans sudo ni Homebrew.
-# À lancer depuis ce dépôt : bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh
+# Labo Cornelius sur macOS Intel : tout dans ~/cornelius-lab, sans sudo, Homebrew ni git
+# (les outils de développement d'Apple ne sont pas nécessaires).
+# Le plus simple : installer-mac.sh, qui télécharge ce dépôt puis lance ce script.
+# À la main : bash ~/cornelius-lab/mes-comptes/cornelius/labo-macos.sh
 # Relançable sans risque : seules les étapes manquantes sont refaites (correctifs mis à jour compris).
 # Retour arrière complet : bash ~/cornelius-lab/stop.sh ; rm -rf ~/cornelius-lab
 set -eu
@@ -8,8 +10,12 @@ LAB="$HOME/cornelius-lab"
 APP="$LAB/cornelius"
 COMMIT=ad056d46c129a1ed8b199af8271cb21a6a5849af
 NODE_SHA=d839ef904d7305f429d45288a8b0b43b095e9797dbbcf3bd67b0c8712066b7a3
+# Empreinte de l'ensemble des fichiers de la version auditée (voir manifest()).
+SRC_SHA=dadf3db5b7126c830806b4e758f6c6244e98a15e52b337af79fa05677afe196d
 PATCHES="$(cd "$(dirname "$0")" && pwd)/correctifs"
+OVERLAY="$PATCHES/fichiers.tar.gz"
 say() { printf '\n== %s\n' "$*"; }
+manifest() { (cd "$1" && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256 | shasum -a 256 | awk '{print $1}'); }
 
 say "Vérifications"
 [ "$(uname -m)" = x86_64 ] || { echo "Mac Intel (x86_64) attendu."; exit 1; }
@@ -17,9 +23,8 @@ v="$(sw_vers -productVersion)"; maj="${v%%.*}"; rest="${v#*.}"; min="${rest%%.*}
 if [ "$maj" -lt 13 ] || { [ "$maj" -eq 13 ] && [ "$min" -lt 5 ]; }; then
   echo "macOS $v : 13.5 minimum (Node 24, OpenCV, ONNX Runtime)."; exit 1
 fi
-xcode-select -p >/dev/null 2>&1 || { echo "Outils de ligne de commande absents : xcode-select --install, puis relancez."; exit 1; }
 [ "$(df -g "$HOME" | awk 'NR==2{print $4}')" -ge 6 ] || { echo "Moins de 6 Go libres."; exit 1; }
-ls "$PATCHES"/*.patch >/dev/null 2>&1 || { echo "Correctifs introuvables dans $PATCHES."; exit 1; }
+[ -f "$OVERLAY" ] || { echo "Correctifs introuvables : $OVERLAY."; exit 1; }
 if p="$(cat "$LAB/serveur.pid" 2>/dev/null)" && kill -0 "$p" 2>/dev/null; then
   echo "Cornelius tourne : bash ~/cornelius-lab/stop.sh, puis relancez ce script."; exit 1
 fi
@@ -43,25 +48,32 @@ if [ ! -x "$LAB/bin/uv" ]; then
 fi
 export UV_PYTHON_INSTALL_DIR="$LAB/python" UV_CACHE_DIR="$LAB/cache/uv"
 
-if [ ! -d "$APP/.git" ]; then
-  say "Cornelius, version auditée ${COMMIT:0:7}"
-  git init -q "$APP" && git -C "$APP" remote add origin https://github.com/lfpoulain/Cornelius.git
-  git -C "$APP" fetch -q --depth 1 origin "$COMMIT" && git -C "$APP" checkout -q FETCH_HEAD
+# Version auditée, depuis l'archive GitHub : gardée intacte dans le cache, vérifiée fichier par fichier.
+SRC="$LAB/cache/cornelius-${COMMIT:0:7}"
+if [ ! -f "$SRC/package.json" ]; then
+  say "Cornelius, version auditée ${COMMIT:0:7} (empreinte vérifiée)"
+  curl -fL --progress-bar -o "$LAB/cache/cornelius.tgz" "https://codeload.github.com/lfpoulain/Cornelius/tar.gz/$COMMIT"
+  rm -rf "$SRC.tmp" && mkdir -p "$SRC.tmp"
+  tar -xzf "$LAB/cache/cornelius.tgz" -C "$SRC.tmp" --strip-components=1
+  [ "$(manifest "$SRC.tmp")" = "$SRC_SHA" ] \
+    || { rm -rf "$SRC.tmp"; echo "Archive de Cornelius différente de la version auditée : arrêt."; exit 1; }
+  mv "$SRC.tmp" "$SRC"
+fi
+
+# Correctifs maison (fichiers modifiés ou ajoutés, équivalents à correctifs/*.patch) : remis sur la
+# version auditée quand ils changent. Les fichiers propres au labo (.env, base, modèles, .venv,
+# node_modules) sont conservés ; une modification à la main du code de Cornelius serait écrasée.
+SUM="$(shasum -a 256 "$OVERLAY" | awk '{print $1}')"
+if [ ! -f "$APP/package.json" ] || [ "$(cat "$LAB/correctifs.sha256" 2>/dev/null)" != "$SUM" ]; then
+  say "Correctifs maison : caméra macOS, téléphones, plein écran, lisibilité, conversation écrite"
+  mkdir -p "$APP"
+  cp -R "$SRC/." "$APP/"
+  tar -xzf "$OVERLAY" -C "$APP"
+  rm -rf "$APP/dist/web"
+  echo "$SUM" >"$LAB/correctifs.sha256"
+  echo "${COMMIT:0:7} + correctifs ${SUM:0:12}" >"$LAB/cornelius.version"
 fi
 cd "$APP"
-
-# Correctifs maison : réappliqués sur la version auditée quand ils changent. Les fichiers non
-# suivis (.env, base, modèles, .venv, node_modules) sont conservés ; une modification à la main
-# du code de Cornelius serait écrasée.
-SUM="$(cat "$PATCHES"/*.patch | shasum -a 256 | awk '{print $1}')"
-if [ "$(cat "$LAB/correctifs.sha256" 2>/dev/null)" != "$SUM" ]; then
-  say "Correctifs maison : caméra macOS, téléphones, plein écran, lisibilité, conversation écrite"
-  git checkout -q -f --detach "$COMMIT"
-  git -c user.name="Cornelius maison" -c user.email=maison@localhost am -q "$PATCHES"/*.patch \
-    || { git am --abort; echo "Correctifs non applicables : rien n'a été changé."; exit 1; }
-  rm -rf dist/web
-  echo "$SUM" >"$LAB/correctifs.sha256"
-fi
 
 say "Dépendances Node et interface"
 [ -f node_modules/.package-lock.json ] || npm ci --no-audit --no-fund
@@ -100,7 +112,10 @@ curl -fs http://127.0.0.1:3000/api/health >/dev/null || { tail -20 "$LAB/logs/se
 nohup .venv/bin/python perception/worker.py >"$LAB/logs/perception.log" 2>&1 </dev/null &
 echo $! >"$LAB/perception.pid"
 echo "Miroir : http://127.0.0.1:3000/  ·  Écrire : http://127.0.0.1:3000/telephone  ·  Administration : http://127.0.0.1:3000/admin"
-echo "Mot de passe administrateur : $(cat "$LAB/mot-de-passe-admin.txt")"
+# Jamais affiché : copié dans le presse-papiers quand on lance ce script soi-même.
+if [ -t 1 ] && command -v pbcopy >/dev/null; then
+  pbcopy <"$LAB/mot-de-passe-admin.txt" && echo "Mot de passe administrateur copié : collez-le avec ⌘V."
+fi
 START
 
 cat >"$LAB/stop.sh" <<'STOP'
