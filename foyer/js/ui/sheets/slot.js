@@ -100,7 +100,7 @@ function pickHtml(k) {
     const s = S(), c = clock();
     const n = servings(s, k);
     const q = norm(pickQ);
-    const ranked = rank(s, k, c.date).filter(x => !q || norm(x.name).includes(q));
+    const ranked = rank(s, k, c.date, new Set(), new Map(), { keepBlocked: true }).filter(x => !q || norm(x.name).includes(q));
     const left = leftovers(s, c.date).filter(x => x.free >= Math.max(1, n) && (!q || norm(x.name).includes(q)));
     // Plats prévus juste avant, pas encore préparés : on peut en cuisiner plus pour en garder.
     const before = Object.values(s.preps).filter(p => !p.done && p.slot && slotOrder(p.slot) < slotOrder(k) && daysBetween(parseSlot(p.slot)?.date ?? '', parseSlot(k)?.date ?? '') <= 3
@@ -114,7 +114,7 @@ function pickHtml(k) {
     ${before.map(p => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${p.id}"><span class="grow"><span class="title">${esc(prepTitle(s, p))} (en cuisiner plus)</span><br><span class="sub">prévu ${esc(fmtSlot(p.slot, c.date))} : +${n} portion${n > 1 ? 's' : ''} à préparer</span></span></button></li>`).join('')}
   </ul></section>` : ''}
   <section><h3 class="section-title">Vos plats</h3>${ranked.length ? `<ul class="list">${ranked.map(x => `<li><button class="item-btn" data-a="pickRecipe" data-k="${k}" data-id="${x.recipe}">
-    <span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${esc(x.reason)}</span></span></button></li>`).join('')}</ul>`
+    <span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.blocked ? `<span class="alert">⚠️ ${esc(x.blocked)} : exclu chez vous</span>` : esc(x.reason)}</span></span></button></li>`).join('')}</ul>`
         : `<p class="muted">${Object.keys(s.recipes).length ? 'Aucun plat ne correspond.' : 'Aucun plat enregistré : tapez un nom ci-dessus pour le créer.'}</p>`}</section>`;
 }
 INPUT['pickQ'] = (d, el) => { pickQ = el.value; openSheet({ id: `pick:${d['k']}`, render: () => pickHtml(d['k'] ?? '') }); };

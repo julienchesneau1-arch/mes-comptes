@@ -1,7 +1,7 @@
 // Économies : panier estimé sans rien saisir (prix moyens Insee), budget de la semaine, montant payé (facultatif), bilan des semaines.
 // Un article sans prix de référence est compté « non chiffré », jamais deviné : le montant est alors un minimum.
 import { addDays, fmtDayShort } from '../../core/dates.js';
-import { cartEstimate, cartText, coverText, weekReport } from '../../core/budget.js';
+import { cartEstimate, cartText, coverText, weekReport, calibration, calibrationText } from '../../core/budget.js';
 import { refPrices, monthText } from '../../core/refprice.js';
 import { batchStreak } from '../../core/batch.js';
 import { eur, parseEuros } from '../../core/money.js';
@@ -47,6 +47,7 @@ function estimateNote(priced, paid, unpriced, seasonings) {
         parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
     if (seasonings)
         parts.push('Sel, poivre et épices non comptés.');
+    parts.push(calibrationText(calibration(S())));
     return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
 }
 SUBMIT['spentSet'] = (data, form) => {

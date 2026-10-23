@@ -32,21 +32,19 @@ const titles = () => dlg.locator('.recap .title').allInnerTexts();
 const text = async loc => (await loc.innerText()).replace(/\s+/g, ' ');
 
 await page.goto(URL);
-await step('foyer créé, budget de 5 € par semaine', async () => {
+await step('foyer créé, budget de 5 € par semaine demandé à l\'accueil (comme Pimzi)', async () => {
   await page.getByRole('button', { name: 'Créer notre foyer' }).click();
   await page.getByLabel('Prénom de la personne 1').fill('Julien');
   await page.getByLabel('Prénom de la personne 2 (facultatif)').fill('Lauriane');
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByText('le midi en boîte').click();
   await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByLabel('Budget courses par semaine, en euros').fill('5');
   await page.getByRole('button', { name: /Créer le foyer/ }).click();
   await page.getByRole('link', { name: 'Maison', exact: true }).click();
   await page.getByRole('button', { name: 'Réglages', exact: true }).click();
-  await page.getByRole('button', { name: 'Découvrir le rituel batch' }).click();
-  await dlg.getByLabel('Par semaine, en euros').fill('5');
-  await dlg.getByRole('button', { name: 'Enregistrer' }).click();
-  await page.getByText(/Budget : 5,00\s€ par semaine/).waitFor();
-  await page.keyboard.press('Escape');
+  await page.getByText(/budget 5,00\s€ par semaine/).waitFor();
 });
 let after = [];
 await step('la semaine arrive prête, en liste : budget tenu d\'office, ou dépassement dit (jamais de prix inventé)', async () => {

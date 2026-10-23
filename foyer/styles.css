@@ -172,6 +172,7 @@ main > *, .cols > *, .stack > * { min-width: 0; }
 .item-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .item .title, .item-btn .title { font-weight: 800; overflow-wrap: anywhere; }
 .item .sub, .item-btn .sub { font-size: .875rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.alert, .item .sub.alert, .item-btn .sub.alert { color: var(--plum); font-weight: 700; }
 
 /* Case à cocher grand format, qui « claque » quand on coche */
 .check { position: relative; display: inline-grid; place-items: center; width: var(--tap); height: var(--tap); flex: none; cursor: pointer; }
@@ -252,6 +253,10 @@ main > *, .cols > *, .stack > * { min-width: 0; }
   cursor: pointer; font-size: .9375rem; font-weight: 800; transition: transform .12s; }
 .tag:active { transform: scale(.96); }
 .tag[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tag-check { display: inline-flex; align-items: center; gap: .5rem; min-height: var(--tap); padding: 0 1rem; border-radius: 999px; border: 2px solid var(--line);
+  background: var(--paper); cursor: pointer; font-size: .9375rem; font-weight: 800; }
+.tag-check input { width: 1.125rem; height: 1.125rem; margin: 0; accent-color: var(--plum); }
+.tag-check:has(input:checked) { border-color: var(--plum); background: var(--plum-bg); color: var(--plum); }
 
 /* ---------- Formulaires ---------- */
 label.field { display: grid; gap: .25rem; font-weight: 800; }

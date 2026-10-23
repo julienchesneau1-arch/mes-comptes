@@ -171,6 +171,18 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Saison, corvées, prévision du mois | **non fait** | [DONNÉE_MANQUANTE] calendrier de saison sourcé ; corvées absentes de Foyer ; prévision du mois dans Mes Comptes (stockage séparé). La spec demande de ne rien simuler |
 | Couverture des prix | **limite constatée** | Menu de découvertes réelles : « au moins 5,64 € » pour 63 articles — la plupart des ingrédients n'ont pas de prix connu, donc le budget ne peut pas être tenu par remplacement. Les factures lues (V3.1) et le calibrage prévu en PR D l'améliorent |
 
+### V3.4 (reprises Pimzi : allergies, calage sur les factures, budget à l'accueil, placard)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Allergies et refus | **livré** | Réglage `exclude` (`settings.set`, `household.init`) : 14 allergènes de l'annexe II du règlement (UE) n° 1169/2011 et 20 aliments refusés au plus. `allergens.ts` lit le nom de l'ingrédient (expressions les plus longues d'abord ; faux amis testés : lait de coco, noix de muscade, noix de Saint-Jacques, pâté, farine de sarrasin, pâtes sans gluten) : « contient » → plus jamais proposé (vos plats et découvertes ; à la main, signalé) ; « étiquette à vérifier » (bouillon, sauce soja, charcuterie, chocolat) → signalé dans les courses, la ligne et le drive. « Porc » couvre la charcuterie de porc, « alcool » les vins et alcools. Navigateur : menu réel sans pâtes, farine, lait ni beurre ; fiche d'un plat avec ses allergènes |
+| Calage sur les factures | **livré** | `calibration` : médiane payé ÷ Insee sur les articles comparables (même unité, sans forme), 5 au moins, bornée [0,5 ; 2], appliquée aux seules estimations Insee ; dit dans le budget (« −5 %, médiane de N articles ») et au drive (« × 0,95 d'après vos factures ») |
+| Budget et allergies à l'accueil | **livré** | 4e étape facultative ; aucun montant suggéré ([DONNÉE_MANQUANTE] source d'un budget type) |
+| Déjà au placard ? | **livré** | `surpluses` : paquets entiers pris la semaine précédente − besoin d'alors ; carte « À régler » quand la liste en redemande : « On en a » (`shop.pantry`), « Plus rien » (`task.set`) | 
+| Calage sur une facture Auchan réelle | **en attente** | Aucune facture réelle reçue ; le calage ne s'active qu'avec 5 articles payés comparables |
+| Enseigne au choix (Pimzi : 20) | **non fait** | Foyer est bâti sur le drive Auchan du foyer ; d'autres enseignes demanderaient leurs propres recherches et contenances |
+| Placard en navigateur | **non éprouvé** | Testé en unitaire seulement (deux semaines d'achats à simuler) |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -293,3 +305,4 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-23 | V3.2 | File « À régler » + Décisions automatiques (PR A de 4) | livré | Mes Comptes, semaine générée et reprises Pimzi : PR B, C, D |
 | 2026-10-23 | Mes Comptes | File d'exceptions côté Mes Comptes (PR B de 4) : « prévu échu » et « dépense commune payée en perso » dans la liste « À faire » existante, adaptés à son modèle (pas de journal ; décision gardée dans `shared`, fusionnée à la synchro, le remboursement fait l'emporte) ; cache hors ligne v41 | livré | Pas d'écran de réglage du seuil de 20 € (la spec interdit de toucher l'interface au-delà de la liste) ; pas de propriétaire par opération dans Mes Comptes : les statistiques par compte ne bougent pas |
 | 2026-10-23 | V3.3 | Semaine générée en liste d'approbation, budget tenu d'office (Pimzi), brouillon partagé, durées dans le choix (PR C de 4) | livré | Couverture des prix encore faible sur les recettes du catalogue ; approbation jour par jour non faite |
+| 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |

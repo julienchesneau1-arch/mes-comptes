@@ -32,7 +32,7 @@ export function describeEvent(s: State, e: AnyEv): string {
     case 'prep.correct': return `corriger ${prepName(s, e.p.prep)} à ${e.p.yield} portions`;
     case 'prep.discard': return `jeter ${e.p.n} portion(s) de ${prepName(s, e.p.prep)}`;
     case 'prep.batch': return e.p.day ? `cuisiner ${prepName(s, e.p.prep)} au batch du ${fmtDayShort(e.p.day)}` : `retirer ${prepName(s, e.p.prep)} du batch`;
-    case 'task.set': return e.p.done ? 'cocher une tâche' : 'décocher une tâche';
+    case 'task.set': return e.p.key.startsWith('placard:') ? 'répondre « plus rien au placard »' : e.p.done ? 'cocher une tâche' : 'décocher une tâche';
     case 'shop.check': return 'cocher un article';
     case 'shop.pantry': return 'noter ce que vous avez déjà';
     case 'shop.item': return `ajouter ${e.p.name} aux courses`;

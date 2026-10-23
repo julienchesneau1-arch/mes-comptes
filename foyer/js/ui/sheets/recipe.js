@@ -11,6 +11,8 @@ import { prepTitle } from '../../core/status.js';
 import { qFrom, mul, div, q } from '../../core/rational.js';
 import { UNIT, toBase, showQty } from '../../core/units.js';
 import { fmtSlot } from '../../core/dates.js';
+import { allergenLabel, dishAllergens, dishBlocked } from '../../core/allergens.js';
+import { capitalize } from '../../core/text.js';
 import { S, clock, dispatch } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, $, toast, keepAwake } from '../dom.js';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.js';
@@ -27,11 +29,20 @@ export function openRecipe(id) {
     show();
 }
 const show = () => openSheet({ id: 'recipe', render, onClose: () => { draft = null; } });
+// Allergènes d'après les noms des ingrédients (annexe II du règlement (UE) n° 1169/2011) ; ceux exclus par le foyer en premier.
+export function allergenHtml(names) {
+    const f = dishAllergens(names), ex = S().settings.exclude, no = dishBlocked(ex, names);
+    if (!f.sure.length && !f.maybe.length && !no)
+        return '';
+    const show = (xs) => xs.map(a => (ex?.allergens.includes(a) ? `<strong>${esc(allergenLabel(a).toLowerCase())} (exclu chez vous)</strong>` : esc(allergenLabel(a).toLowerCase()))).join(', ');
+    return `${no ? `<p class="banner partial">⚠️ ${esc(capitalize(no.why))} (${esc(no.name.toLowerCase())}) : ce plat n'est plus proposé.</p>` : ''}
+    <p class="small muted">${f.sure.length ? `Allergènes d'après les ingrédients : ${show(f.sure)}.` : ''}${f.maybe.length ? ` Selon le produit, à vérifier sur l'étiquette : ${show(f.maybe)}.` : ''}</p>`;
+}
 function preview(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     if (!lines.length)
         return '<p class="small muted">Aucun ingrédient : le plat peut être prévu, la liste de courses le signalera comme partielle.</p>';
-    return `<ul class="parsed" aria-label="Lecture des ingrédients">${lines.map(l => {
+    return `${allergenHtml(lines.map(l => parseIngredient(l).line.name))}<ul class="parsed" aria-label="Lecture des ingrédients">${lines.map(l => {
         const p = parseIngredient(l);
         const aisle = AISLE[aisleOf(p.line.name, p.line.form, S().aisles)]?.label ?? '';
         return `<li class="${p.review || !p.line.qty ? 'review' : ''}">${esc(lineLabel(p.line))}${p.line.qty ? '' : ' — quantité non renseignée'}${p.review ? ` — à vérifier (${esc(p.review)})` : ''} <span class="muted small">· ${esc(aisle)}</span></li>`;
@@ -197,7 +208,7 @@ export function openCook(prepId) {
                 return `<strong>${esc(showQty(toBase(div(mul(qty, q(n)), q(c.yield)), unit), unit.dim, unit))}</strong> ${esc(l.name)}${l.form ? ` (${esc(l.form)})` : ''}`;
             });
             return `${sheetHead(esc(prepTitle(s, prep)), `${prep.slot ? esc(fmtSlot(prep.slot, clock().date)) + ' · ' : ''}pour ${n} portion${n > 1 ? 's' : ''}`)}
-    ${scaled.length ? `<section class="card"><h3 class="section-title">Ingrédients pour ${n}</h3><ul class="parsed">${scaled.map(x => `<li>${x}</li>`).join('')}</ul></section>` : ''}
+    ${scaled.length ? `<section class="card"><h3 class="section-title">Ingrédients pour ${n}</h3>${allergenHtml(c.ingredients.map(l => l.name))}<ul class="parsed">${scaled.map(x => `<li>${x}</li>`).join('')}</ul></section>` : ''}
     ${c.steps.length ? `<section class="card"><h3 class="section-title">Étapes</h3><ul class="list">${c.steps.map((st, i) => {
                 const key = `step:${prepId}:${i}`;
                 const done = !!s.tasks[key]?.done;

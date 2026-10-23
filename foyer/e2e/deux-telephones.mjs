@@ -53,6 +53,7 @@ await step('A crée le foyer avec un plat complet', async () => {
   await A.getByRole('button', { name: 'Continuer' }).click();
   await A.getByText('le midi en boîte').click();
   await A.getByRole('button', { name: 'Continuer' }).click();
+  await A.getByRole('button', { name: 'Continuer' }).click(); // budget et allergies : facultatifs
   await A.getByRole('button', { name: /Créer le foyer/ }).click();
   await A.getByRole('link', { name: 'Maison', exact: true }).click();
   await A.getByRole('button', { name: 'Coller une recette' }).first().click();

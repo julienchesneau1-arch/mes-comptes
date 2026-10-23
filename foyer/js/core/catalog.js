@@ -3,6 +3,7 @@ import { parseIngredient, aisleOf } from './ingredients.js';
 import { familyOf } from './wikibook.js';
 import { nameKey, norm } from './text.js';
 import { dishType } from './visual.js';
+import { dishBlocked } from './allergens.js';
 const isStrArr = (v, max) => Array.isArray(v) && v.length <= max && v.every(x => typeof x === 'string' && x.length <= 500);
 // Fichier relu avant usage : une recette mal formée est ignorée, pas affichée.
 export function readCatalog(x) {
@@ -65,6 +66,9 @@ export function discover(s, cat, ctx) {
         // Sans nombre de personnes, pas de courses justes : proposé seulement si le foyer accepte de le préciser à la validation.
         if ((r.yield === null && !ctx.noYield) || ctx.exclude.has(r.id) || owned.has(nameKey(r.title)))
             continue;
+        const lines = linesOf(r);
+        if (dishBlocked(s.settings.exclude, lines.map(l => l.name)))
+            continue; // allergie ou refus du foyer
         let score = 20;
         const why = ['nouveau'];
         if (r.yield === null)
@@ -98,7 +102,6 @@ export function discover(s, cat, ctx) {
         }
         if (r.main && ctx.neighbourFamilies.has(r.main))
             score -= 15;
-        const lines = linesOf(r);
         const shared = [...new Set(lines.filter(l => ['fruits-legumes', 'cremerie', 'frais'].includes(aisleOf(l.name, l.form, s.aisles)))
                 .map(l => nameKey(l.name)).filter(k => ctx.weekFresh.has(k)))].map(k => ctx.weekFresh.get(k));
         if (shared.length) {

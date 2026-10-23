@@ -100,6 +100,8 @@ function apply(s, e) {
                 s.settings.variety = e.p.variety;
             if (e.p.leftovers !== undefined)
                 s.settings.leftovers = e.p.leftovers;
+            if (e.p.exclude !== undefined)
+                s.settings.exclude = { allergens: [...e.p.exclude.allergens], foods: [...e.p.exclude.foods] };
             return;
         }
         case 'recipe.save': {

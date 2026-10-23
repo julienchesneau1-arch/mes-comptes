@@ -78,6 +78,7 @@ await step('A crée le foyer : le code s\'affiche pour inviter, rien d\'autre à
   await A.getByRole('button', { name: 'Continuer' }).click();
   await A.getByText('le midi en boîte').click();
   await A.getByRole('button', { name: 'Continuer' }).click();
+  await A.getByRole('button', { name: 'Continuer' }).click(); // budget et allergies : facultatifs
   await A.getByRole('button', { name: /Créer le foyer/ }).click();
   await A.getByRole('link', { name: "Aujourd'hui", exact: true }).click();
   code = (await A.locator('.banner .kbd').innerText()).trim();

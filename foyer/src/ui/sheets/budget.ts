@@ -2,7 +2,7 @@
 // Un article sans prix de référence est compté « non chiffré », jamais deviné : le montant est alors un minimum.
 import { type LocalDate, addDays, fmtDayShort } from '../../core/dates.ts';
 import type { ShoppingList } from '../../core/shopping.ts';
-import { cartEstimate, cartText, coverText, weekReport } from '../../core/budget.ts';
+import { cartEstimate, cartText, coverText, weekReport, calibration, calibrationText } from '../../core/budget.ts';
 import { refPrices, monthText } from '../../core/refprice.ts';
 import { batchStreak } from '../../core/batch.ts';
 import { eur, parseEuros } from '../../core/money.ts';
@@ -45,6 +45,7 @@ function estimateNote(priced: number, paid: number, unpriced: number, seasonings
   if (priced > paid) parts.push(`${paid ? '' : 'Estimé automatiquement '}${src}, pas aux prix d'Auchan. Rien à saisir.`);
   if (unpriced) parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
   if (seasonings) parts.push('Sel, poivre et épices non comptés.');
+  parts.push(calibrationText(calibration(S())));
   return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
 }
 SUBMIT['spentSet'] = (data, form) => {

@@ -7,7 +7,7 @@ import { ingredientKey } from './ingredients.js';
 import { toPrepare, servings } from './plan.js';
 import { cmp, mul, q, qFrom, ZERO } from './rational.js';
 import { UNIT, toBase } from './units.js';
-import { refFor, refCost } from './refprice.js';
+import { refFor, refCost, refPrices } from './refprice.js';
 import { groupFor, productOf } from './products.js';
 import { nameKey } from './text.js';
 export const RELIABLE = 0.8;
@@ -20,6 +20,47 @@ export const isSeasoning = (name) => {
     const parts = name.split(/,| et /).map(x => nameKey(x)).filter(Boolean);
     return parts.length > 0 && parts.every(x => SEASONINGS.has(x));
 };
+export const CALIB_MIN = 5;
+export const CALIB_BOUNDS = [0.5, 2];
+function paidPerRef(pd, ref) {
+    if (pd.loose)
+        return (pd.unit === 'kg' && ref.per === 'kg') || (pd.unit === 'l' && ref.per === 'l') ? pd.cents : null;
+    const u = pd.unit ? UNIT[pd.unit] : undefined, size = pd.size ? qFrom(pd.size) : null;
+    if (!u || !size || size.n <= 0)
+        return null;
+    const b = toBase(size, u), base = b.n / b.d;
+    if ((ref.per === 'kg' && u.dim === 'masse') || (ref.per === 'l' && u.dim === 'volume'))
+        return pd.cents * 1000 / base;
+    return ref.per === 'piece' && u.dim === 'piece' ? pd.cents / base : null;
+}
+const CALIB = new WeakMap();
+export function calibration(s) {
+    const refs = refPrices(), hit = CALIB.get(s);
+    if (hit && hit.refs === refs)
+        return hit.cal;
+    const ratios = [];
+    for (const [key, pd] of Object.entries(s.paid)) {
+        if (key.includes('|'))
+            continue; // surgelé, en conserve… : pas le produit frais que relève l'Insee
+        const ref = refFor(key), per = ref ? paidPerRef(pd, ref) : null;
+        if (ref && per)
+            ratios.push(per / ref.cents);
+    }
+    ratios.sort((a, b) => a - b);
+    const n = ratios.length, mid = n % 2 ? ratios[(n - 1) / 2] : ((ratios[n / 2 - 1] ?? 0) + (ratios[n / 2] ?? 0)) / 2;
+    const cal = { factor: n >= CALIB_MIN ? Math.min(CALIB_BOUNDS[1], Math.max(CALIB_BOUNDS[0], Math.round(mid * 100) / 100)) : null, n,
+        low: n ? ratios[0] : null, high: n ? ratios[n - 1] : null };
+    CALIB.set(s, { refs, cal });
+    return cal;
+}
+// « Estimations Insee calées sur vos factures : −8 % (médiane de 7 articles) ».
+export function calibrationText(c) {
+    if (c.factor === null)
+        return c.n ? `Calage sur vos factures : ${c.n} article${c.n > 1 ? 's' : ''} comparable${c.n > 1 ? 's' : ''} sur ${CALIB_MIN} nécessaires.` : '';
+    const pct = Math.round((c.factor - 1) * 100);
+    return `Estimations Insee calées sur vos factures : ${pct === 0 ? 'au même niveau' : `${pct > 0 ? '+' : '−'}${Math.abs(pct)} %`} (médiane de ${c.n} articles payés comparés au prix moyen Insee).`;
+}
+const calibrated = (s, cents) => { const f = calibration(s).factor; return f ? Math.round(cents * f) : cents; };
 // Au prix payé sur la dernière facture : au poids (prix au kg × quantité exacte) ou en articles entiers de la contenance achetée.
 // Contenance inconnue ou d'une autre dimension que le besoin : pas de montant (on ne devine pas combien en prendre).
 export function paidCost(pd, l) {
@@ -57,7 +98,7 @@ export function lineCost(s, l) {
     if (seen !== null)
         return { cents: seen, how: 'relevé', ref: null, group: g, product: adv, qty, paid: null };
     const ref = refFor(l.name), cents = ref ? refCost(ref, l.dim, qty) : null;
-    return ref && cents !== null ? { cents, how: 'référence', ref, group: g, product: null, qty, paid: null } : null;
+    return ref && cents !== null ? { cents: calibrated(s, cents), how: 'référence', ref, group: g, product: null, qty, paid: null } : null;
 }
 /* ---------- Coût d'un plat (proposition de la semaine, coût par portion) ---------- */
 // Ce que coûte la quantité utilisée, au meilleur prix connu (payé, noté, relevé, Insee), sans arrondir au paquet entier :
@@ -83,8 +124,8 @@ export function unitCost(s, name, form, dim, qty) {
     const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, dim, qty) : null;
     if (seen !== null)
         return seen;
-    const ref = refFor(name);
-    return ref ? refCost(ref, dim, qty) : null;
+    const ref = refFor(name), cents = ref ? refCost(ref, dim, qty) : null;
+    return cents === null ? null : calibrated(s, cents);
 }
 // Coût d'un plat pour n portions ; null si le rendement de la recette n'est pas renseigné (pas de quantités à calculer).
 export function dishCost(s, c, portions) {

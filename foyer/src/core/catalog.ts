@@ -8,6 +8,7 @@ import type { ParsedRecipe } from './recipe-text.ts';
 import { type CatalogRecipe, familyOf } from './wikibook.ts';
 import { nameKey, norm } from './text.ts';
 import { dishType } from './visual.ts';
+import { dishBlocked } from './allergens.ts';
 
 export interface Catalog {
   source: string; sourceUrl: string; license: string; licenseUrl: string; note: string; generated: string; count: number;
@@ -83,6 +84,8 @@ export function discover(s: State, cat: Catalog, ctx: DiscoverContext): Discover
   for (const r of cat.recipes) {
     // Sans nombre de personnes, pas de courses justes : proposé seulement si le foyer accepte de le préciser à la validation.
     if ((r.yield === null && !ctx.noYield) || ctx.exclude.has(r.id) || owned.has(nameKey(r.title))) continue;
+    const lines = linesOf(r);
+    if (dishBlocked(s.settings.exclude, lines.map(l => l.name))) continue; // allergie ou refus du foyer
     let score = 20;
     const why: string[] = ['nouveau'];
     if (r.yield === null) score -= 6;
@@ -99,7 +102,6 @@ export function discover(s: State, cat: Catalog, ctx: DiscoverContext): Discover
     }
     if (ctx.weekend && r.minutes !== null && r.minutes > 45) { score += 5; why.push('plat du week-end'); }
     if (r.main && ctx.neighbourFamilies.has(r.main)) score -= 15;
-    const lines = linesOf(r);
     const shared = [...new Set(lines.filter(l => ['fruits-legumes', 'cremerie', 'frais'].includes(aisleOf(l.name, l.form, s.aisles)))
       .map(l => nameKey(l.name)).filter(k => ctx.weekFresh.has(k)))].map(k => ctx.weekFresh.get(k) as string);
     if (shared.length) { score += Math.min(12, 4 * shared.length); why.push(`réutilise ${shared.slice(0, 2).join(', ')}`); }

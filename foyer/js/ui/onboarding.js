@@ -1,6 +1,7 @@
-// Premier usage : créer le foyer (prénoms, qui utilise ce téléphone), choisir explicitement le rythme, poser quelques classiques.
-// Aucun équipement, budget ni inventaire demandé. On peut aussi rejoindre un foyer existant avec un lien, ou découvrir un exemple.
-import { defaultRhythm } from '../core/model.js';
+// Premier usage : créer le foyer (prénoms, qui utilise ce téléphone), choisir explicitement le rythme, poser quelques classiques,
+// puis, comme chez Pimzi, le budget de la semaine et les allergies (facultatifs, une seule page). Aucun équipement ni inventaire demandé.
+// On peut aussi rejoindre un foyer existant avec un lien, ou découvrir un exemple.
+import { defaultRhythm, MAX_CENTS } from '../core/model.js';
 import { newId } from '../core/reduce.js';
 import { newCode } from '../core/sync.js';
 import { A, dispatch, setDevice } from './state.js';
@@ -8,6 +9,8 @@ import { esc, toast } from './dom.js';
 import { CLICK, INPUT, SUBMIT, CHANGE } from './registry.js';
 import { receive } from './sheets/settings.js';
 import { available as relayAvailable } from './autosync.js';
+import { exclusionFields, readExclusions, NOT_MEDICAL } from './sheets/allergies.js';
+import { parseEuros } from '../core/money.js';
 let step = 'welcome';
 let names = ['', ''];
 let meIdx = 0;
@@ -18,7 +21,7 @@ let joinText = '';
 import { CLASSICS } from '../core/classics.js';
 export { CLASSICS };
 export function onboardingView() {
-    const dots = (n) => `<p class="muted small">Étape ${n} sur 3</p>`;
+    const dots = (n) => `<p class="muted small">Étape ${n} sur 4</p>`;
     switch (step) {
         case 'welcome': return `<main id="main" class="onb" tabindex="-1"><div class="onb-hero" aria-hidden="true"><span class="art-emoji e1">🍲</span><span class="art-emoji e2">🥕</span>
       <span class="art-emoji e3">🍝</span><span class="art-emoji e4">🧀</span><span class="art-emoji e5">🥦</span></div><h1>Fini le «\u00a0on mange quoi ce soir\u00a0?\u00a0»</h1>
@@ -44,7 +47,16 @@ export function onboardingView() {
       <div class="chips">${CLASSICS.map(c => `<button class="tag" data-a="onbPick" data-c="${esc(c)}" aria-pressed="${picks.has(c)}">${esc(c)}</button>`).join('')}
         ${[...picks].filter(p => !CLASSICS.includes(p)).map(c => `<button class="tag" data-a="onbPick" data-c="${esc(c)}" aria-pressed="true">${esc(c)}</button>`).join('')}</div>
       <form data-f="onbCustom" class="addbar"><label class="sr-only" for="onb-custom">Autre plat</label><input id="onb-custom" type="text" maxlength="80" placeholder="Autre plat…" value="${esc(custom)}" data-i="onbCustom"><button class="btn ghost">Ajouter</button></form>
-      <div class="actions"><button class="btn ghost" data-a="onb" data-s="rhythm">Retour</button><button class="btn grow" data-a="onbDone">${picks.size ? `Créer le foyer avec ${picks.size} plat${picks.size > 1 ? 's' : ''}` : 'Créer le foyer (plats plus tard)'}</button></div></main>`;
+      <div class="actions"><button class="btn ghost" data-a="onb" data-s="rhythm">Retour</button><button class="btn grow" data-a="onb" data-s="budget">Continuer</button></div></main>`;
+        case 'budget': return `<main id="main" class="onb" tabindex="-1">${dots(4)}<h1>Budget et allergies</h1>
+      <p class="muted">Facultatif, modifiable ensuite dans Maison › Réglages.</p>
+      <form data-f="onbDone" class="stack">
+        <label class="field">Budget courses par semaine, en euros<span class="hint">Les menus proposés remplacent d'office un plat cher quand la semaine dépasse.</span>
+          <input type="text" name="eur" inputmode="decimal" autocomplete="off" placeholder="ex. 90"></label>
+        ${exclusionFields(undefined)}
+        <p class="small muted">Allergies et refus : les plats qui en contiennent ne sont jamais proposés. ${esc(NOT_MEDICAL)}</p>
+        <div class="actions"><button type="button" class="btn ghost" data-a="onb" data-s="classics">Retour</button><button class="btn grow">${picks.size ? `Créer le foyer avec ${picks.size} plat${picks.size > 1 ? 's' : ''}` : 'Créer le foyer (plats plus tard)'}</button></div>
+      </form></main>`;
         case 'join': return `<main id="main" class="onb" tabindex="-1"><h1>Rejoindre votre foyer</h1>
       ${relayAvailable() ? `<form data-f="joinCode" class="card stack"><label class="field">Code du foyer<span class="hint">Affiché sur l'autre téléphone (Aujourd'hui, ou Maison › Réglages › Synchro).</span>
         <input type="text" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" required></label><button class="btn">Rejoindre</button></form>
@@ -74,8 +86,7 @@ CHANGE['onbPreset'] = (_d, el) => { preset = el.value; A.render(); };
 CLICK['onbPick'] = (d, el) => { const c = d['c'] ?? ''; if (picks.has(c))
     picks.delete(c);
 else
-    picks.add(c); el.setAttribute('aria-pressed', String(picks.has(c))); const b = document.querySelector('[data-a="onbDone"]'); if (b)
-    b.textContent = picks.size ? `Créer le foyer avec ${picks.size} plat${picks.size > 1 ? 's' : ''}` : 'Créer le foyer (plats plus tard)'; };
+    picks.add(c); el.setAttribute('aria-pressed', String(picks.has(c))); };
 INPUT['onbCustom'] = (_d, el) => { custom = el.value; };
 SUBMIT['onbCustom'] = () => { const c = custom.trim().slice(0, 80); if (c) {
     picks.add(c.charAt(0).toUpperCase() + c.slice(1));
@@ -85,11 +96,17 @@ SUBMIT['onbCustom'] = () => { const c = custom.trim().slice(0, 80); if (c) {
 } };
 INPUT['onbJoin'] = (_d, el) => { joinText = el.value; };
 SUBMIT['onbJoin'] = () => { void receive(joinText); };
-CLICK['onbDone'] = () => {
+SUBMIT['onbDone'] = data => {
+    const raw = String(data.get('eur') ?? '').trim(), budget = raw ? parseEuros(raw) : null, exclude = readExclusions(data);
+    if (raw && (!budget || budget > MAX_CENTS)) {
+        toast('Budget non compris : par exemple 90 ou 92,50 (ou laissez vide)');
+        return;
+    }
     const ids = names.map(() => newId(8));
     const p = preset === 'dehors' ? 'dehors' : preset === 'boite' ? 'boite' : 'maison';
     const drafts = [{ t: 'household.init', p: { hid: newId(), members: names.map((n, i) => ({ id: ids[i], name: n })),
-                settings: { weekStart: 0, rhythm: defaultRhythm(ids, p, 'maison'), boxesFromDinner: preset === 'boite' } } }];
+                settings: { weekStart: 0, rhythm: defaultRhythm(ids, p, 'maison'), boxesFromDinner: preset === 'boite', ...(budget ? { budget } : {}),
+                    ...(exclude.allergens.length || exclude.foods.length ? { exclude } : {}) } } }];
     for (const name of picks)
         drafts.push({ t: 'recipe.save', p: { recipe: newId(), content: { name, yield: null, ingredients: [], steps: [], ahead: [], tags: [], note: '' } } });
     setDevice({ me: ids[meIdx] ?? null, code: newCode() });
