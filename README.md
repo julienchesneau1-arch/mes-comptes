@@ -11,6 +11,10 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Tableur de suivi** (export CSV d'un tableau « postes × mois ») : importé comme historique, remplacé mois par mois par les vrais relevés ; ses annotations X / NEGO / PEUT DIMINUER / PEUT SE PASSER deviennent les leviers du plan d'épargne.
 - **Plan d'épargne** : ce que chaque levier libère par mois (−15 % / ~20 % / 100 %), relié aux objectifs et aux défis.
 - **Contrôle des relevés** : ancien solde + opérations lues = nouveau solde, sinon un écart est signalé.
+- **À faire** (accueil), deux cas de plus, réglés d'un toucher :
+  - *prévu échu* : un prélèvement ou une saisie prévu, daté de plus de 2 jours, absent alors que le relevé couvre déjà 4 jours après sa date → « payé autrement », « toujours attendu » ou « il n'aura pas lieu » ;
+  - *dépense commune payée en perso* : courses ou logement de plus de 20 € sur un compte perso, quand il existe un compte commun → « dépense commune ? », puis « le compte commun doit … à … » jusqu'au « virement fait ».
+  Les soldes et les statistiques par compte ne changent pas : seule la décision est gardée, et synchronisée.
 - **Tester ses vrais relevés en local** : les déposer dans `releves/` (jamais publié) puis `node verifier-releves.mjs` (`--brut` pour voir le texte lu dans un PDF).
 
 Tests de la logique : `node test.js`
