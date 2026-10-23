@@ -1,4 +1,4 @@
-import { isDate, isSlotKey } from './dates.js';
+import { isDate, isSlotKey, addDays } from './dates.js';
 import { AISLE } from './ingredients.js';
 import { UNIT } from './units.js';
 import { qFrom } from './rational.js';
@@ -11,7 +11,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export const EVENT_TYPES = new Set(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
     'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
     'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
-    'watch.close', 'conflict.ack', 'exc.snooze', 'undo']);
+    'watch.close', 'conflict.ack', 'exc.snooze', 'week.draft', 'week.discard', 'undo']);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -78,6 +78,17 @@ export function validContent(v) {
         && Array.isArray(v['tags']) && v['tags'].length <= 10 && v['tags'].every(t => str(t, 24, 1))
         && str(v['note'], 1000) && optMin(v['prepMin']) && optMin(v['cookMin']);
 }
+const DRAFT_KINDS = new Set(['cook', 'new', 'from']);
+function validDraftItems(week, items) {
+    const seen = new Set(), end = addDays(week, 6);
+    return items.every(x => {
+        if (!isObj(x) || !isSlotKey(x['slot']) || seen.has(x['slot']) || typeof x['kind'] !== 'string' || !DRAFT_KINDS.has(x['kind']) || !str(x['ref'], 60, 1))
+            return false;
+        const d = x['slot'].slice(0, 10);
+        seen.add(x['slot']);
+        return d >= week && d <= end && (x['kind'] !== 'from' || isSlotKey(x['ref'])) && (x['n'] === undefined || int(x['n'], 1, 20)) && (x['batch'] === undefined || bool(x['batch']));
+    });
+}
 function validDateDecl(v) {
     if (!isObj(v))
         return false;
@@ -139,6 +150,8 @@ const P = {
         && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
     'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
     'conflict.ack': p => isId(p['event']),
+    'week.draft': p => isDate(p['week']) && Array.isArray(p['items']) && p['items'].length <= 14 && validDraftItems(p['week'], p['items']),
+    'week.discard': p => isDate(p['week']),
     'exc.snooze': p => typeof p['key'] === 'string' && /^[a-z]{2,12}:[^\u0000-\u001f]{1,100}$/.test(p['key']) && str(p['until'], 40, 10) && !Number.isNaN(Date.parse(p['until'])),
     'undo': p => isId(p['event']),
 };
@@ -158,6 +171,6 @@ export const defaultRhythm = (ids, midi, soir, weekendMidi = 'maison') => Array.
 }));
 export const emptyState = () => ({
     hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {},
+    recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {}, drafts: {},
 });
 export const current = (r) => r.versions[r.versions.length - 1];

@@ -420,3 +420,7 @@ table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .exc .small { margin: 0; }
 .exc-more > summary { display: inline-block; padding: .375rem 0; font-size: .875rem; font-weight: 700; color: var(--ink-2); cursor: pointer; }
 .exc-more[open] > .actions { margin-top: .25rem; }
+/* Liste d'approbation de la semaine : le plat sur une ligne, ses commandes dessous (alignées sur le texte) */
+.recap .plan-row { display: grid; gap: .375rem; }
+.recap .row-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; padding-left: 3.75rem; }
+.week-total { margin: 0; font-weight: 700; }

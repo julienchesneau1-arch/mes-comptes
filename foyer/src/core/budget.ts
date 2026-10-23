@@ -1,7 +1,7 @@
 // Budget : panier estimé sans rien saisir — prix payé lu sur une facture du drive d'abord, puis prix noté autrefois sur un produit
 // retenu, puis prix relevé du produit conseillé, sinon prix moyen Insee —, montant payé, bilan.
 import { type LocalDate, addDays, paris, slotKey, SLOTS } from './dates.ts';
-import type { Paid, State } from './model.ts';
+import type { Paid, RecipeContent, State } from './model.ts';
 import type { Replay } from './reduce.ts';
 import { type ShopLine, type ShoppingList, deriveShopping, weekPreps } from './shopping.ts';
 import { packsFor, paidFor } from './drive.ts';
@@ -64,6 +64,44 @@ export function lineCost(s: State, l: ShopLine): LineCost | null {
   if (seen !== null) return { cents: seen, how: 'relevé', ref: null, group: g, product: adv, qty, paid: null };
   const ref = refFor(l.name), cents = ref ? refCost(ref, l.dim, qty) : null;
   return ref && cents !== null ? { cents, how: 'référence', ref, group: g, product: null, qty, paid: null } : null;
+}
+
+/* ---------- Coût d'un plat (proposition de la semaine, coût par portion) ---------- */
+
+// Ce que coûte la quantité utilisée, au meilleur prix connu (payé, noté, relevé, Insee), sans arrondir au paquet entier :
+// un paquet de pâtes sert plusieurs plats. Contenance d'une autre dimension : pièces pesées au poids moyen (USDA), sinon rien.
+function proportional(pd: Pick<Paid, 'cents' | 'size' | 'unit'>, name: string, dim: string, qty: Q): number | null {
+  const u = pd.unit ? UNIT[pd.unit] : undefined, size = pd.size ? qFrom(pd.size) : null;
+  if (!u || !size || size.n <= 0) return null;
+  const per = toBase(size, u), x = qty.n / qty.d, packBase = per.n / per.d;
+  if (u.dim === dim) return Math.round(pd.cents * x / packBase);
+  const g = refFor(name)?.pieceG;
+  return dim === 'piece' && u.dim === 'masse' && g ? Math.round(pd.cents * Math.ceil(x) * g / packBase) : null;
+}
+export function unitCost(s: State, name: string, form: string | null, dim: string, qty: Q): number | null {
+  const pd = paidFor(s, name, form), paid = pd ? proportional(pd, name, dim, qty) : null;
+  if (paid !== null) return paid;
+  const p = s.products[ingredientKey(name, form)], noted = p?.price ? proportional({ cents: p.price, size: p.size, unit: p.unit }, name, dim, qty) : null;
+  if (noted !== null) return noted;
+  const g = groupFor(name), adv = g ? productOf(g, g.value ?? g.cheap) : null;
+  const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, dim, qty) : null;
+  if (seen !== null) return seen;
+  const ref = refFor(name);
+  return ref ? refCost(ref, dim, qty) : null;
+}
+export interface DishCost { cents: number; priced: number; unpriced: number; perPortion: number | null; partial: boolean; reliable: boolean }
+// Coût d'un plat pour n portions ; null si le rendement de la recette n'est pas renseigné (pas de quantités à calculer).
+export function dishCost(s: State, c: Pick<RecipeContent, 'yield' | 'ingredients'>, portions: number): DishCost | null {
+  if (!c.yield || portions <= 0) return null;
+  let cents = 0, priced = 0, unpriced = 0;
+  for (const l of c.ingredients) {
+    if (isSeasoning(l.name)) continue;
+    const u = l.unit ? UNIT[l.unit] : undefined, n = l.qty ? qFrom(l.qty) : null;
+    const x = u && n ? unitCost(s, l.name, l.form, u.dim, mul(toBase(n, u), q(portions, c.yield))) : null;
+    if (x === null) unpriced++; else { cents += x; priced++; }
+  }
+  return { cents, priced, unpriced, perPortion: priced ? Math.round(cents / portions) : null, partial: unpriced > 0,
+    reliable: priced > 0 && priced / (priced + unpriced) >= RELIABLE };
 }
 
 export function cartEstimate(s: State, list: ShoppingList): Cart {

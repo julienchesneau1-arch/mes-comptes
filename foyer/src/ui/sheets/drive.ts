@@ -158,7 +158,7 @@ const fixDrafts = (week: LocalDate, keys: readonly string[]): Draft[] => {
 CLICK['cartFixed'] = d => dispatch(fixDrafts(d['week'] ?? '', [d['key'] ?? '']), { toast: 'Panier à jour pour cet article' });
 CLICK['cartFixedAll'] = d => { const w = d['week'] ?? ''; dispatch(fixDrafts(w, cartChanges(S(), deriveShopping(S(), w)).map(c => c.key)), { toast: 'Panier à jour' }); };
 
-// Juste après « Valider la semaine » : le panier est prêt, un geste pour le remplir.
+// Juste après « Tout approuver » : le panier est prêt, un geste pour le remplir.
 export function openCartReady(week: LocalDate): void {
   openSheet({ id: 'cartReady', render: () => {
     const s = S(), list = deriveShopping(s, week), cart = cartEstimate(s, list), n = driveItems(s, list).length;

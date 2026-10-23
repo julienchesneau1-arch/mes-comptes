@@ -76,10 +76,14 @@ await step('compléter le curry', async () => {
   await shot('04-recette'); await axe('recette');
   await page.getByRole('button', { name: 'Enregistrer' }).click();
 });
-await step('menu en cartes : autre idée, geste « je prends », tout garder, valider', async () => {
+await step('semaine générée en liste, puis en cartes : autre idée, geste « je prends », tout garder, approuver', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   await page.getByRole('button', { name: /Proposer le menu/ }).click();
   const sheet = page.locator('dialog[open]');
+  await sheet.getByText('Tout est prêt : approuvez, ou changez un repas.').waitFor();       // la semaine arrive prête, en liste
+  console.log('   liste :', (await sheet.locator('.recap .title').allInnerTexts()).join(' · '), '·', (await sheet.locator('.week-total').innerText()).replace(/\s+/g, ' '));
+  await shot('05-liste'); await axe('liste-approbation');
+  await sheet.getByRole('button', { name: 'Voir en cartes' }).click();
   await sheet.getByText(/^Repas 1 sur \d+/).waitFor();
   await shot('05-propositions'); await axe('propositions');
   const first = await sheet.locator('#deck-name').innerText();
@@ -102,7 +106,7 @@ await step('menu en cartes : autre idée, geste « je prends », tout garder, va
   if (n < 1) throw new Error(`${n} découverte, attendu au moins 1 (réglage par défaut : maximum de nouveautés)`);
   console.log('   menu :', `${first} → ${second} ;`, (await sheet.locator('.recap .title').allInnerTexts()).join(' · '));
   await shot('05b-menu-pret'); await axe('menu-pret');
-  await sheet.getByRole('button', { name: 'Valider la semaine' }).click();
+  await sheet.getByRole('button', { name: '✅ Tout approuver' }).click();
   // Le panier suit le menu : prêt à remplir tout de suite, montant estimé sans rien saisir.
   await page.locator('dialog[open]').getByRole('heading', { name: /Panier prêt/ }).waitFor();
   const ready = await page.locator('dialog[open]').innerText();

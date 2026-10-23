@@ -10,7 +10,7 @@ import { capital, prepTitle } from './status.ts';
 import { weekRange } from './batch.ts';
 import type { Today } from './today.ts';
 
-export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'semaine';
+export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'menu' | 'semaine';
 export type ExcAction =
   | { label: string; drafts: Draft[] }                                                        // un toucher = ces événements
   | { label: string; open: 'slot' | 'watch' | 'ack' | 'propose'; arg: string };                // un toucher = l'écran qui règle
@@ -24,7 +24,7 @@ export interface Exception {
 }
 export const MAX_SHOWN = 5;   // au-delà : « + N autres », repliées ; une file de 12 cartes est une corvée
 export const RULE_AFTER = 3;
-const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, semaine: 300 };
+const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, menu: 350, semaine: 300 };
 const HAS_RULE: ReadonlySet<ExcCode> = new Set(['restes']);
 
 // Créneaux à venir (14 prochains repas) où un plat peut être posé sans conflit : vide, pas mangé, quelqu'un y mange.
@@ -93,12 +93,22 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
       actions: picks.map(k => ({ label: capital(fmtSlot(k, today)), drafts: [{ t: 'slot.from', p: { slot: k, prep: x.prep } }] as Draft[] })) });
   }
 
+  // Menu généré en attente d'approbation (sur ce téléphone ou l'autre) : il remplace la carte « repas sans plat » de sa semaine.
+  const thisWk = weekOf(today, s.settings.weekStart), nextWk = addDays(thisWk, 7);
+  for (const w of [thisWk, nextWk]) {
+    const d = s.drafts[w];
+    if (!d) continue;
+    const who = d.by && d.by !== me ? s.members.find(m => m.id === d.by)?.name : undefined;
+    add({ key: `menu:${w}`, code: 'menu', prio: BASE.menu + (w === thisWk ? 20 : 0), title: `Menu ${w === thisWk ? 'de la semaine' : `${weekRange(w)}`} proposé${who ? ` par ${who}` : ''} : ${d.items.length} repas à approuver`,
+      sub: 'Approuvez tout, ou changez un repas.', actions: [{ label: 'Voir et approuver', open: 'propose', arg: w }] });
+  }
+
   // Repas sans plat : rien que le rituel du batch ne propose déjà.
   const rit = t.ritual, ritualMenu = !!rit && (rit.kind === 'menu' || rit.kind === 'choose' || (rit.kind === 'courses' && rit.menuEmpty));
-  if (t.empty) add({ key: `semaine:${today}`, code: 'semaine', prio: BASE.semaine, title: `${t.empty} repas sans plat d'ici la fin de la semaine`, sub: '',
+  if (t.empty && !s.drafts[thisWk]) add({ key: `semaine:${today}`, code: 'semaine', prio: BASE.semaine, title: `${t.empty} repas sans plat d'ici la fin de la semaine`, sub: '',
     actions: [{ label: `✨ Compléter cette semaine (${t.empty} repas)`, open: 'propose', arg: '' }] });
-  if (t.nextWeekEmpty && !ritualMenu) {
-    const next = addDays(weekOf(today, s.settings.weekStart), 7);
+  if (t.nextWeekEmpty && !ritualMenu && !s.drafts[nextWk]) {
+    const next = nextWk;
     add({ key: `semaine:${next}`, code: 'semaine', prio: BASE.semaine - 10, title: 'La semaine prochaine est vide', sub: '',
       actions: [{ label: `✨ Choisir les repas ${weekRange(next)}`, open: 'propose', arg: next }] });
   }

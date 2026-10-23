@@ -159,6 +159,18 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Compteur sur tablette | **non fait** | Foyer n'a pas de mode tablette |
 | Robustesse des tests | **livré** | `parcours.mjs` à horloge figée (9 octobre) : depuis le 23 octobre, le 11 novembre férié entrait dans les 31 jours lus et ajoutait une décision attendue |
 
+### V3.3 (la semaine arrive prête — spec `spec-semaine-generee.md` ; budget tenu comme chez Pimzi)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Liste d'approbation | **livré** | « Proposer le menu » : toute la semaine en liste, « ✅ Tout approuver », « ↻ Autre idée » (2e, 3e suggestion…) et « ✕ Retirer » par repas (ses restes partent avec lui), bascules « Batch », nombre de personnes d'une recette qui ne le dit pas. Cartes à la Jow en option (« Voir en cartes »). Navigateur : veto, retrait, approbation → panier prêt |
+| Budget tenu d'office (Pimzi) | **livré** | `fitBudget` : tant que la semaine (plats déjà prévus compris) dépasse le budget, le plat le plus cher est remplacé par la première alternative au moins 15 % moins chère, chaque repas une fois au plus, jamais vers un plat dont moins de 80 % des ingrédients ont un prix. Sinon : « Au-dessus du budget : aucune alternative nettement moins chère dont le prix soit bien connu ». Coût d'un plat proportionnel aux quantités (`dishCost`, prix payé › noté › relevé › Insee) ; coût par portion affiché seulement s'il est fiable ; « reste » du budget affiché seulement si l'estimation est complète |
+| Brouillon partagé | **livré** | Événements `week.draft` (compact : un identifiant par repas, 14 au plus, bornés à la semaine, sans doublon) et `week.discard` (à l'approbation). L'autre téléphone retrouve le même menu ; un repas rempli entre-temps ou une recette indisponible est écarté, jamais écrasé. « À régler » : « Menu de la semaine proposé par … : N repas à approuver » remplace « N repas sans plat » |
+| Durées dans le choix | **livré** | Vos plats : rapide (≤ 30 min déclarées) +10 un soir de semaine, plus d'une heure −15 ; plus de 45 min bienvenu le week-end — mêmes règles que les découvertes |
+| Approbation jour par jour | **non fait** | Les boîtes (restes du dîner de la veille) relient deux jours : approuver mardi avant lundi casserait le lien. « ✕ Retirer » couvre le besoin |
+| Saison, corvées, prévision du mois | **non fait** | [DONNÉE_MANQUANTE] calendrier de saison sourcé ; corvées absentes de Foyer ; prévision du mois dans Mes Comptes (stockage séparé). La spec demande de ne rien simuler |
+| Couverture des prix | **limite constatée** | Menu de découvertes réelles : « au moins 5,64 € » pour 63 articles — la plupart des ingrédients n'ont pas de prix connu, donc le budget ne peut pas être tenu par remplacement. Les factures lues (V3.1) et le calibrage prévu en PR D l'améliorent |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -280,3 +292,4 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-23 | Analyse | Pimzi (pimzi.app, lu par la recherche web : enseigne et budget au départ, dîners remplacés jusqu'à passer sous le budget, prix calés par enseigne ±10 %, liste par rayon, « déjà au placard », allergènes) et deux specs du foyer (file d'exceptions, semaine générée) confrontées au code | livré | Lecture directe du site impossible (crédits Firecrawl épuisés, domaine refusé par le réseau de l'environnement) |
 | 2026-10-23 | V3.2 | File « À régler » + Décisions automatiques (PR A de 4) | livré | Mes Comptes, semaine générée et reprises Pimzi : PR B, C, D |
 | 2026-10-23 | Mes Comptes | File d'exceptions côté Mes Comptes (PR B de 4) : « prévu échu » et « dépense commune payée en perso » dans la liste « À faire » existante, adaptés à son modèle (pas de journal ; décision gardée dans `shared`, fusionnée à la synchro, le remboursement fait l'emporte) ; cache hors ligne v41 | livré | Pas d'écran de réglage du seuil de 20 € (la spec interdit de toucher l'interface au-delà de la liste) ; pas de propriétaire par opération dans Mes Comptes : les statistiques par compte ne bougent pas |
+| 2026-10-23 | V3.3 | Semaine générée en liste d'approbation, budget tenu d'office (Pimzi), brouillon partagé, durées dans le choix (PR C de 4) | livré | Couverture des prix encore faible sur les recettes du catalogue ; approbation jour par jour non faite |

@@ -34,7 +34,7 @@ function ritualHtml(): string {
   const sel = (name: string, value: number) => `<select data-c="ritualSet" data-k="${name}" aria-label="Jour">${DAYS.map((d, i) => `<option value="${i}" ${i === value ? 'selected' : ''}>${d}</option>`).join('')}</select>`;
   const hour = (name: string, value: string) => `<select data-c="ritualSet" data-k="${name}" aria-label="Heure">${[...new Set([...HOURS, value])].sort().map(h => `<option value="${h}" ${h === value ? 'selected' : ''}>${hourText(h)}</option>`).join('')}</select>`;
   const steps = (x: Ritual) => `<ol class="ritual-steps">
-    <li><span class="look t-sun" aria-hidden="true">🗓️</span><span><strong>Jusqu'au ${DAYS[x.shop]}</strong> : le menu de la semaine, en cartes à balayer.</span></li>
+    <li><span class="look t-sun" aria-hidden="true">🗓️</span><span><strong>Jusqu'au ${DAYS[x.shop]}</strong> : le menu de la semaine, prêt à approuver (ou en cartes à balayer).</span></li>
     <li><span class="look t-ocean" aria-hidden="true">🛒</span><span><strong>${capital(DAYS[x.shop] ?? '')} ${hourText(x.shopAt)}</strong> : la liste finale, commandée au drive en quelques gestes.</span></li>
     <li><span class="look t-basil" aria-hidden="true">🚗</span><span><strong>Retrait du drive</strong>, au créneau choisi chez Auchan.</span></li>
     <li><span class="look t-tomato" aria-hidden="true">👩‍🍳</span><span><strong>${capital(DAYS[x.cook] ?? '')} ${hourText(x.cookAt)}</strong> : batch cooking. Foyer liste les plats, la mise en place commune et les boîtes à remplir.</span></li></ol>`;

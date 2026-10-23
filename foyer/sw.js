@@ -52,6 +52,7 @@ const FILES = [
   'js/core/units.js',
   'js/core/visual.js',
   'js/core/watch.js',
+  'js/core/weekgen.js',
   'js/core/wikibook.js',
   'js/ui/agenda.js',
   'js/ui/autosync.js',

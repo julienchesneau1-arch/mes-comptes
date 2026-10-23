@@ -70,10 +70,8 @@ await step('rituel présenté sur Aujourd\'hui, activé en un geste', async () =
 });
 await step('menu en cartes : plats marqués « Batch », un retiré, semaine validée', async () => {
   await page.getByRole('button', { name: /Choisir les repas du 12 au 18 oct\./ }).first().click();
-  await dlg.getByText(/^Repas 1 sur \d+/).waitFor();
-  if (!(await dlg.locator('.badge', { hasText: 'Batch' }).count())) throw new Error('badge « Batch » absent de la première carte');
-  await shot('r04-carte-batch');
-  await dlg.getByRole('button', { name: /Garder tout le menu proposé/ }).click();
+  await dlg.getByText('Tout est prêt : approuvez, ou changez un repas.').waitFor();       // semaine générée, en liste
+  await shot('r04-liste-batch');
   await dlg.getByText(/Batch du dimanche 11 octobre/).waitFor();
   const before = await dlg.locator('[data-a="deckBatch"][aria-pressed="true"]').count();
   await dlg.locator('[data-a="deckBatch"][aria-pressed="true"]').last().click();
@@ -81,7 +79,7 @@ await step('menu en cartes : plats marqués « Batch », un retiré, semaine val
   if (after !== before - 1) throw new Error(`bascule batch : ${before} → ${after}`);
   console.log('   batch :', (await text(dlg.locator('.banner.info').last())));
   await shot('r05-recap-batch'); await axe('recap-batch');
-  await dlg.getByRole('button', { name: 'Valider la semaine' }).click();
+  await dlg.getByRole('button', { name: '✅ Tout approuver' }).click();
   await dlg.getByRole('heading', { name: /Panier prêt/ }).waitFor();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);

@@ -52,10 +52,7 @@ await step('foyer créé, menu de la semaine avec oignons, tomates et pâtes', a
   await page.getByRole('radio', { name: 'Surtout nos plats' }).check();
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   await page.getByRole('button', { name: /Proposer le menu/ }).click();
-  await dlg.locator('#deck-name').waitFor();
-  const all = dlg.getByRole('button', { name: /Garder tout le menu/ });
-  if (await all.count()) await all.click(); else await dlg.getByRole('button', { name: 'Je prends ce plat' }).click();
-  await dlg.getByRole('button', { name: 'Valider la semaine' }).click();
+  await dlg.getByRole('button', { name: '✅ Tout approuver' }).click(); // la semaine arrive prête, en liste
   await dlg.getByRole('heading', { name: /Panier prêt/ }).waitFor();
   await page.keyboard.press('Escape');
 });

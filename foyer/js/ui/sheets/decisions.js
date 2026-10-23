@@ -9,7 +9,7 @@ import { esc, openSheet, sheetHead, toast } from '../dom.js';
 import { CLICK, CHANGE } from '../registry.js';
 const CHIP = {
     conflit: ['conflit', 'À résoudre'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
-    surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], semaine: ['manque', 'À décider'],
+    surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'],
 };
 const OPEN = {
     slot: a => `data-a="slot" data-k="${esc(a)}"`, watch: a => `data-a="watch" data-id="${esc(a)}"`,
