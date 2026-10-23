@@ -463,6 +463,16 @@ function apply(s, e) {
             w.closed = e.p.outcome;
             return;
         }
+        case 'week.draft': {
+            s.drafts[e.p.week] = { items: e.p.items.map(x => ({ ...x })), by: e.by, at: e.at };
+            return;
+        }
+        case 'week.discard': {
+            if (!s.drafts[e.p.week])
+                noop('aucun menu en attente');
+            delete s.drafts[e.p.week];
+            return;
+        }
         case 'exc.snooze': {
             // Jamais plus de 24 h : au-delà, l'exception revient (une règle par défaut se décide, elle ne s'oublie pas).
             const until = Math.min(Date.parse(e.p.until), Date.parse(e.at) + SNOOZE_MAX_MS);

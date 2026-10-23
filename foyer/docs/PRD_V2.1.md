@@ -269,4 +269,12 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 
 [ANOMALIE_LOGIQUE] La spec place la file unique dans Mes Comptes et y écrit des événements (`defaults.set`, `tx.set`) : Mes Comptes n'a pas de journal, et deux apps installées n'ont pas de stockage commun garanti. Décision du foyer (23 octobre) : chaque app sa liste. Mes Comptes reçoit ses deux exceptions dans sa liste d'actions existante (PR B).
 
-Fin du PRD V2.1 (révisions V2.2 à V3.2 incluses).
+## 19. V3.3 — la semaine arrive prête, dans le budget (23 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Une décision par semaine | Liste d'approbation : tout approuver, ou un veto par repas ; rien n'entre au planning avant |
+| Budget d'abord (Pimzi) | Plats chers remplacés d'office quand le prix est bien connu ; sinon le dépassement est dit, jamais un prix inventé |
+| À deux | Le menu proposé attend sur les deux téléphones ; un repas rempli entre-temps n'est jamais écrasé |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.3 incluses).

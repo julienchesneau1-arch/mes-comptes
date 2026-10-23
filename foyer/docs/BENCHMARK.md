@@ -41,6 +41,8 @@
 
 **V3.1 (9 octobre 2026) — prix réels.** Foyer lit la facture du drive sur le téléphone : prix réellement payés à la place des estimations, montant payé noté, même produit recherché la fois suivante. Jow garde les prix du magasin avant l'achat (partenariat) ; Foyer a ceux de vos achats passés, sans partenariat ni IA. Critère « commander au drive » inchangé.
 
+**V3.2–V3.3 (23 octobre 2026) — Pimzi.** Pimzi (pimzi.app, lu par la recherche web : la lecture directe du site était impossible depuis l'environnement) compose une semaine de dîners dans un budget choisi, pour 20 enseignes, prix « calés à ±10 % », liste par rayon, « déjà au placard », allergènes ; 14,99 $/mois ou 59,99 $ à vie. Repris dans Foyer : budget tenu d'office par remplacement des plats chers (avec un garde-fou absent chez Pimzi : jamais sur un prix mal connu), coût par portion, veto d'un toucher. Pimzi garde l'avance sur la couverture des prix (niveaux de prix par enseigne, non sourcés publiquement). Foyer reste gratuit, local, à deux, et ne montre que ce qui est chiffré.
+
 ## Ce qui ferait passer Foyer devant partout
 
 1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.

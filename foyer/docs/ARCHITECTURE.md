@@ -40,6 +40,8 @@
 
 **ADR-19 — File d'exceptions : l'UI propose, le réducteur dispose.** Une règle par défaut est un réglage (`settings.leftovers`, `boxesFromDinner`), donc un état modifié par des événements, rejoué, synchronisé et annulable ; jamais du code d'interface. Une exception est une fonction pure (`exceptions(r, today, me, now)`), jamais une donnée : aucun événement « exception créée ». Elle disparaît quand l'état devient cohérent. Chaque action est soit une liste d'événements pré-validés (créneaux libres, pas mangés, assez de portions : aucun conflit possible), soit l'écran qui règle. « Plus tard » est le seul événement (`exc.snooze`, par personne, 24 h au plus). Écarts à la spec : `defaults.set` remplacé par `settings.set` (même garantie, pas de second mécanisme) ; « restes posés d'office » = proposés d'office, car un événement émis sans toucher par deux téléphones produirait des doublons et des conflits, et la spec interdit l'état invisible ; « cette semaine » retiré du « plus tard » (contradiction avec la limite de 24 h de la même spec).
 
+**ADR-20 — Semaine générée : un lot préparé, jamais une mutation ; budget tenu par remplacement.** Générer ne touche pas au planning : `proposeWeek` (déterministe) produit des propositions ; `fitBudget` remplace, tant que la semaine dépasse le budget, le plat le plus cher par la première alternative au moins 15 % moins chère dont le prix est bien connu (80 % des ingrédients), une fois par repas ; « Tout approuver » émet les événements habituels, validés un à un par le réducteur, plus `week.discard`. Le brouillon (`week.draft`) est compact (créneau, sorte, identifiant ; 14 au plus) pour rester sous la borne de 20 000 caractères par événement ; relu, il n'écrase jamais un repas rempli entre-temps. Écarts à la spec : pas d'événement enveloppe `week.approve` (le lot d'événements d'une approbation s'annule déjà d'un geste), pas d'approbation jour par jour (les boîtes relient deux jours), pas de saison (aucune source), tags `rapide`/`long` déduits des durées déclarées plutôt que d'un nouvel événement.
+
 ## Carte des modules
 
 ```
@@ -76,9 +78,10 @@ src/core/            logique pure, sans DOM, testée sous Node
   visual.ts          visuel d'un plat (emoji + fond par famille), genre du plat (variété de la semaine)
   balance.ts         repères de la semaine (poisson, légumes secs, viande, charcuterie) par personne ; coup de pouce aux propositions
   batch.ts           rituel batch : jours, plats du batch, boîtes, légumes à préparer en une fois, ordre de la séance, ce que le rituel demande aujourd'hui
-  budget.ts          panier estimé sans saisie (lineCost, couverture), montant payé, bilan des semaines ; money.ts : centimes et euros
+  budget.ts          panier estimé sans saisie (lineCost, couverture), coût proportionnel d'un plat (dishCost), montant payé, bilan des semaines ; money.ts : centimes et euros
   refprice.ts        prix de référence Insee : lecture SDMX, actualisation par indice, coût d'une quantité (prix.json)
   products.ts        qualité-prix : points de qualité, contenance, prix relevé, meilleur rapport (produits.json)
+  weekgen.ts         semaine générée : portions et coût d'un plat proposé, alternatives, budget tenu (fitBudget), brouillon compact
   exceptions.ts      file « À régler » : conflits, personne à la maison, cuisson à confirmer, restes, repas sans plat ; priorité, plafond de 5, « plus tard »
   invoice.ts         factures du drive : texte du PDF (pdf.js injecté) → lignes → produits vérifiés par le calcul, total, date ; ingrédients candidats et rapprochement
   classics.ts        plats classiques proposés au démarrage
@@ -90,7 +93,7 @@ tests/               node --test, TypeScript exécuté directement par Node 22
 
 ## Événements
 
-`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `shop.spent` (montant payé), `staple.set`, `aisle.set`, `product.set` (produit Auchan retenu), `price.paid` (dernier prix payé, lu sur une facture), `agenda.set` (agenda branché), `agenda.rule` (décision mémorisée), `agenda.mark` (présence d'après l'agenda), `watch.save`, `watch.close`, `conflict.ack`, `exc.snooze` (« plus tard » sur une exception, par personne, 24 h au plus), `undo`.
+`household.init`, `members.set`, `settings.set`, `recipe.save` (nouvelle version), `recipe.archive`, `slot.presence`, `slot.guests`, `slot.cook`, `slot.from` (restes/boîte), `slot.outside`, `slot.clear`, `slot.move` (déplacer/échanger), `slot.eaten`, `prep.recipe`, `prep.extra`, `prep.start`, `prep.done` (rendement réel, version figée), `prep.correct`, `prep.discard` (motif), `task.set`, `shop.check`, `shop.pantry`, `shop.item`, `shop.spent` (montant payé), `staple.set`, `aisle.set`, `product.set` (produit Auchan retenu), `price.paid` (dernier prix payé, lu sur une facture), `agenda.set` (agenda branché), `agenda.rule` (décision mémorisée), `agenda.mark` (présence d'après l'agenda), `watch.save`, `watch.close`, `conflict.ack`, `exc.snooze` (« plus tard » sur une exception, par personne, 24 h au plus), `week.draft` / `week.discard` (menu généré en attente d'approbation, partagé), `undo`.
 
 Correspondance avec les entités du PRD V2 §14 : WeekPlan/MealSlot/Attendance → créneaux + présences ; PreparationPlan/MealAllocation → `prep` + `slot.from` ; PortionBatch/Reservation/Event → `prep.done` + réservations implicites des créneaux liés + `slot.eaten`/`prep.discard` ; ShoppingSnapshot/PantryCheck → `deriveShopping` + `shop.pantry` signé par le besoin ; SensitiveItem/DateDeclaration → `watch.save` ; AuditEvent → le journal lui-même.
 

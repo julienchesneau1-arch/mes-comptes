@@ -1,5 +1,7 @@
-// Propositions en cartes, à la Jow : un repas à la fois. Glisser à droite (ou ❤) = « je prends », à gauche (ou ↻) = « autre idée »,
-// « pas de plat » = ce repas reste libre. Rien n'est enregistré avant « Valider » ; les boutons font tout ce que font les gestes.
+// Semaine générée (spec « Approbation ») : la semaine entière arrive prête, en liste — « Tout approuver », ou ↻ (autre idée) et ✕
+// (pas de plat) ligne par ligne, coût par portion et total face au budget (plats chers remplacés d'office, comme chez Pimzi).
+// Le brouillon est partagé avec l'autre téléphone (week.draft) ; rien n'entre au planning avant « Tout approuver ».
+// En option, les cartes à la Jow : glisser à droite (ou ❤) = « je prends », à gauche (ou ↻) = « autre idée ».
 import { type LocalDate, type SlotKey, fmtSlot, fmtDay, weekOf, parseSlot } from '../../core/dates.ts';
 import { batchDayFor, defaultIn, inWindow } from '../../core/batch.ts';
 import type { Draft } from '../../core/reduce.ts';
@@ -9,6 +11,9 @@ import type { Catalog } from '../../core/catalog.ts';
 import { dishLook, type Look } from '../../core/visual.ts';
 import { replay, stamp } from '../../core/reduce.ts';
 import { deriveShopping } from '../../core/shopping.ts';
+import { type Cart, cartEstimate, cartText } from '../../core/budget.ts';
+import { eur } from '../../core/money.ts';
+import { idOf, propCost, fitBudget, plannedCost, alternativesFor, toItems, fromItems } from '../../core/weekgen.ts';
 import { capital, prepTitle } from '../../core/status.ts';
 import { presence } from '../../core/plan.ts';
 import { loadCatalog } from '../catalog.ts';
@@ -24,11 +29,12 @@ const VARIETY_LABEL: Record<Variety, string> = { max: 'maximum de nouveautés', 
 interface Deck {
   props: Proposal[]; i: number; kept: Set<SlotKey>; tried: Map<SlotKey, Set<string>>; title: string; week: LocalDate; single: boolean; note: string; cat: Catalog | null;
   batchDay: LocalDate | null; batch: Set<SlotKey>;   // rituel : batch qui prépare la semaine, repas cuisinés à l'avance
+  view: 'list' | 'cards'; swapped: SlotKey[]; by: string; // liste d'approbation (défaut) ou cartes ; repas remplacés pour le budget ; auteur du brouillon
 }
 let D: Deck | null = null;
 
 const reduced = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const idOf = (p: Proposal): string => (p.dish?.kind === 'cook' ? p.dish.recipe : p.dish?.kind === 'new' ? `n:${p.dish.catalog.id}` : '');
+const cooks = (p: Proposal): boolean => p.dish?.kind === 'cook' || p.dish?.kind === 'new';
 
 // Ce que montre une carte : visuel, nom, étiquettes.
 export function cardInfo(p: Proposal, all: readonly Proposal[] = []): { look: Look; name: string; badges: string[]; link: string | null } {
@@ -101,7 +107,7 @@ function deckHtml(): string {
       <p class="muted">${has ? 'Les repas sont prévus, ou personne ne mange à la maison.' : 'Ajoutez quelques plats que vous faites souvent : Foyer vous les proposera.'}</p>
       ${has ? '' : '<button class="btn big" data-a="classics">Choisir nos plats</button>'}</div>`;
   }
-  if (D.i >= total) return summaryHtml();
+  if (D.view === 'list' || D.i >= total) return summaryHtml();
   const p = D.props[D.i] as Proposal;
   const canAlt = p.dish?.kind === 'cook' || p.dish?.kind === 'new';
   return `${sheetHead(esc(D.title), D.single ? 'Glissez à droite si ça vous dit, à gauche pour une autre idée.' : `Repas ${D.i + 1} sur ${total} · glissez à droite pour garder, à gauche pour changer.`)}
@@ -123,29 +129,53 @@ function keptProps(): Proposal[] { return D ? D.props.filter(p => D?.kept.has(p.
 
 function summaryHtml(): string {
   if (!D) return '';
-  const kept = keptProps(), today = clock().date;
-  let shop = 0;
+  const d = D, s = S(), kept = keptProps(), today = clock().date, list = d.view === 'list';
+  let shop = 0, cart: Cart | null = null;
   try {
-    const ev = stamp({ dev: 'apercu00', by: null, lc: A.r.maxLc, now: A.now() }, acceptDrafts(S(), kept));
-    shop = deriveShopping(replay([...A.log, ...ev]).state, D.week).lines.filter(l => !l.done).length;
+    const ev = stamp({ dev: 'apercu00', by: null, lc: A.r.maxLc, now: A.now() }, acceptDrafts(s, kept));
+    const st = replay([...A.log, ...ev]).state, sl = deriveShopping(st, d.week);
+    shop = sl.lines.filter(l => !l.done).length; cart = cartEstimate(st, sl);
   } catch { shop = 0; }
-  const cooks = kept.filter(p => p.dish?.kind === 'cook' || p.dish?.kind === 'new').length;
-  const bd = D.batchDay, canBatch = (p: Proposal) => !!bd && (p.dish?.kind === 'cook' || p.dish?.kind === 'new') && inWindow(bd, parseSlot(p.slot)?.date ?? '');
-  const inBatch = kept.filter(p => canBatch(p) && D?.batch.has(p.slot)).length;
-  return `${sheetHead(esc(D.title))}
-  <div class="celebrate"><span class="big-emoji" aria-hidden="true">${kept.length ? '🎉' : '🙂'}</span>
-    <h3>${kept.length ? 'Votre semaine est prête\u00a0!' : 'Rien de retenu'}</h3>
-    <p class="muted">${kept.length ? `${cooks} plat${cooks > 1 ? 's' : ''} à cuisiner${kept.length - cooks ? ` · ${kept.length - cooks} repas de restes` : ''}${shop ? ` · ${shop} article${shop > 1 ? 's' : ''} de courses` : ''}` : 'Aucun repas gardé : vous pouvez recommencer.'}</p></div>
-  ${kept.length ? `<ul class="list recap">${kept.map(p => { const info = cardInfo(p, D?.props ?? []); return `<li><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}</span>
-    <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(capital(fmtSlot(p.slot, today)))}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}</span></span>
-    ${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${!!D?.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}</div></li>`; }).join('')}</ul>` : ''}
+  const cookN = kept.filter(cooks).length, budget = s.settings.budget ?? null;
+  const bd = d.batchDay, canBatch = (p: Proposal) => !!bd && cooks(p) && inWindow(bd, parseSlot(p.slot)?.date ?? '');
+  const inBatch = kept.filter(p => canBatch(p) && d.batch.has(p.slot)).length;
+  const money = cart?.priced ? `${cartText(cart, eur)} de courses estimées` : '';
+  // Un minimum (estimation incomplète) qui dépasse dépasse vraiment ; en dessous, le « reste » serait inventé.
+  const vs = !budget || !cart?.priced ? '' : cart.cents > budget ? ` · ${eur(cart.cents - budget)} au-dessus du budget (${eur(budget)})`
+    : cart.partial ? ` · budget ${eur(budget)} (estimation incomplète)` : ` · budget ${eur(budget)} : reste ${eur(budget - cart.cents)}`;
+  const row = (p: Proposal): string => {
+    const info = cardInfo(p, d.props), c = cooks(p) ? propCost(s, d.props, p) : null, when = capital(fmtSlot(p.slot, today));
+    // Coût par portion seulement s'il est fiable (80 % des ingrédients chiffrés) : un minimum très partiel tromperait.
+    const price = p.dish?.kind === 'from' ? 'restes : rien à acheter' : c?.reliable && c.perPortion ? `≈ ${eur(c.perPortion)} la portion` : '';
+    return `<li class="plan-row"><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}</span>
+      <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(when)}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}${price ? ` · ${esc(price)}` : ''}${d.swapped.includes(p.slot) ? ' · 💶 moins cher, pour tenir le budget' : ''}</span></span></div>
+      <div class="row-actions">${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${d.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}
+      ${cooks(p) ? `<button class="btn small-btn ghost" data-a="listOther" data-k="${p.slot}" aria-label="Autre idée pour ${esc(when.toLowerCase())}">↻ Autre idée</button>` : ''}
+      <button class="btn small-btn quiet" data-a="listSkip" data-k="${p.slot}" aria-label="Pas de plat ${esc(when.toLowerCase())}">✕ Retirer</button></div></li>`;
+  };
+  const head = list ? sheetHead(esc(d.title), d.by ? `Proposé par ${esc(d.by)} : approuvez, ou changez un repas.` : 'Tout est prêt : approuvez, ou changez un repas.') : sheetHead(esc(d.title));
+  return `${head}
+  ${d.note ? `<p class="banner info">${esc(d.note)}</p>` : ''}
+  ${list ? '' : `<div class="celebrate"><span class="big-emoji" aria-hidden="true">${kept.length ? '🎉' : '🙂'}</span><h3>${kept.length ? 'Votre semaine est prête\u00a0!' : 'Rien de retenu'}</h3></div>`}
+  <p class="week-total">${kept.length ? `${cookN} plat${cookN > 1 ? 's' : ''} à cuisiner${kept.length - cookN ? ` · ${kept.length - cookN} repas de restes` : ''}${shop ? ` · ${shop} article${shop > 1 ? 's' : ''} de courses` : ''}${money ? ` · ${esc(money)}` : ''}${esc(vs)}` : 'Aucun repas retenu : vous pouvez recommencer.'}</p>
+  ${d.swapped.length ? `<p class="banner info">💶 ${d.swapped.length} plat${d.swapped.length > 1 ? 's' : ''} remplacé${d.swapped.length > 1 ? 's' : ''} par un plat moins cher pour tenir le budget de ${esc(eur(budget ?? 0))}.</p>`
+    : budget && cart?.priced && cart.cents > budget ? '<p class="banner partial">Au-dessus du budget : aucune alternative nettement moins chère dont le prix soit bien connu. Changez un repas (↻) ou ajustez le budget.</p>' : ''}
+  ${kept.length ? `<ul class="list recap">${kept.map(row).join('')}</ul>` : ''}
   ${kept.filter(p => p.dish?.kind === 'new' && p.dish.catalog.yield === null).map(p => {
     const dsh = p.dish as { catalog: { title: string }; yield?: number };
     return `<fieldset class="card stack"><legend class="title">${esc(dsh.catalog.title)} : la recette ne dit pas pour combien de personnes</legend>
       <div class="seg" role="radiogroup" aria-label="Pour combien de personnes">${[2, 4, 6].map(n => `<label><input type="radio" name="y-${p.slot}" data-c="deckYield" data-k="${p.slot}" value="${n}" ${dsh.yield === n ? 'checked' : ''}>${n} personnes</label>`).join('')}</div>
       <p class="small muted">Sert à calculer les courses. Sans réponse, la liste de ce plat restera « à compléter ».</p></fieldset>`; }).join('')}
   ${bd && kept.some(canBatch) ? `<p class="banner info"><span><strong>👩‍🍳 Batch du ${esc(fmtDay(bd))} :</strong> ${inBatch ? `${inBatch} plat${inBatch > 1 ? 's' : ''} cuisiné${inBatch > 1 ? 's' : ''} à l'avance` : 'aucun plat pour l\'instant'}. Touchez « Batch » pour changer.</span></p>` : ''}
-  <div class="actions">${kept.length ? `<button class="btn big block" data-a="deckOk">Valider la semaine</button>` : ''}<button class="btn ghost block" data-a="deckAgain">Recommencer</button></div>`;
+  <div class="actions">${kept.length ? '<button class="btn big block" data-a="deckOk">✅ Tout approuver</button>' : ''}${list && kept.length ? '<button class="btn ghost block" data-a="deckCards">Voir en cartes</button>' : ''}<button class="btn quiet block" data-a="deckAgain">Recommencer</button></div>`;
+}
+
+// Brouillon partagé : remplacé à chaque changement (veto, pas de plat, batch, nombre de personnes), effacé à l'approbation.
+function saveDraft(): void {
+  if (!D || D.single) return;
+  const items = toItems(keptProps(), D.batch);
+  if (items.length) dispatch([{ t: 'week.draft', p: { week: D.week, items } }]);
+  else if (S().drafts[D.week]) dispatch([{ t: 'week.discard', p: { week: D.week } }]);
 }
 
 // Geste : la carte suit le doigt, se tamponne « MIAM » ou « AUTRE », part au-delà de 100 px.
@@ -177,8 +207,10 @@ function mount(root: HTMLElement): void {
 }
 
 function render(): void {
-  const p = D && D.i < D.props.length ? D.props[D.i] : undefined;
-  if (p?.dish?.kind === 'new') markSeen([p.dish.catalog.id]); // vue une fois : repassera après les autres
+  // Vue une fois : repassera après les autres. En liste, toutes les découvertes sont visibles ; en cartes, celle du dessus.
+  const shown = D?.view === 'list' && !D.single ? D.props : D && D.i < D.props.length ? [D.props[D.i] as Proposal] : [];
+  const ids = shown.flatMap(p => (p.dish?.kind === 'new' ? [p.dish.catalog.id] : []));
+  if (ids.length) markSeen(ids);
   openSheet({ id: 'deck', render: deckHtml, mount });
 }
 
@@ -195,7 +227,7 @@ function act(kind: 'yes' | 'other' | 'skip'): void {
       D.kept.add(p.slot);
       if (D.single) { finish(); return; }
       D.i++;
-      if (D.i >= D.props.length && D.kept.size) confetti();
+      if (D.i >= D.props.length && D.kept.size) { confetti(); saveDraft(); }
     } else if (kind === 'other') {
       const alt = alternative(p);
       if (alt) D.props[D.i] = alt; else toast('Plus d\'autre idée pour ce repas');
@@ -203,7 +235,7 @@ function act(kind: 'yes' | 'other' | 'skip'): void {
       // Pas de plat : ce repas et les restes qui en dépendaient sortent de la proposition.
       D.props = D.props.filter(x => x !== p && !(x.dish?.kind === 'from' && x.dish.source === p.slot));
       if (D.single) { closeSheet(); return; }
-      if (D.i >= D.props.length && D.kept.size) confetti();
+      if (D.i >= D.props.length && D.kept.size) { confetti(); saveDraft(); }
     }
     render();
   };
@@ -223,7 +255,8 @@ function finish(): void {
   // Rituel : les plats cochés « Batch » sont cuisinés le jour du batch (événement juste après leur création).
   const bd = D.batchDay, toBatch: Draft[] = [];
   if (bd) for (const x of drafts) if (x.t === 'slot.cook' && D.batch.has(x.p.slot) && inWindow(bd, parseSlot(x.p.slot)?.date ?? '')) toBatch.push({ t: 'prep.batch', p: { prep: x.p.prep, day: bd } });
-  dispatch([...drafts, ...toBatch], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0] as Proposal).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
+  const close: Draft[] = S().drafts[D.week] && !D.single ? [{ t: 'week.discard', p: { week: D.week } }] : []; // approuvé : plus de brouillon
+  dispatch([...drafts, ...toBatch, ...close], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0] as Proposal).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
   confetti();
   const week = D.week, single = D.single;
   D = null;
@@ -235,28 +268,66 @@ CLICK['deckVariety'] = async () => {
   const order: Variety[] = ['max', 'equilibre', 'mes-plats'], cur = S().settings.variety ?? 'max';
   const next = order[(order.indexOf(cur) + 1) % order.length] as Variety;
   dispatch([{ t: 'settings.set', p: { variety: next } }], { toast: `Propositions : ${VARIETY_LABEL[next]}` });
-  await openWeekDeck(D.week);
+  await openWeekDeck(D.week, true); // autre mode : nouvelle génération, le brouillon est remplacé
 };
 CHANGE['deckYield'] = (d, el) => {
   const p = D?.props.find(x => x.slot === d['k']);
-  if (p?.dish?.kind === 'new') p.dish = { ...p.dish, yield: Number((el as HTMLInputElement).value) };
+  if (p?.dish?.kind === 'new') { p.dish = { ...p.dish, yield: Number((el as HTMLInputElement).value) }; saveDraft(); }
 };
-CLICK['deckBatch'] = d => { if (!D) return; const k = d['k'] ?? ''; if (D.batch.has(k)) D.batch.delete(k); else D.batch.add(k); render(); };
+CLICK['deckBatch'] = d => { if (!D) return; const k = d['k'] ?? ''; if (D.batch.has(k)) D.batch.delete(k); else D.batch.add(k); saveDraft(); render(); };
+// Liste d'approbation : veto (autre idée), pas de plat, passage aux cartes.
+CLICK['listOther'] = d => {
+  if (!D) return;
+  const i = D.props.findIndex(x => x.slot === d['k']), p = D.props[i];
+  if (!p) return;
+  const alt = alternative(p);
+  if (!alt) { toast('Plus d\'autre idée pour ce repas'); return; }
+  D.props[i] = alt;
+  D.swapped = D.swapped.filter(k => k !== p.slot);
+  saveDraft(); render();
+};
+CLICK['listSkip'] = d => {
+  if (!D) return;
+  const k = d['k'] ?? '';
+  D.props = D.props.filter(x => x.slot !== k && !(x.dish?.kind === 'from' && x.dish.source === k)); // ses restes partent avec lui
+  saveDraft(); render();
+};
+CLICK['deckCards'] = () => { if (!D) return; D.view = 'cards'; D.i = 0; D.kept = new Set(); render(); };
 CLICK['deckYes'] = () => act('yes');
 CLICK['deckOther'] = () => act('other');
 CLICK['deckSkip'] = () => act('skip');
 CLICK['deckOk'] = () => finish();
 CLICK['deckAll'] = () => { if (!D) return; for (const p of D.props.slice(D.i)) D.kept.add(p.slot); D.i = D.props.length; confetti(); render(); };
-CLICK['deckAgain'] = async () => { if (D) await openWeekDeck(D.week); };
+CLICK['deckAgain'] = async () => { if (D) await openWeekDeck(D.week, true); }; // nouvelle génération : le brouillon est remplacé
 
-export async function openWeekDeck(week: LocalDate): Promise<void> {
-  const c = clock(), cat = await loadCatalog(); // hors ligne sans catalogue : vos plats seulement
-  const props = proposeWeek(S(), week, c.date, c.hour, cat, seenSet());
-  const r = S().settings.ritual, bd = r ? batchDayFor(r, week) : null, batchDay = bd && bd >= c.date ? bd : null; // un batch passé ne prépare plus rien
-  const batch = new Set(batchDay ? props.filter(p => (p.dish?.kind === 'cook' || p.dish?.kind === 'new') && defaultIn(batchDay, parseSlot(p.slot)?.date ?? '')).map(p => p.slot) : []);
-  D = { props, i: 0, kept: new Set(), tried: new Map(props.map(p => [p.slot, new Set([idOf(p)].filter(Boolean))])), title: week === thisWeek() ? 'Le menu de la semaine' : 'Le menu de la semaine prochaine',
-    week, single: false, note: cat ? '' : 'Découvertes indisponibles hors ligne : vos plats seulement.', cat, batchDay, batch };
+export async function openWeekDeck(week: LocalDate, fresh = false): Promise<void> {
+  const c = clock(), cat = await loadCatalog(), s = S(); // hors ligne sans catalogue : vos plats seulement
+  const r = s.settings.ritual, bd = r ? batchDayFor(r, week) : null, batchDay = bd && bd >= c.date ? bd : null; // un batch passé ne prépare plus rien
+  const defaultBatch = (props: readonly Proposal[]): Set<SlotKey> => new Set(batchDay ? props.filter(p => cooks(p) && defaultIn(batchDay, parseSlot(p.slot)?.date ?? '')).map(p => p.slot) : []);
+  let props: Proposal[] = [], batch = new Set<SlotKey>(), swapped: SlotKey[] = [], by = '';
+  let note = cat ? '' : 'Découvertes indisponibles hors ligne : vos plats seulement.';
+  // Un menu déjà proposé (ici ou sur l'autre téléphone) est repris tel quel ; un repas rempli entre-temps n'est jamais écrasé.
+  const draft = fresh ? undefined : s.drafts[week];
+  if (draft) {
+    const back = fromItems(s, cat, draft.items, c.date, c.hour);
+    props = back.props; batch = back.batch;
+    by = draft.by && draft.by !== A.device.me ? s.members.find(m => m.id === draft.by)?.name ?? '' : '';
+    if (back.dropped) note = `${back.dropped} repas du menu proposé ${back.dropped > 1 ? 'écartés' : 'écarté'} : déjà ${back.dropped > 1 ? 'remplis' : 'rempli'} entre-temps, passé${back.dropped > 1 ? 's' : ''} ou recette indisponible.`;
+  }
+  const generated = !props.length;
+  if (generated) {
+    props = proposeWeek(s, week, c.date, c.hour, cat, seenSet());
+    const budget = s.settings.budget;
+    if (budget && props.length) { // budget tenu d'office : les plats les plus chers sont remplacés tant que la semaine dépasse
+      const fit = fitBudget(s, props, budget, plannedCost(s, week), (p, used) => alternativesFor(s, cat, p, week, c.date, used, seenSet()));
+      props = fit.props; swapped = fit.swapped;
+    }
+    batch = defaultBatch(props);
+  }
+  D = { props, i: 0, kept: new Set(props.map(p => p.slot)), tried: new Map(props.map(p => [p.slot, new Set([idOf(p)].filter(Boolean))])),
+    title: week === thisWeek() ? 'Le menu de la semaine' : 'Le menu de la semaine prochaine', week, single: false, note, cat, batchDay, batch, view: 'list', swapped, by };
   render();
+  if (generated && props.length) saveDraft(); // semaine générée : visible aussi sur l'autre téléphone, à approuver
 }
 
 // « Ce soir, on mange quoi ? » : une carte pour un seul repas, on fait défiler les idées.
@@ -269,7 +340,7 @@ export async function openIdea(slot: SlotKey): Promise<void> {
     p = own ? { slot, dish: { kind: 'cook', recipe: own.recipe, extra: 0 }, reason: own.reason, presence: {}, guests: 0 }
       : fresh ? { slot, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 } : undefined;
   }
-  D = { props: p ? [p] : [], i: 0, kept: new Set(), tried: new Map(p ? [[slot, new Set([idOf(p)])]] : []), title: `${capital(fmtSlot(slot, c.date))}, on mange quoi\u00a0?`, week, single: true, note: '', cat, batchDay: null, batch: new Set() };
+  D = { props: p ? [p] : [], i: 0, kept: new Set(), tried: new Map(p ? [[slot, new Set([idOf(p)])]] : []), title: `${capital(fmtSlot(slot, c.date))}, on mange quoi\u00a0?`, week, single: true, note: '', cat, batchDay: null, batch: new Set(), view: 'cards', swapped: [], by: '' };
   render();
 }
 CLICK['idea'] = d => { void openIdea(d['k'] ?? ''); };

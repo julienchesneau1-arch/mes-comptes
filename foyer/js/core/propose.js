@@ -120,12 +120,22 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
             score += 30;
             why.push(`utilise ${used.name.toLowerCase()} (DLC ${fmtDayShort(used.date)})`);
         }
-        if (tags.has('rapide') && !weekend && evening) {
-            score += 10;
-            why.push('rapide');
+        // Durées déclarées (préparation + cuisson) : mêmes règles que pour les découvertes du catalogue.
+        const minutes = c.prepMin != null || c.cookMin != null ? (c.prepMin ?? 0) + (c.cookMin ?? 0) : null;
+        if (!weekend && evening) {
+            if (tags.has('rapide') || (minutes !== null && minutes <= 30)) {
+                score += 10;
+                why.push(minutes !== null ? `rapide (${minutes} min)` : 'rapide');
+            }
+            else if (minutes !== null && minutes > 60)
+                score -= 15; // pas un soir de semaine
         }
         if (tags.has('week-end') && weekend) {
             score += 10;
+            why.push('plat du week-end');
+        }
+        else if (weekend && minutes !== null && minutes > 45) {
+            score += 5;
             why.push('plat du week-end');
         }
         if (tags.has('favori')) {

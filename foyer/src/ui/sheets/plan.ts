@@ -86,7 +86,7 @@ CLICK['propOk'] = () => {
   dispatch(drafts, { toast: `${n} repas prévu${n > 1 ? 's' : ''} · courses à jour` });
 };
 
-// « Proposer » : le menu en cartes à balayer (sheets/deck.ts).
+// « Proposer » : la semaine générée, en liste d'approbation (cartes en option) — sheets/deck.ts.
 CLICK['propose'] = async d => { const week = d['week'] ?? thisWeek(); curWeek = week; await openWeekDeck(week); };
 
 CLICK['copyWeek'] = d => {

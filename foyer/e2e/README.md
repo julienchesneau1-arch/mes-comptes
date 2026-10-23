@@ -12,6 +12,7 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/synchro-auto.mjs   # sert lui-même
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/rituel.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/facture.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/regler.mjs
+CHROMIUM_PATH=/chemin/vers/chromium node e2e/semaine.mjs
 ```
 
 - `parcours.mjs` : création du foyer, recette complétée, proposition de semaine (maximum de nouveautés, recette sans nombre de personnes complétée dans le récapitulatif), panier prêt, courses, panier mis à jour après un changement du menu, conseil qualité-prix, commande guidée au drive Auchan (sans ouvrir de page Auchan), Aujourd'hui, feuille d'un créneau, rechargement (journal identique), mode découverte, grille ordinateur, zoom 200 % ; axe-core WCAG 2.0/2.1/2.2 A et AA sur 11 écrans.
@@ -20,6 +21,8 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/regler.mjs
 
 - `rituel.mjs` : horloge figée au samedi 10 octobre 2026 puis au dimanche : rituel activé depuis Aujourd'hui, menu en cartes avec plats « Batch », feuille du batch (boîtes à emporter, légumes à préparer en une fois), drive avec prix noté, budget, montant payé, bilan, séance de batch jusqu'à la célébration ; axe en clair et en sombre. `deux-telephones.mjs` fige aussi l'horloge (lundi 10 h).
 
+- `semaine.mjs` : lundi 5 octobre 2026, catalogue et prix réels du dépôt, budget volontairement impossible (5 €) : la semaine arrive prête en liste, plats remplacés d'office ou dépassement expliqué (jamais un coût par portion partiel), veto « ↻ » et « ✕ », brouillon retrouvé tel quel depuis « À régler », « ✅ Tout approuver » → panier prêt ; axe sur la liste.
+- `parcours.mjs`, `rituel.mjs`, `deux-telephones.mjs`, `synchro-auto.mjs`, `facture.mjs` approuvent la semaine depuis la liste ; `parcours.mjs` passe ensuite par les cartes (« Voir en cartes ») pour éprouver geste et « autre idée ».
 - `regler.mjs` : lundi 5 octobre 2026, mode découverte : une seule file « À régler » (5 cartes au plus, plus de « À vérifier » ni « À décider »), restes du chili proposés d'office ce midi, règle « Je m'en occupe » puis « Proposés d'office » (la carte suit), un toucher place les restes, « Plus tard » masque une carte ; axe sur la file et sur Décisions automatiques.
 - `parcours.mjs` fige son horloge au vendredi 9 octobre 2026 : l'agenda lit 31 jours, et un jour férié entrant dans la fenêtre changerait le résultat.
 

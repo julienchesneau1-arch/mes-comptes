@@ -48,6 +48,8 @@ export function describeEvent(s: State, e: AnyEv): string {
     case 'watch.close': return 'retirer un produit surveillé';
     case 'conflict.ack': return 'marquer un conflit comme vu';
     case 'exc.snooze': return 'remettre une question à plus tard';
+    case 'week.draft': return `proposer le menu de la semaine (${e.p.items.length} repas)`;
+    case 'week.discard': return 'clore le menu proposé';
     case 'undo': return 'annuler une action';
   }
 }

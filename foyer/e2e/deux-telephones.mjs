@@ -40,10 +40,7 @@ const sendLink = async p => {
 async function acceptMenu(P) {
   await P.getByRole('button', { name: /Proposer le menu/ }).click();
   const s = P.locator('dialog[open]');
-  await s.locator('#deck-name').waitFor();
-  const all = s.getByRole('button', { name: /Garder tout le menu/ });
-  if (await all.count()) await all.click(); else await s.getByRole('button', { name: 'Je prends ce plat' }).click();
-  await s.getByRole('button', { name: 'Valider la semaine' }).click();
+  await s.getByRole('button', { name: '✅ Tout approuver' }).click(); // la semaine arrive prête, en liste
   await P.locator('dialog[open]').getByRole('heading', { name: /Panier prêt/ }).waitFor(); // le panier suit le menu
   await P.keyboard.press('Escape');
 }
