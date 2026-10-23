@@ -181,7 +181,7 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Déjà au placard ? | **livré** | `surpluses` : paquets entiers pris la semaine précédente − besoin d'alors ; carte « À régler » quand la liste en redemande : « On en a » (`shop.pantry`), « Plus rien » (`task.set`) | 
 | Calage sur une facture Auchan réelle | **en attente** | Aucune facture réelle reçue ; le calage ne s'active qu'avec 5 articles payés comparables |
 | Enseigne au choix (Pimzi : 20) | **non fait** | Foyer est bâti sur le drive Auchan du foyer ; d'autres enseignes demanderaient leurs propres recherches et contenances |
-| Placard en navigateur | **non éprouvé** | Testé en unitaire seulement (deux semaines d'achats à simuler) |
+| Placard en navigateur | **livré** | `e2e/placard.mjs` : deux semaines à horloge figée, paquet de 500 g retenu et pris pour 300 g, la semaine suivante « À régler » propose 200 g, « On en a » laisse 100 g à acheter ; axe sur la carte |
 
 ## 3. Plan concret pour la suite
 
@@ -306,3 +306,4 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-23 | Mes Comptes | File d'exceptions côté Mes Comptes (PR B de 4) : « prévu échu » et « dépense commune payée en perso » dans la liste « À faire » existante, adaptés à son modèle (pas de journal ; décision gardée dans `shared`, fusionnée à la synchro, le remboursement fait l'emporte) ; cache hors ligne v41 | livré | Pas d'écran de réglage du seuil de 20 € (la spec interdit de toucher l'interface au-delà de la liste) ; pas de propriétaire par opération dans Mes Comptes : les statistiques par compte ne bougent pas |
 | 2026-10-23 | V3.3 | Semaine générée en liste d'approbation, budget tenu d'office (Pimzi), brouillon partagé, durées dans le choix (PR C de 4) | livré | Couverture des prix encore faible sur les recettes du catalogue ; approbation jour par jour non faite |
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
+| 2026-10-23 | Vérification | « Déjà au placard ? » éprouvé en navigateur sur deux semaines (`placard.mjs`, 4 étapes, axe 0 défaut) | livré | Non vérifié sur iPhone |
