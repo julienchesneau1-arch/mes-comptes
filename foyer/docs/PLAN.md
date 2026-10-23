@@ -146,6 +146,19 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Données personnelles | **livré** | Seules les lignes portant un montant sont lues ; seuls nom du produit, contenance et prix sont gardés. Test : faux nom, fausse adresse et numéro de commande jamais retenus ni affichés |
 | Calage sur une vraie facture Auchan | **en attente** | [DONNÉE_MANQUANTE] facture Auchan réelle (le foyer en fournira) : copie anonymisée en test, règles ajustées à son format |
 
+### V3.2 (une seule file « À régler », décisions automatiques — spec `spec-file-exceptions.md`)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| File « À régler » | **livré** | `exceptions.ts`, fonction pure de l'état et de l'heure, rien d'enregistré : conflits et alertes existants, personne à la maison mais un plat prévu (déplacer vers un repas où quelqu'un mange, retirer, invités), cuisson commencée jamais déclarée prête (« C'est prêt (n) »), restes libres sans repas prévu, repas sans plat. Remplace « À vérifier » et « À décider ». 5 cartes au plus, triées (échéance proche, blocage, repas), le reste replié. Navigateur : mode découverte, restes du chili placés ce midi d'un toucher |
+| Règle des restes | **livré** | Réglage `leftovers` (`auto` par défaut, `suggest`, `manual`) dans `settings.set` : rejoué, synchronisé, annulable. « auto » = prochain déjeuner libre proposé d'office, jamais posé sans un toucher |
+| Plus tard | **livré** | Événement `exc.snooze` : par personne, 24 h au plus (borné au rejeu), échus purgés ; remise 3 fois → « Décider une règle pour toujours » |
+| Décisions automatiques | **livré** | Réglages : restes, boîtes du midi (déplacé depuis le rythme), décisions d'agenda mémorisées, avec un exemple pour chaque règle |
+| Batch après le repas (`batch-bloque`) | **sans objet** | Le réducteur refuse déjà un batch après le repas et retire le batch d'un plat avancé (`unbatchIfLate`) : la situation ne peut pas exister |
+| Liste unique dans Mes Comptes | **non fait** | [ANOMALIE_LOGIQUE] deux apps installées sur l'écran d'accueil n'ont pas de stockage commun garanti, et Mes Comptes n'a ni journal ni réducteur. Choix du foyer : chaque app sa liste |
+| Compteur sur tablette | **non fait** | Foyer n'a pas de mode tablette |
+| Robustesse des tests | **livré** | `parcours.mjs` à horloge figée (9 octobre) : depuis le 23 octobre, le 11 novembre férié entrait dans les 31 jours lus et ajoutait une décision attendue |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -264,3 +277,5 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-09 | CI | Workflow `prix.yml` hebdomadaire (lundi) | livré | — |
 | 2026-10-09 | V3.1 | Lecteur de factures du drive : pdf.js embarqué (sur le téléphone, sans IA), lecture vérifiée par le calcul, rattachement aux ingrédients vérifié par la personne, prix payés prioritaires dans le panier, montant payé noté, « déjà acheté » dans la commande guidée | livré (format générique) | Calage sur une facture Auchan réelle en attente |
 | 2026-10-09 | Vérification | 119 tests (dont extraction d'un vrai PDF par pdf.js) ; 5 scénarios navigateur, 0 erreur, 0 appel hors de l'app, axe 0 défaut sur la feuille de vérification | livré | Non vérifié sur iPhone ; format Auchan réel non testé |
+| 2026-10-23 | Analyse | Pimzi (pimzi.app, lu par la recherche web : enseigne et budget au départ, dîners remplacés jusqu'à passer sous le budget, prix calés par enseigne ±10 %, liste par rayon, « déjà au placard », allergènes) et deux specs du foyer (file d'exceptions, semaine générée) confrontées au code | livré | Lecture directe du site impossible (crédits Firecrawl épuisés, domaine refusé par le réseau de l'environnement) |
+| 2026-10-23 | V3.2 | File « À régler » + Décisions automatiques (PR A de 4) | livré | Mes Comptes, semaine générée et reprises Pimzi : PR B, C, D |

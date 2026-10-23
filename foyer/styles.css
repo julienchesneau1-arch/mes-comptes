@@ -412,3 +412,11 @@ table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .advice li { padding: .6rem 0; border-top: 1px solid var(--line); }
 .advice li:first-child { border-top: 0; }
 .badge { display: inline-block; padding: .1rem .55rem; border-radius: 999px; background: var(--amber-bg); color: var(--amber); font-size: .85rem; font-weight: 800; }
+/* File « À régler » : une carte par exception, un toucher pour régler ; « Plus tard… » pour remettre à demain ou décider une règle */
+.exc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+.exc { display: grid; gap: .5rem; }
+.exc + .exc { border-top: 1px solid var(--line); padding-top: .75rem; }
+.exc-title { margin: 0; font-weight: 700; }
+.exc .small { margin: 0; }
+.exc-more > summary { display: inline-block; padding: .375rem 0; font-size: .875rem; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.exc-more[open] > .actions { margin-top: .25rem; }

@@ -19,7 +19,13 @@ export interface Settings {
   ritual?: Ritual | null;        // absent ou null = pas de rituel
   budget?: number | null;        // budget courses par semaine, en centimes, choisi par le foyer
   variety?: Variety;             // part de recettes nouvelles dans les propositions (absent = « max »)
+  leftovers?: LeftoverRule;      // règle par défaut des restes (absent = « auto »)
 }
+// Restes libres : « auto » = le prochain déjeuner libre est proposé d'office (un toucher pour confirmer, posé tout seul dans une
+// semaine générée) ; « suggest » = des créneaux proposés ; « manual » = rien n'est signalé.
+export type LeftoverRule = 'auto' | 'suggest' | 'manual';
+export const LEFTOVER_RULES: readonly LeftoverRule[] = ['auto', 'suggest', 'manual'];
+const isLeftoverRule = (v: unknown): v is LeftoverRule => typeof v === 'string' && (LEFTOVER_RULES as readonly string[]).includes(v);
 // « max » : des recettes nouvelles partout où c'est possible ; « equilibre » : 1 à 3 par semaine ; « mes-plats » : vos plats d'abord.
 export type Variety = 'max' | 'equilibre' | 'mes-plats';
 export const VARIETIES: readonly Variety[] = ['max', 'equilibre', 'mes-plats'];
@@ -89,7 +95,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -123,6 +129,7 @@ export interface Payloads {
   'watch.save': { id: string; name: string; qty: string; date: DateDecl | null; state: ItemState; slot: SlotKey | null };
   'watch.close': { id: string; outcome: 'utilise' | 'jete' };
   'conflict.ack': { event: string };
+  'exc.snooze': { key: string; until: string };   // « plus tard » sur une exception, par personne, 24 h au plus
   'undo': { event: string };
 }
 export type EventType = keyof Payloads;
@@ -139,7 +146,7 @@ export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
   'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
-  'watch.close', 'conflict.ack', 'undo'] satisfies EventType[]);
+  'watch.close', 'conflict.ack', 'exc.snooze', 'undo'] satisfies EventType[]);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 
@@ -182,7 +189,8 @@ export function validRhythm(v: unknown): v is RhythmDay[] {
 const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v: unknown): v is Settings {
   return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
-    && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']));
+    && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
+    && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers']));
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -216,7 +224,7 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
     && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
     && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
-    && (p['variety'] === undefined || isVariety(p['variety'])),
+    && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),
@@ -257,6 +265,7 @@ const P: { [K in EventType]: (p: R) => boolean } = {
     && typeof p['state'] === 'string' && STATES.has(p['state']) && (p['slot'] === null || isSlotKey(p['slot'])),
   'watch.close': p => isId(p['id']) && (p['outcome'] === 'utilise' || p['outcome'] === 'jete'),
   'conflict.ack': p => isId(p['event']),
+  'exc.snooze': p => typeof p['key'] === 'string' && /^[a-z]{2,12}:[^\u0000-\u001f]{1,100}$/.test(p['key']) && str(p['until'], 40, 10) && !Number.isNaN(Date.parse(p['until'] as string)),
   'undo': p => isId(p['event']),
 };
 
@@ -288,6 +297,8 @@ export interface State {
   watch: Record<string, WatchItem>;
   tasks: Record<string, Mark & { done: boolean }>;
   acked: Set<string>;
+  snooze: Record<string, string>;          // « personne|clé d'exception » → masquée jusqu'à (instant ISO)
+  snoozed: Record<string, number>;         // code d'exception → nombre de « plus tard » (3 et plus : proposer une règle)
 }
 
 export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Presence, weekendMidi: Presence = 'maison'): RhythmDay[] =>
@@ -298,7 +309,7 @@ export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Pr
 
 export const emptyState = (): State => ({
   hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(),
+  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {},
 });
 
 export const current = (r: Recipe): RecipeContent => r.versions[r.versions.length - 1] as RecipeContent;
