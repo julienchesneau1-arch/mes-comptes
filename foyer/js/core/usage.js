@@ -57,7 +57,7 @@ export const FEATURES = [
     { key: 'a:invoice', icon: '🧾', label: 'Lire la facture du drive', where: 'Courses' },
     { key: 'a:newRecipe', icon: '➕', label: 'Nouveau plat', where: 'Maison › Nos plats' },
     { key: 'a:pasteRecipe', icon: '📋', label: 'Coller une recette', where: 'Maison › Nos plats' },
-    { key: 'a:discover', icon: '🔎', label: 'Découvrir des recettes', where: 'Maison › Nos plats' },
+    { key: 'a:discover', icon: '📚', label: 'Recettes prêtes', where: 'Maison › Nos plats, et « Choisir un plat »' },
     { key: 'a:copyWeek', icon: '📑', label: 'Reprendre une semaine', where: 'Semaine' },
     { key: 'a:watchNew', icon: '⏰', label: 'Surveiller une date', where: 'Maison › À surveiller' },
     { key: 'a:agendaOpen', icon: '📅', label: 'Ce que l\'agenda change', where: 'Aujourd\'hui, quand l\'agenda change un repas' },

@@ -195,11 +195,11 @@ await step('qualité-prix : conseil sur une ligne de courses (crème fraîche)',
   await page.locator('dialog[open]').screenshot({ path: 'captures/09e-qualite-prix.png' }); await axe('qualite-prix');
   await page.keyboard.press('Escape');
 });
-await step('découvrir des recettes (catalogue) et en ajouter une après relecture', async () => {
+await step('recettes prêtes (catalogue) : en ajouter une après relecture', async () => {
   await page.getByRole('link', { name: 'Maison', exact: true }).click();
-  await page.getByRole('button', { name: 'Découvrir des recettes' }).click();
+  await page.getByRole('button', { name: 'Parcourir les recettes prêtes' }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByRole('heading', { name: 'Découvrir des recettes' }).waitFor();
+  await dlg.getByRole('heading', { name: 'Recettes prêtes' }).waitFor();
   await axe('decouvrir');
   await dlg.getByRole('button', { name: 'Poisson', exact: true }).click();
   await dlg.getByText('Salade niçoise', { exact: true }).waitFor();  // seul poisson de l'extrait
@@ -212,9 +212,9 @@ await step('découvrir des recettes (catalogue) et en ajouter une après relectu
   const first = dlg.locator('[data-a="discoverOpen"]').first();
   const title = (await first.locator('.title').innerText()).trim();
   await first.click();
-  await dlg.getByRole('button', { name: /Ajouter à nos plats/ }).waitFor();
+  await dlg.getByRole('button', { name: 'Ajouter à nos plats' }).waitFor();
   await axe('decouvrir-recette'); await shot('09c-decouvrir');
-  await dlg.getByRole('button', { name: /Ajouter à nos plats/ }).click();
+  await dlg.getByRole('button', { name: 'Modifier avant d\'ajouter' }).click();
   await dlg.getByText(/Wikilivres : \d+ ingrédient/).waitFor();
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
   await page.getByText(`${title} ajouté à vos plats (pas encore au menu)`).waitFor();

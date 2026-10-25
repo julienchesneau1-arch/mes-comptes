@@ -95,7 +95,7 @@ const CLASSIC = /^(Recettes de tous les jours|Cuisine (française|provençale|al
 const TYPE_TAGS = [['Soupes', 'soupe'], ['Salades', 'salade'], ['Pâtes alimentaires', 'pâtes'], ['Recettes de pizzas', 'pizza'], ['Recettes de tartes', 'tarte']];
 // Titres de section : « == Ingrédients == », mais aussi une ligne seule en gras ou en définition (« '''Ingrédients''' », « ;Préparation : »),
 // que le texte affiché réduit à « Ingrédients » : reconnue seulement pour les mots qui ouvrent une partie de recette.
-const PSEUDO_HEAD = /^\s*;?\s*((?:liste des |les )?ingr[ée]dients?(?:\s+(?:pour|\().{0,40})?|pr[ée]paration|recette|[ée]tapes?|instructions|r[ée]alisation|m[ée]thode|d[ée]roulement)\s*:?\s*$/i;
+const PSEUDO_HEAD = /^\s*[*#:;]*\s*((?:liste des |les )?ingr[ée]dients?(?:\s+(?:pour|\().{0,40})?|pr[ée]paration|recette|[ée]tapes?|instructions|r[ée]alisation|m[ée]thode|d[ée]roulement)\s*:?\s*$/i;
 function sections(text) {
     const out = [{ head: '', body: '' }];
     for (const line of text.split('\n')) {
