@@ -75,6 +75,8 @@ const SIDE = /entrée|amuse|pâtés|accompagnement|sauce|condiment|marinade|apé
 // et seulement pour une recette sans viande, poisson ni volaille (« Porc au caramel » reste un plat).
 const DESSERT_TITLE = /g[âa]teau|fondant|\bcake\b|cookie|biscuit|brioche|panettone|confiture|compote|clafoutis|crumble|\bflan\b|beignet|madeleine|muffin|pain d'[ée]pices|sorbet|\bglace\b|mousse au|cr[èe]me (br[ûu]l[ée]e|caramel|anglaise|p[âa]tissi)|caramel|chocolat|tiramisu|charlotte|meringue|macarons?\b|cr[êe]pes? sucr|gaufre|financier|far breton|kouign|strudel|brownie|cheesecake|churro|donut|[ée]clair|canel[ée]|tarte (aux|au|à la|à l') ?(pomme|fraise|citron|poire|abricot|prune|myrtille|chocolat|framboise|cerise|rhubarbe|sucre)|moelleux|porridge|tzatz|sabl[ée]s?\b|galette des rois|nougat|praline|sirop|liqueur|milk-shake|smoothie/i;
 const BASE_TITLE = /^(bouillon|fond |fumet|p[âa]te (bris[ée]e|feuillet[ée]e|sabl[ée]e|[àa] )|sauce (aux|au|à la|blanche|tomate|b[ée]chamel)|vinaigrette|marinade|mayonnaise|pesto|a[ïi]oli|beurre |pain\b|chapelure|court-bouillon|nappage)/i;
+// Charcuteries et conserves maison : même avec de la viande, ce n'est pas un plat de repas.
+const CHARCUTERIE_TITLE = /^(rillettes|p[âa]t[ée]s? |terrine|saucisson|foie gras|jambon persill|confit d|graisse|saindoux|boudin)/i;
 function sweet(lines: readonly string[]): boolean {
   return lines.some(l => {
     if (!/sucre/i.test(l)) return false;
@@ -83,9 +85,9 @@ function sweet(lines: readonly string[]): boolean {
   });
 }
 const FAMILY: [CatalogRecipe['main'], RegExp][] = [
-  ['poisson', /poisson|saumon|cabillaud|thon|colin|merlu|sardine|maquereau|truite|crevette|moule|fruits de mer|calmar|lieu|dorade|bar\b|morue/i],
-  ['volaille', /poulet|dinde|canard|lapin|pintade|volaille|caille/i],
-  ['viande', /b(?:œ|oe)uf|veau|porc|agneau|mouton|lardon|jambon|saucisse|chorizo|viande|bacon|merguez|steak/i],
+  ['poisson', /poisson|saumon|cabillaud|thon|colin|merlu|sardine|maquereau|truite|crevette|moule|fruits de mer|calmar|lieu|dorade|bar\b|morue|anchois|hareng|haddock|[ée]glefin|lotte|\bsole\b|\braie\b|turbot|seiche|encornet|poulpe|saint-jacques|langoustine|gambas|homard|crabe|hu[iî]tre|palourde|espadon|rouget|merlan|sandre|brochet/i],
+  ['volaille', /poulet|\bpoule\b|dinde|canard|lapin|pintade|volaille|caille|chapon|coquelet|magret|faisan|\boie\b/i],
+  ['viande', /b(?:œ|oe)uf|veau|porc|agneau|mouton|lardon|jambon|saucisse|chorizo|viande|bacon|merguez|steak|gigot|paleron|jarret|rognon|tripes|andouille|chipolata|[ée]chine|travers|\blard\b|kefta|chair à saucisse/i],
   ['œufs', /(?:^|[^a-z])(?:œuf|oeuf)s?$/i],
 ];
 // Famille d'un ingrédient (« blanc de poulet » → volaille) : sert à varier les repas d'un jour à l'autre.
@@ -102,6 +104,26 @@ function sections(text: string): { head: string; body: string }[] {
     else (out[out.length - 1] as { body: string }).body += `${line}\n`;
   }
   return out;
+}
+
+// Nombre de personnes, dans l'ordre de fiabilité : titre (« Choucroute pour 4 »), « Pour 4 personnes », « Nombre de personnes : 4 »,
+// titre de section (« Ingrédients pour 6 »), puis « 4 personnes » seul. « 4 à 6 personnes » → 4 : la borne basse, jamais moins à
+// manger par personne que la page ne le prévoit. Rien de trouvé : null (le foyer le dira, jamais deviné).
+const NUM = '(\\d{1,2}|[a-zéè]+)';
+const RANGE = '(?:\\s*(?:à|a|-|ou)\\s*\\d{1,2})?';
+const YIELD_RES: RegExp[] = [
+  new RegExp(`pour\\s*:?\\s*${NUM}${RANGE}\\s*(?:personnes?|pers\\.?|portions?|parts?|couverts?|convives?|adultes?|gourmands?|mangeurs?|assiettes?)`, 'i'),
+  new RegExp(`(?:nombre de\\s+)?(?:personnes|convives|couverts|portions|parts)\\s*:\\s*${NUM}\\b`, 'i'),
+  new RegExp(`ingredients?\\s*\\(?\\s*pour\\s*:?\\s*${NUM}\\b`, 'i'),
+  new RegExp(`\\b${NUM}${RANGE}\\s*(?:personnes|convives|adultes|pers\\.)`, 'i'),
+];
+export function yieldOf(title: string, before: string): number | null {
+  const t = /\bpour\s+(\d{1,2})(?:\s*personnes?)?\s*$/i.exec(title);
+  if (t) return Number(t[1]);
+  for (const re of YIELD_RES) {
+    for (const m of before.matchAll(new RegExp(re.source, 'gi'))) { const v = n(m[1] ?? ''); if (v !== null) return v; }
+  }
+  return null;
 }
 
 function minutesOf(text: string): number | null {
@@ -122,19 +144,17 @@ export function parseWikiRecipe(p: WikiPage): ParseResult {
   const main = FAMILY.find(([, re]) => base.some(b => re.test(b)))?.[0] ?? null;
   const veg = cats.includes('Recettes végétariennes') || cats.includes('Recettes végétaliennes');
   const isMain = cats.some(c => MAIN_CATS.has(c)), side = kinds.some(c => SIDE.test(c));
-  if (!isMain && (side || ((!main || main === 'œufs') && !veg))) return { ok: false, why: 'pas un plat de repas' };
+  if (!isMain && side) return { ok: false, why: 'pas un plat de repas' };
 
   const text = plain(p.content);
   const secs = sections(text);
-  const ingIdx = secs.findIndex(x => x.head.startsWith('ingredient'));
+  const ingIdx = secs.findIndex(x => /^(?:liste des |les )?ingredient/.test(x.head));
   const ing = secs[ingIdx];
   if (!ing) return { ok: false, why: 'pas de section ingrédients' };
   // Étapes : la première section de préparation APRÈS les ingrédients (« Recette du hachis » au-dessus n'en est pas une).
   const prepIdx = secs.findIndex((x, i) => i > ingIdx && /^(preparation|recette|etapes?|instructions|realisation|methode|deroulement)/.test(x.head));
   const before = secs.slice(0, prepIdx < 0 ? secs.length : prepIdx).map(x => x.body).join('\n');
-  const inTitle = /\bpour\s+(\d{1,2})(?:\s*personnes?)?\s*$/i.exec(p.title); // « Choucroute pour 4 »
-  const yieldN = inTitle ? Number(inTitle[1]) : [...before.matchAll(/pour\s*:?\s*(\d{1,2}|[a-z]+)\s*(?:(?:à|a|-)\s*\d{1,2}\s*)?(?:personnes?|pers\.?|portions?|parts?|couverts?)/gi)]
-    .map(m => n(m[1] ?? '')).find((x): x is number => x !== null) ?? null;
+  const yieldN = yieldOf(p.title, secs.slice(0, prepIdx < 0 ? secs.length : prepIdx).map(x => `${x.head}\n${x.body}`).join('\n'));
   if (yieldN !== null && (yieldN < 1 || yieldN > 20)) return { ok: false, why: 'nombre de personnes invraisemblable' };
 
   const ingredients = ing.body.split('\n').filter(l => /^[*#]/.test(l) && !/^[*#]{2,}/.test(l)).map(l => normalizeLine(l.replace(/^[*#]+\s*/, '')))
@@ -142,6 +162,9 @@ export function parseWikiRecipe(p: WikiPage): ParseResult {
   if (ingredients.length < 3) return { ok: false, why: 'moins de 3 ingrédients' };
   const counted = ingredients.filter(l => parseIngredient(l).line.qty !== null).length;
   if (counted * 2 < ingredients.length) return { ok: false, why: 'moins de la moitié des ingrédients chiffrés' };
+  // Famille absente des catégories : lue sur les ingrédients (« Poulet basquaise » rangé seulement en « Cuisine basque »).
+  const fam = main ?? ingredients.map(l => familyOf(parseIngredient(l).line.name)).find(f => f && f !== 'œufs') ?? null;
+  if (!isMain && (!fam || fam === 'œufs') && !veg) return { ok: false, why: 'pas un plat de repas' };
 
   const steps: string[] = [];
   for (const l of (prepIdx < 0 ? '' : (secs[prepIdx] as { body: string }).body).split('\n')) {
@@ -157,7 +180,9 @@ export function parseWikiRecipe(p: WikiPage): ParseResult {
   const tags = [...(minutes !== null && minutes <= 30 ? ['rapide'] : []), ...(veg ? ['végétarien'] : []), ...(cats.some(c => CLASSIC.test(c)) ? ['classique'] : []),
     ...TYPE_TAGS.filter(([c]) => cats.includes(c)).map(([, t]) => t)];
   const title = (p.title.split('/').pop() ?? p.title).trim().slice(0, 80);
-  if ((!main || main === 'œufs') && (DESSERT_TITLE.test(title) || BASE_TITLE.test(title) || sweet(ingredients))) return { ok: false, why: 'dessert ou préparation de base' };
-  return { ok: true, recipe: { id: `wb${p.pageid}`, title, yield: yieldN && yieldN >= 1 ? yieldN : null, minutes, ingredients, steps: steps.slice(0, 20), tags, main: veg ? null : main,
+  if ((!fam || fam === 'œufs') && (DESSERT_TITLE.test(title) || sweet(ingredients))) return { ok: false, why: 'dessert ou préparation de base' };
+  if (!isMain && (BASE_TITLE.test(title) || CHARCUTERIE_TITLE.test(title))) return { ok: false, why: 'dessert ou préparation de base' }; // bouillon de poule, rillettes : pas un repas
+  if (!main && BASE_TITLE.test(title)) return { ok: false, why: 'dessert ou préparation de base' };
+  return { ok: true, recipe: { id: `wb${p.pageid}`, title, yield: yieldN && yieldN >= 1 ? yieldN : null, minutes, ingredients, steps: steps.slice(0, 20), tags, main: veg ? null : fam,
     url: `https://fr.wikibooks.org/wiki/${encodeURIComponent(p.title.replace(/ /g, '_')).replace(/%2F/g, '/')}`, rev: p.revid } };
 }
