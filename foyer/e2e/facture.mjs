@@ -5,7 +5,7 @@
 import { chromium } from 'playwright-core';
 import { mkdirSync, readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
-import { makePdf, SAMPLE_ROWS } from '../tests/pdf-fixture.ts';
+import { makePdf, SAMPLE_ROWS, AUCHAN_ROWS } from '../tests/pdf-fixture.ts';
 const SHOTS = process.env.SHOTS ?? 'captures';
 mkdirSync(SHOTS, { recursive: true });
 const URL = process.env.FOYER_URL ?? 'http://127.0.0.1:8765/';
@@ -103,6 +103,20 @@ await step('commande guidée : recherche Auchan sur le produit déjà acheté', 
   const href = await dlg.locator('a.btn.block').first().getAttribute('href'); // bouton principal (les liens du conseil qualité-prix viennent avant)
   if (!href?.includes(encodeURIComponent('Pâtes spaghetti 500g'))) throw new Error('recherche sur le produit acheté attendue : ' + href);
   if (!/au prix payé le 3 oct\. 2026/.test(found)) throw new Error('coût au prix payé attendu : ' + found);
+  await page.keyboard.press('Escape');
+});
+await step('facture au format réel d\'Auchan drive (contenu fictif) : 8 produits, total exact, date de commande', async () => {
+  await page.getByRole('link', { name: 'Courses', exact: true }).click();
+  await page.getByRole('button', { name: '🧾 Lire la facture du drive', exact: true }).click();
+  await dlg.locator('input[type=file][data-c=invoiceFile]').setInputFiles({ name: 'facture-auchan-fictive.pdf', mimeType: 'application/pdf', buffer: Buffer.from(makePdf(AUCHAN_ROWS)) });
+  await dlg.getByText('8 produits lus').waitFor({ timeout: 15000 });
+  const t = await text(dlg);
+  if (!/Lecture complète/.test(t) || !/facture du jeu\.? 8 oct\.? 2026/i.test(t) || !/4 × 4,12\s€ = 16,46\s€/.test(t)) throw new Error('facture Auchan : ' + t.slice(0, 400));
+  for (const pii of ['Camille', 'EXEMPLE', '900000001', 'CARTE CADEAU']) if (t.includes(pii)) throw new Error('donnée personnelle ou paiement affiché : ' + pii);
+  await page.screenshot({ path: `${SHOTS}/facture-auchan.png`, fullPage: true });
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  for (const v of r.violations) errors.push(`axe[facture-auchan] ${v.id} (${v.impact}): ${v.help}`);
+  await dlg.getByRole('button', { name: 'Lire une autre facture' }).click();
   await page.keyboard.press('Escape');
 });
 await step('fichier illisible : message clair ; texte collé : lu aussi', async () => {

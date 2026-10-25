@@ -255,7 +255,7 @@ Demande : « avoir comme Jow tous les prix en direct des enseignes » ; choix du
 | RGPD | Seuls produits, contenances et prix sont retenus ; jamais nom, adresse, carte, numéro de commande |
 | Un geste de moins | Le montant payé se note avec la facture ; la commande suivante cherche le même produit |
 
-[DONNÉE_MANQUANTE] Format exact des factures Auchan : règles génériques en attendant la facture promise ; une copie anonymisée servira de test et calera la lecture.
+Format des factures Auchan drive : relevé le 25 octobre 2026 sur trois factures du foyer (données personnelles masquées avant lecture) ; reproduit avec un contenu fictif en test.
 
 ## 18. V3.2 — on ne voit que des exceptions (23 octobre 2026)
 

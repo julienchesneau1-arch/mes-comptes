@@ -44,3 +44,57 @@ export const SAMPLE_ROWS: readonly (readonly (readonly [number, string])[])[] = 
   [[40, 'Frais de préparation'], [470, '0,00 €']],
   [[40, 'Total TTC'], [470, '13,00 €']],
 ];
+
+// Facture au format réel d'Auchan drive (mise en page relevée sur trois vraies factures d'octobre 2026, lues masquées) :
+// colonnes « Prix U. HT · Remise U. HT · Qté · Total net HT · TVA · Cagnotte · Total net TTC », nom du produit continué sur
+// la ligne suivante, en-tête répété à chaque page, « Facture éditée le » (jour du téléchargement) avant la date de commande,
+// paiement en cagnotte, carte cadeau et carte bancaire. Prix, dates, codes et données personnelles : tous inventés.
+const P = (ean: string, label: string, ...nums: string[]): [number, string][] => [[20, ean], [80, label], ...nums.map((n, i) => [300 + i * 38, n] as [number, string])];
+const HEAD: (readonly (readonly [number, string])[])[] = [
+  [[245, 'Votre commande :'], [356, 'Votre facture :'], [460, 'Id Waaoh :']],
+  [[245, '900000001'], [356, 'F00000000000001'], [460, '0000']],
+  [[40, 'Votre code-barres : s000000000000000000000']],
+  [[300, 'Prix U.'], [340, 'Remises U.'], [400, 'Prix total Net'], [445, 'Taux TVA'], [490, 'Cagnotte'], [530, 'Prix total Net']],
+  [[20, 'Référence'], [80, 'Caractéristiques produit'], [375, 'Qte.']],
+  [[300, '(HT) €'], [340, '(HT) €'], [400, '(HT) €'], [445, '%'], [490, 'WAAOH!'], [530, '(TTC) €']],
+];
+export const AUCHAN_ROWS: readonly (readonly (readonly [number, string])[])[] = [
+  ...HEAD.slice(0, 3),
+  [[40, 'Mme Camille EXEMPLE'], [482, 'Facture éditée le :']],
+  [[40, '1 rue de l’Exemple'], [482, '12/10/2026']],
+  [[40, '00000 VILLEFICTIVE'], [482, 'Date de commande :']],
+  [[40, 'N° client : 0000000'], [482, '08/10/2026']],
+  ...HEAD.slice(3),
+  P('3000000000011', 'AUCHAN Beurre doux', '2,45', '1', '2,45', '5,50', '0,25', '2,58'),
+  [[80, '250g']],
+  P('3000000000028', 'AUCHAN Crème dessert au chocolat au', '1,31', '2', '2,62', '5,50', '2,76'),
+  [[80, 'lait 4x125g']],
+  P('3000000000035', 'MARQUE Thé glacé saveur pêche', '5,20', '1,30', '4', '15,60', '5,50', '16,46'),
+  [[80, '4x1.25L']],
+  P('3000000000042', 'AUCHAN TAVOLA Parmigiano', '1,18', '2', '2,35', '5,50', '0,24', '2,48'),
+  [[80, 'Reggiano AOP râpé 60g']],
+  P('3000000000059', 'PRIX BAS FILET PLT BLANC 600G', '6,10', '2', '12,19', '5,50', '12,86'),
+  P('3000000000066', 'AUCHAN Confiture extra de figue 50% de', '1,59', '1', '1,59', '5,50', '0,16', '1,68'),
+  [[540, '1/2']],
+  ...HEAD,
+  [[80, 'fruits 360g']],
+  P('3000000000073', 'AUCHAN Légumes pour couscous 5', '1,95', '2', '3,90', '5,50', '0,82', '4,11'),
+  [[80, 'portions 1kg']],
+  P('3000000000080', 'MARQUE Déodorant fraîcheur 50ml', '2,60', '1,00', '2', '3,20', '20,00', '3,84'),
+  P('3000000000097', 'Vignettes', '0,00', '5', '0,00', '0,00', '0,00'),
+  [[40, 'Taux TVA (%)'], [200, 'Prix HT (€)'], [300, 'TVA (€)'], [400, 'Prix TTC (€)']],
+  [[40, 'Total Éco-Part (€)'], [400, '0,00']],
+  [[40, '20,00'], [200, '3,20'], [300, '0,64'], [400, '3,84']],
+  [[40, 'Total Facture TTC (€)'], [400, '54,66']],
+  [[40, '5,50'], [200, '40,70'], [300, '2,23'], [400, '42,93']],
+  [[40, 'Total Remises (€)'], [400, '-7,89']],
+  [[40, 'Total à payer (€)'], [400, '46,77']],
+  [[40, 'Total'], [200, '43,90'], [300, '2,87'], [400, '46,77']],
+  [[40, 'TVA non récupérable'], [300, 'Cagnotte Waaoh'], [400, '1,47']],
+  [[40, 'Mode de paiement'], [300, 'Montant réglé (€)']],
+  [[40, 'WAAOH'], [300, '1,00']],
+  [[40, 'CARTE CADEAU EXEMPLE'], [300, '20,00']],
+  [[40, 'CARTE BANCAIRE'], [300, '25,77']],
+  [[40, 'AUCHAN DRIVE EXEMPLE']],
+  [[540, '2/2']],
+];
