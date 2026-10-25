@@ -26,6 +26,8 @@ page.on('console', m => { if (m.type() === 'error') errors.push(`${m.type()}: ${
 page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
 const shot = async name => page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
 const axe = async name => {
+  // Les onglets changent de couleur en 0,2 s : mesuré pendant la transition, le contraste est faux (vu une fois sur cinq en sombre).
+  await page.waitForFunction(() => !document.getAnimations().some(a => a instanceof CSSTransition && a.playState === 'running'));
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
   for (const v of r.violations) errors.push(`axe[${name}] ${v.id} (${v.impact}): ${v.help} → ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`);
 };

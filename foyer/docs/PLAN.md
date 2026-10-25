@@ -201,6 +201,24 @@ Gestes pour ouvrir une recette (d'après le code, avant → après) :
 | N'importe quelle recette | 3 (Maison › plat › déplier) ; formulaire | 2 (Maison › plat) ; fiche en lecture |
 | Un outil souvent servi (drive, facture, découvrir…) | 2 (onglet › bouton) | 1 (raccourci) |
 
+### V3.6 (recettes prêtes, comme chez Jow — demande de Julien du 25 octobre 2026)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Recettes prêtes dans « Choisir un plat » | **livré** | Section « Recettes prêtes » : les 4 meilleures pour ce repas (même classement que les propositions), ou les 6 qui répondent à la recherche ; un toucher prévoit le plat et l'ajoute à « Nos plats » ; « Voir » ouvre la fiche avec ce repas en premier. Navigateur : recherche « poulet », fiche, « Demain soir » prévu |
+| Idées d'Aujourd'hui | **livré** | Jusqu'à 3 recettes prêtes à côté de vos plats et restes, dès le premier jour (foyer sans aucun plat). Navigateur : idée prévue d'un toucher, courses calculées |
+| Fiche d'une recette prête | **livré** | « Prévoir » sur les 6 prochains repas libres, « Ajouter à nos plats », « Modifier avant d'ajouter », ingrédients avec allergènes, étapes, source et licence |
+| Page sans nombre de personnes | **livré** | 243 plats sur 424 : le foyer choisit 1 à 8 ; « Ajouter » et « Prévoir » absents avant (navigateur) ; jamais proposés d'office |
+| Catalogue plus grand | **partiel** | 424 plats de repas (le catalogue n'a pas grossi : desserts, boissons et pages sans quantités restent écartés), mais 181 avec nombre de personnes (lecture élargie) au lieu de 139 proposables. Aucune autre source libre vérifiable ; rien d'inventé |
+| Desserts | **non fait** | Écartés volontairement (planning de repas) |
+
+Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant → après) :
+
+| Tâche | Avant | Après |
+|---|---|---|
+| Un plat pour ce midi, foyer neuf | 2 (« Trouver une idée » › « Je prends » ; une idée à la fois) | 1 (idée d'Aujourd'hui, 3 au choix ; « Trouver une idée » reste) |
+| Un plat précis (« poulet ») pour un repas, hors recherche tapée | 10 (Maison › Nos plats › Découvrir › recette › Ajouter › Enregistrer, puis Semaine › repas › Choisir un plat › plat) | 4 (Semaine › repas › Choisir un plat › plat) |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -325,4 +343,5 @@ Gestes pour ouvrir une recette (d'après le code, avant → après) :
 | 2026-10-23 | V3.3 | Semaine générée en liste d'approbation, budget tenu d'office (Pimzi), brouillon partagé, durées dans le choix (PR C de 4) | livré | Couverture des prix encore faible sur les recettes du catalogue ; approbation jour par jour non faite |
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
+| 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
 | 2026-10-23 | Vérification | « Déjà au placard ? » éprouvé en navigateur sur deux semaines (`placard.mjs`, 4 étapes, axe 0 défaut) | livré | Non vérifié sur iPhone |

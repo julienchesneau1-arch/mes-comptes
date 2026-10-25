@@ -294,4 +294,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | La recette d'un toucher | Une recette s'ouvre en fiche de lecture ; le formulaire seulement pour modifier |
 | Ce qui sert le plus | Compté sur le téléphone seulement ; en raccourci en haut d'Aujourd'hui (4 au plus, épinglables) ; la navigation ne bouge jamais |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.5 incluses).
+## 22. V3.6 — des recettes prêtes, sans en créer (25 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Recettes prêtes | Les plats du Livre de cuisine de Wikilivres sont à portée d'un toucher partout où l'on choisit un plat : choix d'un plat, idées d'Aujourd'hui, Nos plats |
+| Un toucher | Prévoir une recette prête l'ajoute à « Nos plats » avec sa source et sa licence ; jamais en double |
+| Jamais deviné | Le nombre de personnes vient de la page ou du foyer ; les idées proposées d'office n'en manquent jamais |
+| Rien d'inventé | Aucune recette écrite par Foyer ; une seule source, libre et attribuée |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.6 incluses).
