@@ -93,3 +93,26 @@ test('desserts et préparations de base non rangés en catégorie : reconnus au 
   const c = parseWikiRecipe({ ...page('Choucroute pour 4', ['1 kg de choucroute', '4 saucisses', '500 g de pommes de terre'], cat('Recettes de cuisine à base de saucisse')), content: '== Ingrédients ==\n* 1 kg de choucroute\n* 4 saucisses\n* 500 g de pommes de terre\n== Préparation ==\n# Cuire.\n# Servir.' });
   assert.ok(c.ok && c.recipe.yield === 4); // nombre de personnes lu dans le titre
 });
+
+test('nombre de personnes : titres de section, « Nombre de personnes : 4 », convives, fourchette → borne basse ; jamais deviné', async () => {
+  const { yieldOf } = await import('../src/core/wikibook.ts');
+  assert.equal(yieldOf('Livre de cuisine/X', 'ingredients pour 6 personnes\n* 1 kg de bœuf'), 6);       // titre de section (déjà sans accent)
+  assert.equal(yieldOf('Livre de cuisine/X', 'ingredients (pour 4)\n* 1 kg de bœuf'), 4);
+  assert.equal(yieldOf('Livre de cuisine/X', 'Nombre de personnes : 8\n'), 8);
+  assert.equal(yieldOf('Livre de cuisine/X', 'Pour 4 à 6 convives.\n'), 4);
+  assert.equal(yieldOf('Livre de cuisine/X', 'Pour six personnes.\n'), 6);
+  assert.equal(yieldOf('Livre de cuisine/X', 'Recette pour 2 adultes\n'), 2);
+  assert.equal(yieldOf('Livre de cuisine/X', '* 3 portions de fromage fondu\n* 2 tranches de pain'), null); // « portions » sans « pour » : un ingrédient, pas le nombre de personnes
+  assert.equal(yieldOf('Livre de cuisine/X', '* 3 œufs par personne\n'), null);
+});
+
+test('famille lue sur les ingrédients quand les catégories ne la disent pas ; charcuterie et bouillon écartés', () => {
+  const page = (title: string, lines: string[], categories: string[]): WikiPage => ({ pageid: 7, revid: 1, title: `Livre de cuisine/${title}`, categories,
+    content: `== Ingrédients pour 4 personnes ==\n${lines.map(l => `* ${l}`).join('\n')}\n== Préparation ==\n# Couper.\n# Cuire.` });
+  const r = parseWikiRecipe(page('Poulet aux olives', ['1 poulet', '200 g d\'olives', '2 oignons'], cat('Cuisine provençale')));
+  assert.ok(r.ok && r.recipe.main === 'volaille' && r.recipe.yield === 4);
+  const why = (x: ReturnType<typeof parseWikiRecipe>) => (x.ok ? 'gardé' : x.why);
+  assert.equal(why(parseWikiRecipe(page('Rillettes de porc', ['1 kg d\'échine de porc', '200 g de lard', '1 bouquet garni'], cat('Cuisine sarthoise')))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Bouillon de poule', ['1 poule', '2 carottes', '1 poireau'], cat('Cuisine française')))), 'dessert ou préparation de base');
+  assert.equal(why(parseWikiRecipe(page('Omelette nature', ['6 œufs', '20 g de beurre', '1 pincée de sel'], cat('Cuisine française')))), 'pas un plat de repas'); // œufs seuls, sans catégorie de plat
+});
