@@ -6,7 +6,7 @@ import { slotView, STATUS_LABEL, problems, prepTitle, capital } from '../../core
 import { portionsDetail } from '../../core/today.js';
 import { lineLabel } from '../../core/ingredients.js';
 import { rank, leftovers } from '../../core/propose.js';
-import { setDish, setLeftovers, setOutside, removeDish, move, eat, declarePrepared } from '../../core/commands.js';
+import { setDish, setLeftovers, setOutside, removeDish, move, eat, declarePrepared, reusable } from '../../core/commands.js';
 import { newId } from '../../core/reduce.js';
 import { activeWatch } from '../../core/watch.js';
 import { norm } from '../../core/text.js';
@@ -111,10 +111,14 @@ function pickHtml(k) {
   ${q && !exact ? `<button class="btn soft block" data-a="pickNew" data-k="${k}">Créer « ${esc(pickQ.trim())} » et le prévoir</button>` : ''}
   ${left.length || before.length ? `<section><h3 class="section-title">Restes (rien à cuisiner de plus)</h3><ul class="list">
     ${left.map(x => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${x.prep}"><span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.free} portion${x.free > 1 ? 's' : ''} libre${x.free > 1 ? 's' : ''} · préparé ${x.age === 0 ? 'aujourd\'hui' : x.age === 1 ? 'hier' : `il y a ${x.age} jours`}</span></span></button></li>`).join('')}
-    ${before.map(p => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${p.id}"><span class="grow"><span class="title">${esc(prepTitle(s, p))} (en cuisiner plus)</span><br><span class="sub">prévu ${esc(fmtSlot(p.slot, c.date))} : +${n} portion${n > 1 ? 's' : ''} à préparer</span></span></button></li>`).join('')}
+    ${before.map(p => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${p.id}"><span class="grow"><span class="title">${esc(prepTitle(s, p))} (${p.extra >= Math.max(1, n) ? 'ses portions en plus' : 'en cuisiner plus'})</span><br><span class="sub">prévu ${esc(fmtSlot(p.slot, c.date))} : ${esc(extraText(p.extra, n))}</span></span></button></li>`).join('')}
   </ul></section>` : ''}
-  <section><h3 class="section-title">Vos plats</h3>${ranked.length ? `<ul class="list">${ranked.map(x => `<li><button class="item-btn" data-a="pickRecipe" data-k="${k}" data-id="${x.recipe}">
-    <span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.blocked ? `<span class="alert">⚠️ ${esc(x.blocked)} : exclu chez vous</span>` : esc(x.reason)}</span></span></button></li>`).join('')}</ul>`
+  <section><h3 class="section-title">Vos plats</h3>${ranked.length ? `<ul class="list">${ranked.map(x => {
+        const re = reusable(s, k, x.recipe);
+        return `<li><div class="item"><button class="item-btn grow" data-a="pickRecipe" data-k="${k}" data-id="${x.recipe}">
+    <span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.blocked ? `<span class="alert">⚠️ ${esc(x.blocked)} : exclu chez vous</span>` : re ? `♻️ ${esc(reuseText(re, n, c.date))}` : esc(x.reason)}</span></span></button>
+    ${re ? `<button class="btn quiet small-btn" data-a="pickFresh" data-k="${k}" data-id="${x.recipe}">Cuisiner à nouveau</button>` : ''}</div></li>`;
+    }).join('')}</ul>`
         : `<p class="muted">${Object.keys(s.recipes).length ? 'Aucun plat ne correspond.' : 'Aucun plat enregistré : tapez un nom ci-dessus pour le créer.'}</p>`}</section>`;
 }
 INPUT['pickQ'] = (d, el) => { pickQ = el.value; openSheet({ id: `pick:${d['k']}`, render: () => pickHtml(d['k'] ?? '') }); };
@@ -123,12 +127,25 @@ function afterPick(k) { if (pickBack === 'slot')
 else
     closeSheet(); }
 CLICK['pick'] = d => openPick(d['k'] ?? '', d['back']);
-CLICK['pickRecipe'] = d => {
-    const k = d['k'] ?? '', id = d['id'] ?? '';
-    const name = S().recipes[id] ? current(S().recipes[id]).name : '';
+const pickDish = (fresh) => (d) => {
+    const k = d['k'] ?? '', id = d['id'] ?? '', s = S();
+    const name = s.recipes[id] ? current(s.recipes[id]).name : '', re = fresh ? null : reusable(s, k, id);
     afterPick(k);
-    dispatch(setDish(S(), k, id), { toast: `${name} prévu ${fmtSlot(k, clock().date)}` });
+    dispatch(setDish(s, k, id, fresh), { toast: `${name} prévu ${fmtSlot(k, clock().date)}${re ? ` : ${reuseText(re, servings(s, k), clock().date)}` : ''}` });
 };
+CLICK['pickRecipe'] = pickDish(false);
+CLICK['pickFresh'] = pickDish(true);
+// « 2 des 2 portions en plus » (rien à cuisiner de plus), « les 2 portions en plus + 1 à préparer », ou « +2 portions à préparer ».
+function extraText(extra, n, when = '') {
+    if (!extra)
+        return `+${n} portion${n > 1 ? 's' : ''} à préparer`;
+    const used = Math.min(extra, n), more = n - used;
+    return `reprend ${used === extra ? `les ${extra}` : `${used} des ${extra}`} portion${extra > 1 ? 's' : ''} en plus${when ? ` de ${when}` : ''}${more > 0 ? ` + ${more} à préparer` : ', rien de plus à cuisiner'}`;
+}
+function reuseText(p, n, today) {
+    const when = p.slot ? fmtSlot(p.slot, today) : '';
+    return p.done ? `les restes de ${when}, rien à cuisiner` : extraText(p.extra, n, when);
+}
 CLICK['pickLeft'] = d => {
     const k = d['k'] ?? '';
     afterPick(k);

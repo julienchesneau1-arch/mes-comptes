@@ -25,6 +25,7 @@ import './sheets/shop.ts';
 import './sheets/drive.ts';
 import './sheets/invoice.ts';
 import './sheets/discover.ts';
+import { track } from './usage.ts';
 
 const TABS: Tab[] = ['aujourdhui', 'semaine', 'courses', 'maison'];
 
@@ -69,7 +70,7 @@ function route(): void {
   A.ui.tab = tab;
   if (sheetOpen()) closeSheet();
   render();
-  if (changed) { window.scrollTo(0, 0); $('#main')?.focus({ preventScroll: true }); }
+  if (changed) { window.scrollTo(0, 0); $('#main')?.focus({ preventScroll: true }); track(`t:${tab}`); }
 }
 
 function boot(): void {

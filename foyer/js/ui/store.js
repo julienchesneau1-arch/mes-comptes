@@ -59,6 +59,8 @@ export function loadDevice(newId) {
         pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
         guide: d.guide !== false,
         ritualHint: d.ritualHint !== false,
+        usage: d.usage !== false,
+        pins: Array.isArray(d.pins) ? d.pins.filter((k) => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
     };
     saveDevice(dev);
     return dev;
@@ -67,7 +69,7 @@ export function saveDevice(d) { try {
     localStorage.setItem(DEVICE, JSON.stringify(d));
 }
 catch { /* sans effet en navigation privée */ } }
-export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus'])
+export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage'])
     try {
         localStorage.removeItem(k);
     }

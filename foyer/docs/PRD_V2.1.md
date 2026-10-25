@@ -286,4 +286,12 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Budget dès le départ | Budget et allergies demandés à la création du foyer, facultatifs |
 | Pas de double achat | Le reste d'un paquet de la semaine précédente est proposé « déjà au placard ? », jamais déduit sans réponse |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.4 incluses).
+## 21. V3.5 — préparer juste, trouver vite (25 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Portions en plus | Le même plat choisi pour un repas suivant (6 jours au plus) reprend les portions en plus au lieu de recuisiner ; « Cuisiner à nouveau » reste possible |
+| La recette d'un toucher | Une recette s'ouvre en fiche de lecture ; le formulaire seulement pour modifier |
+| Ce qui sert le plus | Compté sur le téléphone seulement ; en raccourci en haut d'Aujourd'hui (4 au plus, épinglables) ; la navigation ne bouge jamais |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.5 incluses).

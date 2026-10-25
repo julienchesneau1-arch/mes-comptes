@@ -253,6 +253,12 @@ main > *, .cols > *, .stack > * { min-width: 0; }
   cursor: pointer; font-size: .9375rem; font-weight: 800; transition: transform .12s; }
 .tag:active { transform: scale(.96); }
 .tag[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.shortcuts { display: flex; gap: .5rem; overflow-x: auto; padding: .25rem 0 .75rem; scrollbar-width: none; }
+.shortcuts::-webkit-scrollbar { display: none; }
+.shortcut { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 1rem; border-radius: 999px; border: 2px solid var(--line);
+  background: var(--paper); color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.shortcut:active { transform: scale(.96); }
+ol.steps { margin: .25rem 0 0; padding-left: 1.5rem; display: grid; gap: .625rem; line-height: 1.5; }
 .tag-check { display: inline-flex; align-items: center; gap: .5rem; min-height: var(--tap); padding: 0 1rem; border-radius: 999px; border: 2px solid var(--line);
   background: var(--paper); cursor: pointer; font-size: .9375rem; font-weight: 800; }
 .tag-check input { width: 1.125rem; height: 1.125rem; margin: 0; accent-color: var(--plum); }
