@@ -27,6 +27,7 @@ import './sheets/drive.ts';
 import './sheets/invoice.ts';
 import './sheets/discover.ts';
 import { track } from './usage.ts';
+import { coinceButton, coinceStep } from './coince.ts';
 
 const TABS: Tab[] = ['aujourdhui', 'semaine', 'courses', 'maison'];
 
@@ -55,6 +56,7 @@ function render(): void {
   if (nav) nav.hidden = false;
   const tab = A.ui.tab;
   app.innerHTML = demo + (tab === 'semaine' ? weekView() : tab === 'courses' ? shopView() : tab === 'maison' ? homeView() : todayView());
+  $('.top', app)?.insertAdjacentHTML('beforeend', coinceButton()); // « Ça coince ? » : même place sur les quatre écrans (bandeau collant)
   for (const el of $$<HTMLElement>('[data-pct]', app)) el.style.width = `${el.dataset['pct'] ?? 0}%`; // jauges : CSP sans style écrit dans le HTML
   for (const sm of $$<HTMLElement>('details > summary', app)) if (opened.has(sm.textContent ?? '')) (sm.parentElement as HTMLDetailsElement).open = true;
   for (const a of $$<HTMLAnchorElement>('#tabs a')) {
@@ -71,7 +73,7 @@ function route(): void {
   A.ui.tab = tab;
   if (sheetOpen()) closeSheet();
   render();
-  if (changed) { window.scrollTo(0, 0); $('#main')?.focus({ preventScroll: true }); track(`t:${tab}`); }
+  if (changed) { window.scrollTo(0, 0); $('#main')?.focus({ preventScroll: true }); track(`t:${tab}`); coinceStep(`t:${tab}`); }
 }
 
 function boot(): void {

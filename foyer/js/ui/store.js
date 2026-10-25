@@ -2,6 +2,7 @@
 // Copies de secours dans IndexedDB (5 dernières), prises avant chaque fusion ou restauration.
 import { validEvent } from '../core/model.js';
 import { sortLog } from '../core/reduce.js';
+import { readChoices } from '../core/modules.js';
 const LOG = 'foyer:journal', DEVICE = 'foyer:appareil';
 export function loadLog() {
     let raw = null;
@@ -61,6 +62,8 @@ export function loadDevice(newId) {
         ritualHint: d.ritualHint !== false,
         usage: d.usage !== false,
         pins: Array.isArray(d.pins) ? d.pins.filter((k) => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
+        mods: readChoices(d.mods),
+        coince: d.coince !== false,
     };
     saveDevice(dev);
     return dev;
@@ -69,7 +72,7 @@ export function saveDevice(d) { try {
     localStorage.setItem(DEVICE, JSON.stringify(d));
 }
 catch { /* sans effet en navigation privée */ } }
-export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage'])
+export function wipe() { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage', 'foyer:coince'])
     try {
         localStorage.removeItem(k);
     }

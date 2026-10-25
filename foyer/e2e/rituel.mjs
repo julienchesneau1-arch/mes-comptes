@@ -122,6 +122,9 @@ await step('jour des courses : drive sans prix à saisir, estimation automatique
   await page.keyboard.press('Escape');
 });
 await step('courses : budget, montant payé, jauge', async () => {
+  await page.getByRole('link', { name: 'Maison', exact: true }).click();          // mode essentiel : le budget s'active dans Réglages › Fonctions
+  await page.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Budget et bilan/ }).check();
   await page.getByRole('link', { name: 'Courses', exact: true }).click();
   await page.getByRole('heading', { name: /Budget de la semaine/ }).waitFor();
   await page.getByRole('button', { name: 'Fixer un budget' }).click();

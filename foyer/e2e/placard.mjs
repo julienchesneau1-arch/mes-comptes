@@ -75,6 +75,9 @@ await step('semaine 1 : paquet de 500 g retenu au drive, pris pour 300 g', async
 await step('semaine 2 : la liste redemande des spaghetti, « À régler » propose le reste du paquet', async () => {
   await page.clock.setFixedTime(WEEK2);
   await page.reload();
+  await page.getByRole('link', { name: 'Maison', exact: true }).click();          // mode essentiel : « Déjà au placard ? » s'active dans Réglages › Fonctions
+  await page.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Déjà au placard/ }).check();
   await plan('2026-10-06|soir', /mardi/i);
   await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
   const card = page.locator('li.exc', { hasText: 'Spaghetti : il devrait en rester 200 g' });

@@ -12,7 +12,8 @@ const DIR = join(tmpdir(), 'foyer-relais-e2e');
 rmSync(DIR, { recursive: true, force: true }); mkdirSync(DIR, { recursive: true });
 for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'js', 'fonts', 'prix.json', 'produits.json']) cpSync(join(SRC, f), join(DIR, f), { recursive: true });
 cpSync(join(SRC, 'e2e/catalogue-essai.json'), join(DIR, 'catalogue.json')); // extrait fixe : résultats reproductibles
-writeFileSync(join(DIR, 'js/ui/config.js'), "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n");
+const conf = join(DIR, 'js/ui/config.js'); // seule l'adresse du relais change : le reste de la configuration (version…) est gardé
+writeFileSync(conf, readFileSync(conf, 'utf8').replace(/export const RELAY = [^\n]*\n/, "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n"));
 writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test"));
 const TYPES = { '.json': 'application/json', '.woff2': 'font/woff2', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {

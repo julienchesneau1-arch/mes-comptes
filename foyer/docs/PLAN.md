@@ -201,6 +201,17 @@ Gestes pour ouvrir une recette (d'après le code, avant → après) :
 | N'importe quelle recette | 3 (Maison › plat › déplier) ; formulaire | 2 (Maison › plat) ; fiche en lecture |
 | Un outil souvent servi (drive, facture, découvrir…) | 2 (onglet › bouton) | 1 (raccourci) |
 
+### V3.7 (apprendre de l'usage réel — choix de Julien du 25 octobre 2026)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| « On refait ? » après le repas | **livré** | Carte « Votre avis » dans À régler pour un plat cuisiné mangé aujourd'hui ou hier : 👍 favori (proposé plus souvent), 👎 rangé (plus jamais proposé, recette prête du même nom écartée), « Sans avis ». Une fois par plat. Navigateur : « On a mangé » → carte → 👍 → étiquette « favori » |
+| « Ça coince ? » | **livré** | Bouton dans le bandeau de chaque écran ; note = écran, genre, un mot, derniers gestes ; sur le téléphone seulement ; Réglages › Ça coince : voir, copier, effacer, masquer le bouton. Navigateur : note prise sur Semaine, liste copiée |
+| Mode essentiel | **livré** | Foyer neuf : ni promo batch, ni budget, ni facture, ni Bilan ; Réglages › Fonctions les affiche ; une fonction déjà en service reste affichée. Navigateur : « Factures du drive » coché → bouton visible |
+| Correction Supabase (pg_net hors de `public`) | **en attente** | La confirmation demandée par le serveur Supabase est restée sans réponse ; rien n'a été modifié (rappels intacts) |
+
+**Essai de deux semaines (étape C)** : gel des nouveautés ; vérification iPhone (20 gestes) ; chaque gêne notée avec « Ça coince ? » ; à J+14 : liste copiée + « Votre usage » → décider quoi garder, simplifier ou retirer.
+
 ### V3.6 (recettes prêtes, comme chez Jow — demande de Julien du 25 octobre 2026)
 
 | Fonction | Statut | Preuve |
@@ -344,5 +355,6 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-25 | V3.7 | Avis 👍/👎 après le repas, « Ça coince ? » (gênes notées sur le téléphone), mode essentiel (fonctions avancées affichées à l'usage ou à la demande) | livré | Seuils et choix par défaut posés, pas encore mesurés ; à juger pendant l'essai de deux semaines |
 | 2026-10-25 | Factures | Lecteur calé sur trois factures Auchan réelles (masquées avant lecture, jamais versées) : colonnes vérifiées par deux calculs (remise, TVA), nom du produit sur deux lignes et deux pages, date de commande, paiements (cagnotte, carte cadeau) écartés, produit rapproché par son nom de tête, abréviations (« PLT », « PDT »…) | livré | Une seule enseigne calée ; format susceptible de changer côté Auchan (lecture générique en secours, « Aucune ligne reconnue » sinon) |
 | 2026-10-23 | Vérification | « Déjà au placard ? » éprouvé en navigateur sur deux semaines (`placard.mjs`, 4 étapes, axe 0 défaut) | livré | Non vérifié sur iPhone |

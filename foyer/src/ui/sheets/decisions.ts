@@ -8,10 +8,11 @@ import { SNOOZE_MAX_MS } from '../../core/reduce.ts';
 import { A, S, dispatch, me } from '../state.ts';
 import { esc, openSheet, sheetHead, toast } from '../dom.ts';
 import { CLICK, CHANGE } from '../registry.ts';
+import { on } from '../modules.ts';
 
 const CHIP: Record<Exception['code'], [string, string]> = {
   conflit: ['conflit', 'À résoudre'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
-  surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'],
+  surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'], avis: ['info', 'Votre avis'],
 };
 const OPEN: Record<'slot' | 'watch' | 'ack' | 'propose', (arg: string) => string> = {
   slot: a => `data-a="slot" data-k="${esc(a)}"`, watch: a => `data-a="watch" data-id="${esc(a)}"`,
@@ -28,7 +29,8 @@ function card(x: Exception): string {
 
 // Section « À régler » : 5 cartes au plus, triées (échéance proche, blocage, repas) ; le reste replié.
 export function reglerSection(t: Today): string {
-  const { shown, hidden } = exceptions(A.r, t, me(), A.now());
+  const all = exceptions(A.r, t, me(), A.now()), keep = (x: Exception): boolean => x.code !== 'placard' || on('placard');
+  const shown = all.shown.filter(keep), hidden = all.hidden.filter(keep);
   if (!shown.length) return '';
   return `<section class="card stack" aria-labelledby="exc-h"><h2 id="exc-h">À régler</h2><ul class="exc-list">${shown.map(card).join('')}</ul>
     ${hidden.length ? `<details><summary>+ ${hidden.length} autre${hidden.length > 1 ? 's' : ''}</summary><ul class="exc-list">${hidden.map(card).join('')}</ul></details>` : ''}</section>`;
