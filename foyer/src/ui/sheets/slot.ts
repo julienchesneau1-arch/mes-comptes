@@ -137,7 +137,7 @@ function readyHtml(k: SlotKey): string {
     : discoveriesFor(s, cat, k, 4).map(d => ({ r: d.recipe, sub: d.reason }));
   if (!list.length && !q) return '';
   return `<section><h3 class="section-title">Recettes prêtes</h3>${list.length ? `<ul class="list">${list.map(({ r, sub }) => `<li><div class="item"><button class="item-btn grow" data-a="pickCatalog" data-k="${k}" data-id="${r.id}">${readyTile(r)}<span class="grow"><span class="title">${esc(r.title)}</span><br><span class="sub">${esc(sub)}</span></span></button>
-    <button class="btn quiet small-btn" data-a="discoverOpen" data-id="${r.id}" aria-label="Voir la recette ${esc(r.title)}">Voir</button></div></li>`).join('')}</ul>` : '<p class="muted small">Aucune recette prête ne correspond.</p>'}
+    <button class="btn quiet small-btn" data-a="discoverOpen" data-id="${r.id}" data-k="${k}" aria-label="Voir la recette ${esc(r.title)}">Voir</button></div></li>`).join('')}</ul>` : '<p class="muted small">Aucune recette prête ne correspond.</p>'}
     <button class="btn ghost block" data-a="discover">Toutes les recettes prêtes (${cat.count})</button></section>`;
 }
 

@@ -98,7 +98,7 @@ const TYPE_TAGS: [string, string][] = [['Soupes', 'soupe'], ['Salades', 'salade'
 
 // Titres de section : « == Ingrédients == », mais aussi une ligne seule en gras ou en définition (« '''Ingrédients''' », « ;Préparation : »),
 // que le texte affiché réduit à « Ingrédients » : reconnue seulement pour les mots qui ouvrent une partie de recette.
-const PSEUDO_HEAD = /^\s*;?\s*((?:liste des |les )?ingr[ée]dients?(?:\s+(?:pour|\().{0,40})?|pr[ée]paration|recette|[ée]tapes?|instructions|r[ée]alisation|m[ée]thode|d[ée]roulement)\s*:?\s*$/i;
+const PSEUDO_HEAD = /^\s*[*#:;]*\s*((?:liste des |les )?ingr[ée]dients?(?:\s+(?:pour|\().{0,40})?|pr[ée]paration|recette|[ée]tapes?|instructions|r[ée]alisation|m[ée]thode|d[ée]roulement)\s*:?\s*$/i;
 function sections(text: string): { head: string; body: string }[] {
   const out: { head: string; body: string }[] = [{ head: '', body: '' }];
   for (const line of text.split('\n')) {

@@ -122,6 +122,9 @@ test('sections en gras ou en définition, « Par personne : », « Donne 10 port
   const r = parseWikiRecipe({ pageid: 9, revid: 1, title: 'Livre de cuisine/Bœuf aux carottes', categories: cat('Cuisine française'),
     content: "Pour 4 personnes.\n'''Ingrédients'''\n* 800 g de bœuf\n* 1 kg de carottes\n* 2 oignons\n;Préparation :\n# Couper.\n# Mijoter." });
   assert.ok(r.ok && r.recipe.yield === 4 && r.recipe.main === 'viande' && r.recipe.steps.length === 2);
+  const b = parseWikiRecipe({ pageid: 10, revid: 1, title: 'Livre de cuisine/Fideuà', categories: cat('Cuisine catalane'),   // titre en puce (« *Ingrédients pour 4 personnes : »)
+    content: "*Ingrédients pour 4 personnes :\n* 400 g de vermicelles\n* 500 g de seiches\n* 1 l de fumet de poisson\n*Préparation\n# Dorer.\n# Cuire." });
+  assert.ok(b.ok && b.recipe.yield === 4 && b.recipe.ingredients.length === 3 && b.recipe.steps.length === 2);
   assert.equal(yieldOf('X', '* Par personne :\n* 1 escalope de veau'), 1);
   assert.equal(yieldOf('X', 'Donne : 10 portions'), 10);
   assert.equal(yieldOf('X', '* 1 truite par personne (200 à 300 g)\n* 50 g d\'amandes'), null); // « par personne » mêlé à des totaux : ambigu, rien

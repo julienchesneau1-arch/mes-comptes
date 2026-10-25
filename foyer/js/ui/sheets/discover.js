@@ -46,7 +46,8 @@ export function freeMeals(n = 6) {
 }
 export const readyTile = (r) => { const l = dishLook(r.title, r.ingredients.map(x => parseIngredient(x).line.name)); return `<span class="look t-${l.theme}" aria-hidden="true">${l.emoji}</span>`; };
 const chosen = new Map(); // nombre de personnes dit par le foyer pour une page qui ne le dit pas
-async function openOne(id) {
+// `from` : le repas d'où la fiche est ouverte (« Choisir un plat »), proposé en premier s'il est encore libre.
+async function openOne(id, from = '') {
     const cat = await loadCatalog();
     const r = cat?.recipes.find(x => x.id === id);
     if (!r)
@@ -54,7 +55,8 @@ async function openOne(id) {
     openSheet({ id: `discover:${id}`, render: () => {
             const s = S(), c = clock(), owned = ownedFor(s, r), y = r.yield ?? chosen.get(r.id) ?? null;
             const no = dishBlocked(s.settings.exclude, r.ingredients.map(l => parseIngredient(l).line.name));
-            const meals = y ? freeMeals() : [];
+            const free = freeMeals(), here = !!from && !s.slots[from]?.dish && servings(s, from) > 0;
+            const meals = !y ? [] : here ? [from, ...free.filter(k => k !== from)].slice(0, 6) : free;
             const ask = r.yield ? '' : `<section class="card stack"><h3 class="section-title">Ces quantités sont pour combien de personnes ?</h3>
       <p class="small muted">La page ne le dit pas : sans ce nombre, les courses ne peuvent pas être calculées.</p>
       <div class="chips" role="group" aria-label="Nombre de personnes">${[1, 2, 3, 4, 5, 6, 8].map(n => `<button class="tag" data-a="readyYield" data-id="${r.id}" data-n="${n}" aria-pressed="${y === n}">${n}</button>`).join('')}</div></section>`;
@@ -75,7 +77,7 @@ CLICK['discover'] = () => { void openList(); };
 CLICK['discoverF'] = d => { f = FILTERS.includes(d['v'] ?? '') ? d['v'] : 'tout'; shown = 30; void openList(); };
 CLICK['discoverMore'] = () => { shown += 30; void openList(); };
 INPUT['discoverQ'] = (_d, el) => { q = el.value; shown = 30; void openList(); };
-CLICK['discoverOpen'] = d => { void openOne(d['id'] ?? ''); };
+CLICK['discoverOpen'] = d => { void openOne(d['id'] ?? '', d['k'] ?? ''); };
 CLICK['discoverAdd'] = async (d) => {
     const r = (await loadCatalog())?.recipes.find(x => x.id === d['id']);
     if (r)
@@ -89,7 +91,7 @@ CLICK['pickCatalog'] = async (d) => {
         return;
     const y = r.yield ?? chosen.get(r.id) ?? null;
     if (!y) {
-        void openOne(r.id);
+        void openOne(r.id, k);
         return;
     }
     const fresh = !ownedFor(S(), r);

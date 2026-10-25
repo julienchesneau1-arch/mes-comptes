@@ -103,10 +103,11 @@ export function todayView(): string {
       <div class="actions">${cardActions(v, i === 0 && !ritualHtml)}</div>${i === 0 ? '</div>' : ''}</article>`;
   }).join('');
   const ideaLook = (id: string): Look => { const r = s.recipes[id]; return r ? dishLook(current(r).name, current(r).ingredients.map(l => l.name)) : { emoji: '🍲', theme: 'grape' }; };
-  const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length) && t.cards[0] ? `<section aria-labelledby="ideas-h"><h2 id="ideas-h" class="section-title">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><div class="carousel">
+  const ready = t.ideas ? readyIdeas(t.cards[0]?.view.key) : '';
+  const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length || ready) && t.cards[0] ? `<section aria-labelledby="ideas-h"><h2 id="ideas-h" class="section-title">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><div class="carousel">
       ${t.ideas.leftovers.map(x => { const l = ideaLook(s.preps[x.prep]?.recipe ?? ''); return `<button class="idea" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">Restes : ${esc(x.name)}</span><span class="sub">♻️ ${plural(x.free, 'portion libre', 'portions libres')} · rien à cuisiner</span></span></button>`; }).join('')}
       ${t.ideas.recipes.map(x => { const l = ideaLook(x.recipe); return `<button class="idea" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(x.name)}</span><span class="sub">${esc(x.reason)}</span></span></button>`; }).join('')}
-      ${readyIdeas(t.cards[0]?.view.key)}
+      ${ready}
     </div></section>` : '';
   const tasks = t.tasks.length ? `<section class="card" aria-labelledby="todo-h"><h2 id="todo-h">À faire</h2><ul class="list">${t.tasks.map(x => `<li class="${x.done ? 'done-line' : ''}"><div class="item">
       <label class="check"><input type="checkbox" data-c="task" data-key="${esc(x.key)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.text)} : fait"><span></span></label>

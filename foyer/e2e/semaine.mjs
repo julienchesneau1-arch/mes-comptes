@@ -53,9 +53,12 @@ await step('la semaine arrive prête, en liste : budget tenu d\'office, ou dépa
   await dlg.getByText('Tout est prêt : approuvez, ou changez un repas.').waitFor({ timeout: 15000 });
   const t = await text(dlg);
   const swapped = /remplacés? par un plat moins cher pour tenir le budget de 5,00\s€/.test(t), honest = /aucune alternative nettement moins chère dont le prix soit bien connu/.test(t);
-  if (!/au-dessus du budget \(5,00\s€\)/.test(t)) throw new Error('dépassement du budget non dit : ' + t.slice(0, 400));
-  if (!swapped && !honest) throw new Error('ni remplacement ni explication : ' + t.slice(0, 400));
-  console.log('   budget :', swapped ? 'plats remplacés d\'office' : 'dépassement expliqué (prix trop peu connus pour remplacer)');
+  // Le catalogue réel change à chaque régénération : selon les plats tirés, les prix connus dépassent 5 € (dépassement dit, plats
+  // remplacés ou explication), ou restent en dessous avec des articles sans prix (« au moins … · estimation incomplète » : rien affirmé).
+  const over = /au-dessus du budget \(5,00\s€\)/.test(t), partial = /au moins [\d,]+\s€ de courses estimées · budget 5,00\s€ \(estimation incomplète\)/.test(t);
+  if (!over && !partial) throw new Error('ni dépassement dit ni estimation déclarée incomplète : ' + t.slice(0, 400));
+  if (over && !swapped && !honest) throw new Error('ni remplacement ni explication : ' + t.slice(0, 400));
+  console.log('   budget :', !over ? 'estimation incomplète, sous 5 € connus : rien affirmé' : swapped ? 'plats remplacés d\'office' : 'dépassement expliqué (prix trop peu connus pour remplacer)');
   if (await dlg.getByText(/la portion au moins/).count()) throw new Error('coût par portion partiel affiché (trompeur)'); // seulement s'il est fiable
   console.log('   menu :', (await titles()).join(' · '));
   console.log('  ', await text(dlg.locator('.week-total')));
