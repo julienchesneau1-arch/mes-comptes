@@ -71,7 +71,14 @@ for (const r of noYield) {
   else if (/\{\{\s*recette/i.test(raw)) hints.push(`  ${r.title} ← modèle : ${(/\{\{\s*recette[^}]{0,140}/i.exec(raw)?.[0] ?? '').replace(/\n/g, ' ')}`);
 }
 console.log(`  sans nombre de personnes : ${noYield.length} ; indices trouvés : ${hints.length}`);
-for (const h of hints.slice(0, 60)) console.log(h);
+for (const h of hints.slice(0, 40)) console.log(h);
+// Diagnostic : comment s'écrit la liste des ingrédients des pages écartées pour « pas de section ingrédients ».
+const noIng = [...pages.values()].filter(p => { const r = parseWikiRecipe(p); return !r.ok && r.why === 'pas de section ingrédients'; });
+console.log(`  pas de section ingrédients : ${noIng.length}`);
+for (const p of noIng.slice(0, 30)) {
+  const l = p.content.split('\n').find(x => /ingr[ée]dient/i.test(x)) ?? p.content.split('\n').find(x => /^\*/.test(x)) ?? '';
+  console.log(`  ${p.title.replace(/^Livre de cuisine\//, '')} ← ${l.trim().slice(0, 120) || '(aucune ligne)'}`);
+}
 for (const [w, c] of [...why].sort((a, b) => b[1] - a[1])) console.log(`  écartées (${w}) : ${c}`);
 const fam = {}; for (const r of recipes) fam[r.main ?? (r.tags.includes('végétarien') ? 'végétarien' : 'autre')] = (fam[r.main ?? (r.tags.includes('végétarien') ? 'végétarien' : 'autre')] ?? 0) + 1;
 console.log('  familles :', JSON.stringify(fam), '· rapides :', recipes.filter(r => r.tags.includes('rapide')).length);

@@ -5,8 +5,14 @@ import { portions, servings, eaters, dependents } from '../../core/plan.ts';
 import { slotView, STATUS_LABEL, problems, prepTitle, capital } from '../../core/status.ts';
 import { portionsDetail } from '../../core/today.ts';
 import { lineLabel } from '../../core/ingredients.ts';
-import { rank, leftovers } from '../../core/propose.ts';
+import { rank, leftovers, discoveriesFor } from '../../core/propose.ts';
 import { setDish, setLeftovers, setOutside, removeDish, move, eat, declarePrepared, reusable, type DependentsMode } from '../../core/commands.ts';
+import { search } from '../../core/catalog.ts';
+import type { CatalogRecipe } from '../../core/wikibook.ts';
+import { dishBlocked } from '../../core/allergens.ts';
+import { parseIngredient } from '../../core/ingredients.ts';
+import { catalogNow } from '../catalog.ts';
+import { readyTile } from './discover.ts';
 import { newId } from '../../core/reduce.ts';
 import { activeWatch } from '../../core/watch.ts';
 import { norm } from '../../core/text.ts';
@@ -114,10 +120,25 @@ function pickHtml(k: SlotKey): string {
     ${left.map(x => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${x.prep}"><span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.free} portion${x.free > 1 ? 's' : ''} libre${x.free > 1 ? 's' : ''} · préparé ${x.age === 0 ? 'aujourd\'hui' : x.age === 1 ? 'hier' : `il y a ${x.age} jours`}</span></span></button></li>`).join('')}
     ${before.map(p => `<li><button class="item-btn" data-a="pickLeft" data-k="${k}" data-id="${p.id}"><span class="grow"><span class="title">${esc(prepTitle(s, p))} (${p.extra >= Math.max(1, n) ? 'ses portions en plus' : 'en cuisiner plus'})</span><br><span class="sub">prévu ${esc(fmtSlot(p.slot as string, c.date))} : ${esc(extraText(p.extra, n))}</span></span></button></li>`).join('')}
   </ul></section>` : ''}
+  ${(s.settings.variety ?? 'max') === 'mes-plats' ? '' : readyHtml(k)}
   <section><h3 class="section-title">Vos plats</h3>${ranked.length ? `<ul class="list">${ranked.map(x => { const re = reusable(s, k, x.recipe); return `<li><div class="item"><button class="item-btn grow" data-a="pickRecipe" data-k="${k}" data-id="${x.recipe}">
     <span class="grow"><span class="title">${esc(x.name)}</span><br><span class="sub">${x.blocked ? `<span class="alert">⚠️ ${esc(x.blocked)} : exclu chez vous</span>` : re ? `♻️ ${esc(reuseText(re, n, c.date))}` : esc(x.reason)}</span></span></button>
     ${re ? `<button class="btn quiet small-btn" data-a="pickFresh" data-k="${k}" data-id="${x.recipe}">Cuisiner à nouveau</button>` : ''}</div></li>`; }).join('')}</ul>`
-    : `<p class="muted">${Object.keys(s.recipes).length ? 'Aucun plat ne correspond.' : 'Aucun plat enregistré : tapez un nom ci-dessus pour le créer.'}</p>`}</section>`;
+    : `<p class="muted">${Object.keys(s.recipes).length ? 'Aucun plat ne correspond.' : 'Aucun plat enregistré : tapez un nom ci-dessus pour le créer.'}</p>`}</section>
+  ${(s.settings.variety ?? 'max') === 'mes-plats' ? readyHtml(k) : ''}`;
+}
+// Recettes prêtes (comme chez Jow) : les meilleures pour ce repas, ou celles qui répondent à la recherche ; un toucher les prévoit.
+function readyHtml(k: SlotKey): string {
+  const s = S(), cat = catalogNow(), q = pickQ.trim();
+  if (!cat) return '';
+  const names = (r: CatalogRecipe) => r.ingredients.map(l => parseIngredient(l).line.name);
+  const list: { r: CatalogRecipe; sub: string }[] = q
+    ? search(s, cat, q, 'tout').filter(r => r.yield && !dishBlocked(s.settings.exclude, names(r))).slice(0, 6).map(r => ({ r, sub: [`pour ${r.yield}`, r.minutes !== null ? `${r.minutes} min` : ''].filter(Boolean).join(' · ') }))
+    : discoveriesFor(s, cat, k, 4).map(d => ({ r: d.recipe, sub: d.reason }));
+  if (!list.length && !q) return '';
+  return `<section><h3 class="section-title">Recettes prêtes</h3>${list.length ? `<ul class="list">${list.map(({ r, sub }) => `<li><div class="item"><button class="item-btn grow" data-a="pickCatalog" data-k="${k}" data-id="${r.id}">${readyTile(r)}<span class="grow"><span class="title">${esc(r.title)}</span><br><span class="sub">${esc(sub)}</span></span></button>
+    <button class="btn quiet small-btn" data-a="discoverOpen" data-id="${r.id}" aria-label="Voir la recette ${esc(r.title)}">Voir</button></div></li>`).join('')}</ul>` : '<p class="muted small">Aucune recette prête ne correspond.</p>'}
+    <button class="btn ghost block" data-a="discover">Toutes les recettes prêtes (${cat.count})</button></section>`;
 }
 
 INPUT['pickQ'] = (d, el) => { pickQ = (el as HTMLInputElement).value; openSheet({ id: `pick:${d['k']}`, render: () => pickHtml(d['k'] ?? '') }); };

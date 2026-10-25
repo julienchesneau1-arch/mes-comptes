@@ -13,6 +13,7 @@ import { demoLog } from './demo.ts';
 import { applyTheme, linkFromUrl } from './sheets/settings.ts';
 import { startAutoSync } from './autosync.ts';
 import { loadRefPrices } from './prices.ts';
+import { loadCatalog } from './catalog.ts';
 import { startReminders } from './push.ts';
 import { startAgenda } from './agenda.ts';
 import './sheets/agenda.ts';
@@ -84,6 +85,7 @@ function boot(): void {
   route();
   startAutoSync();
   loadRefPrices();
+  void loadCatalog().then(c => { if (c) render(); }); // recettes prêtes : choix d'un plat et idées d'Aujourd'hui
   startReminders();
   startAgenda();
   if (dropped > 0) toast(`${dropped} élément(s) illisible(s) écarté(s) à l'ouverture. Une copie de secours existe dans Maison › Réglages.`);

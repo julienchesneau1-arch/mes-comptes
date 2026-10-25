@@ -33,6 +33,8 @@ import { shortcutsHtml, usageSummary } from './usage.ts';
 import { packsFor } from '../core/drive.ts';
 import { ingredientKey } from '../core/ingredients.ts';
 import { dishLook, type Look } from '../core/visual.ts';
+import { catalogNow } from './catalog.ts';
+import { discoveriesFor } from '../core/propose.ts';
 
 const VERSION = '1.0.0';
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n > 1 ? many : one}`;
@@ -50,6 +52,12 @@ const statusText = (v: SlotView): string => (v.batch ? `👩‍🍳 Cuisiné au 
 const lookTile = (l: Look, cls = 'look'): string => `<span class="${cls} t-${l.theme}" aria-hidden="true">${l.emoji}</span>`;
 
 /* ---------- Aujourd'hui ---------- */
+// Recettes prêtes parmi les idées du repas (comme chez Jow) : un toucher les prévoit.
+function readyIdeas(k: SlotKey | undefined): string {
+  const cat = catalogNow();
+  if (!k || !cat || A.demo) return '';
+  return discoveriesFor(S(), cat, k, 3).map(d => { const l = dishLook(d.recipe.title, d.recipe.ingredients); return `<button class="idea" data-a="pickCatalog" data-k="${k}" data-id="${d.recipe.id}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(d.recipe.title)}</span><span class="sub">✨ recette prête · ${esc(d.recipe.yield ? `pour ${d.recipe.yield}` : '')}</span></span></button>`; }).join('');
+}
 function cardActions(v: SlotView, primary = true): string {
   const k = v.key;
   const p = v.prep;
@@ -98,6 +106,7 @@ export function todayView(): string {
   const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length) && t.cards[0] ? `<section aria-labelledby="ideas-h"><h2 id="ideas-h" class="section-title">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><div class="carousel">
       ${t.ideas.leftovers.map(x => { const l = ideaLook(s.preps[x.prep]?.recipe ?? ''); return `<button class="idea" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">Restes : ${esc(x.name)}</span><span class="sub">♻️ ${plural(x.free, 'portion libre', 'portions libres')} · rien à cuisiner</span></span></button>`; }).join('')}
       ${t.ideas.recipes.map(x => { const l = ideaLook(x.recipe); return `<button class="idea" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(x.name)}</span><span class="sub">${esc(x.reason)}</span></span></button>`; }).join('')}
+      ${readyIdeas(t.cards[0]?.view.key)}
     </div></section>` : '';
   const tasks = t.tasks.length ? `<section class="card" aria-labelledby="todo-h"><h2 id="todo-h">À faire</h2><ul class="list">${t.tasks.map(x => `<li class="${x.done ? 'done-line' : ''}"><div class="item">
       <label class="check"><input type="checkbox" data-c="task" data-key="${esc(x.key)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.text)} : fait"><span></span></label>
@@ -296,7 +305,10 @@ function platsList(): string {
     ${archived.length ? `<details><summary>Plats rangés (${archived.length})</summary><ul class="list">${archived.map(row).join('')}</ul></details>` : ''}`;
 }
 function platsView(): string {
-  return `<section class="card stack"><div class="actions"><button class="btn" data-a="newRecipe">Nouveau plat</button><button class="btn ghost" data-a="pasteRecipe">Coller une recette</button><button class="btn ghost" data-a="classics">Ajouter des classiques</button><button class="btn ghost" data-a="discover">Découvrir des recettes</button></div>
+  const cat = catalogNow();
+  return `${cat ? `<section class="card stack ready-promo"><h2>📚 ${cat.count} recettes prêtes</h2><p class="small muted">Du Livre de cuisine de Wikilivres : à prévoir d'un toucher, sans rien saisir. Elles entrent dans vos plats quand vous les prévoyez.</p>
+    <button class="btn" data-a="discover">Parcourir les recettes prêtes</button></section>` : ''}
+  <section class="card stack"><div class="actions"><button class="btn" data-a="newRecipe">Nouveau plat</button><button class="btn ghost" data-a="pasteRecipe">Coller une recette</button><button class="btn ghost" data-a="classics">Ajouter des classiques</button></div>
     <label class="field">Chercher<input type="search" data-i="homeQ" value="${esc(A.ui.q)}" placeholder="Nom du plat" autocomplete="off"></label>
     <div id="plats-list">${platsList()}</div></section>`;
 }

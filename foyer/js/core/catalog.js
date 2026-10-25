@@ -4,6 +4,8 @@ import { familyOf } from './wikibook.js';
 import { nameKey, norm } from './text.js';
 import { dishType } from './visual.js';
 import { dishBlocked } from './allergens.js';
+import { newId } from './reduce.js';
+import { setDish } from './commands.js';
 const isStrArr = (v, max) => Array.isArray(v) && v.length <= max && v.every(x => typeof x === 'string' && x.length <= 500);
 // Fichier relu avant usage : une recette mal formée est ignorée, pas affichée.
 export function readCatalog(x) {
@@ -124,4 +126,23 @@ export function familiesOf(s, recipes) {
             out.add(f);
     }
     return out;
+}
+/* ---------- Recettes prêtes, comme chez Jow : prévues d'un toucher ---------- */
+// Plat de « Nos plats » qui porte déjà ce nom (une recette prête ajoutée une fois n'est jamais dupliquée).
+export const ownedFor = (s, r) => Object.values(s.recipes).find(x => nameKey(current(x).name) === nameKey(r.title))?.id ?? null;
+// Ajouter à « Nos plats » : la recette, sa source et sa licence ; yieldN : nombre de personnes dit par le foyer si la page ne le dit pas.
+export function addCatalog(s, r, yieldN = null) {
+    const owned = ownedFor(s, r);
+    if (owned)
+        return { recipe: owned, drafts: [] };
+    const recipe = newId();
+    return { recipe, drafts: [{ t: 'recipe.save', p: { recipe, content: toContent(r, yieldN) } }] };
+}
+// Prévoir sur un repas : ajoutée à « Nos plats » si besoin, puis posée comme n'importe quel plat (mêmes règles : restes repris…).
+export function planCatalog(s, slot, r, yieldN = null) {
+    const owned = ownedFor(s, r);
+    if (owned)
+        return setDish(s, slot, owned);
+    const { recipe, drafts } = addCatalog(s, r, yieldN), d = s.slots[slot]?.dish;
+    return [...drafts, ...(d ? [{ t: 'slot.clear', p: { slot } }] : []), { t: 'slot.cook', p: { slot, prep: newId(), recipe, extra: 0 } }];
 }

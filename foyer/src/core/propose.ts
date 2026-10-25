@@ -196,6 +196,16 @@ export function nextDiscovery(s: State, cat: Catalog, slot: SlotKey, week: Local
     noYield: (s.settings.variety ?? 'max') === 'max', bonus: r => balanceBonus(run, r.ingredients) })[0];
 }
 
+// Recettes prêtes pour un repas (choix d'un plat, idées d'Aujourd'hui) : mêmes règles que la semaine générée — allergies et refus,
+// variété, repères d'équilibre — et seulement celles qui disent pour combien de personnes (prévues sans question).
+export function discoveriesFor(s: State, cat: Catalog, slot: SlotKey, n = 4, seen: ReadonlySet<string> = new Set()) {
+  const d = parseSlot(slot)?.date;
+  if (!d) return [];
+  const week = weekOf(d, s.settings.weekStart), run = running(weekBalance(s, week));
+  return discover(s, cat, { ...discoveryContext(s, slot, week, new Map(), new Map(), new Set()), types: weekTypes(s, week), seen, noYield: false,
+    bonus: r => balanceBonus(run, r.ingredients) }).slice(0, n);
+}
+
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
 // Selon le réglage « Nouveautés » : « max » (défaut) = une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite ;
 // « equilibre » = vos plats d'abord, de 1 à 3 découvertes par semaine ; « mes-plats » = vos plats, découvertes seulement s'il n'en reste plus.
