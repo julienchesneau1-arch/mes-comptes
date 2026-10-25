@@ -2,9 +2,9 @@ export const CLICK = {};
 export const CHANGE = {};
 export const INPUT = {};
 export const SUBMIT = {};
-// Écouteur des touchers d'action (mesure de l'usage sur ce téléphone, ui/usage.ts) ; un seul, posé au démarrage.
-let actionHook = null;
-export const onAction = (fn) => { actionHook = fn; };
+// Écouteurs des touchers d'action (mesure de l'usage, ui/usage.ts ; derniers gestes de « Ça coince », ui/coince.ts), posés au démarrage.
+const actionHooks = [];
+export const onAction = (fn) => { actionHooks.push(fn); };
 export function wire(root) {
     root.addEventListener('click', e => {
         const el = e.target?.closest('[data-a]');
@@ -13,7 +13,8 @@ export function wire(root) {
         const fn = CLICK[el.dataset['a'] ?? ''];
         if (fn) {
             e.preventDefault();
-            actionHook?.(el.dataset['a'] ?? '');
+            for (const h of actionHooks)
+                h(el.dataset['a'] ?? '');
             fn(el.dataset, el);
         }
     });

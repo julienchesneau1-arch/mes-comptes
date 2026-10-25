@@ -303,4 +303,12 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Jamais deviné | Le nombre de personnes vient de la page ou du foyer ; les idées proposées d'office n'en manquent jamais |
 | Rien d'inventé | Aucune recette écrite par Foyer ; une seule source, libre et attribuée |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.6 incluses).
+## 23. V3.7 — apprendre de l'usage réel (25 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Votre avis | Après « On a mangé », un toucher dit si le plat est à refaire (favori) ou à ne plus jamais proposer (rangé) ; une fois par plat |
+| Ça coince | Une gêne se note au moment où elle arrive, sur le téléphone seulement ; la liste se copie pour être envoyée |
+| Essentiel d'abord | Les fonctions avancées n'apparaissent qu'à l'usage ou à la demande ; les masquer n'efface rien |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.7 incluses).

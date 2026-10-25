@@ -58,6 +58,9 @@ await step('foyer créé, menu de la semaine avec oignons, tomates et pâtes', a
   await page.keyboard.press('Escape');
 });
 await step('Courses : la facture se lit sur le téléphone (pdf.js, sans envoi)', async () => {
+  await page.getByRole('link', { name: 'Maison', exact: true }).click();          // mode essentiel : les factures s'activent dans Réglages › Fonctions
+  await page.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await page.getByRole('checkbox', { name: /Factures du drive/ }).check();
   await page.getByRole('link', { name: 'Courses', exact: true }).click();
   await page.getByRole('button', { name: '🧾 Lire la facture du drive', exact: true }).click();
   await dlg.getByText('Lue sur ce téléphone, sans IA ni envoi').waitFor();

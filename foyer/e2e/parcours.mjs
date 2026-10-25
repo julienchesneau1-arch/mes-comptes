@@ -255,6 +255,7 @@ await step('persistance après rechargement', async () => {
 await step('agenda : brancher, décider une fois, voir ce qui a été fait', async () => {
   await page.getByRole('link', { name: 'Maison', exact: true }).click();
   await page.getByRole('button', { name: 'Réglages' }).click();
+  await page.getByRole('checkbox', { name: /Agendas/ }).check();                 // mode essentiel : l'agenda s'active dans Réglages › Fonctions
   await page.getByRole('button', { name: 'Brancher un agenda' }).click();
   const sheet = page.locator('dialog[open]');
   await sheet.getByLabel(/Adresse de l'agenda/).fill('webcal://calendar.google.com/calendar/ical/essai%40gmail.com/private-0123456789abcdef/basic.ics');

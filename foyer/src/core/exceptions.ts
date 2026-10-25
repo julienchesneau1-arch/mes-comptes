@@ -2,7 +2,7 @@
 // Fonction pure de l'état (et de l'heure) : rien n'est enregistré ; une exception disparaît dès que l'état devient cohérent.
 // Les règles par défaut sont des réglages (événements rejoués, synchronisés, annulables) ; « plus tard » vaut 24 h au plus, par personne.
 import { type LocalDate, type SlotKey, addDays, fmtSlot, parseSlot, slotKey, SLOTS, daysBetween, weekOf } from './dates.ts';
-import type { MemberId, State } from './model.ts';
+import { type MemberId, type State, current } from './model.ts';
 import type { Draft, Replay } from './reduce.ts';
 import { dependents, portions, servings } from './plan.ts';
 import { isUpcoming, leftovers } from './propose.ts';
@@ -14,7 +14,7 @@ import { lineQty } from './shopping.ts';
 import { qStr } from './rational.ts';
 import { showQty } from './units.ts';
 
-export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine';
+export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine' | 'avis';
 export type ExcAction =
   | { label: string; drafts: Draft[] }                                                        // un toucher = ces événements
   | { label: string; open: 'slot' | 'watch' | 'ack' | 'propose'; arg: string };                // un toucher = l'écran qui règle
@@ -28,7 +28,9 @@ export interface Exception {
 }
 export const MAX_SHOWN = 5;   // au-delà : « + N autres », repliées ; une file de 12 cartes est une corvée
 export const RULE_AFTER = 3;
-const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300 };
+const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300, avis: 250 };
+// « Sans avis » sur un plat : la question ne revient plus pour lui (clé de `task.set`).
+export const avisKey = (recipe: string): string => `avis:${recipe}`;
 const HAS_RULE: ReadonlySet<ExcCode> = new Set(['restes']);
 
 // Créneaux à venir (14 prochains repas) où un plat peut être posé sans conflit : vide, pas mangé, quelqu'un y mange.
@@ -95,6 +97,24 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
       title: `${x.free} portion${x.free > 1 ? 's' : ''} de ${x.name} en attente`,
       sub: natural ? `Proposé d'office : ${fmtSlot(natural, today)}${x.age ? ` · préparé il y a ${x.age} j` : ''}.` : `Placer où ?${x.age ? ` · préparé il y a ${x.age} j` : ''}`,
       actions: picks.map(k => ({ label: capital(fmtSlot(k, today)), drafts: [{ t: 'slot.from', p: { slot: k, prep: x.prep } }] as Draft[] })) });
+  }
+
+  // Après le repas : « on refait ? », une fois par plat cuisiné, mangé aujourd'hui ou hier, ni favori ni déjà jugé.
+  // 👍 = favori (proposé plus souvent) ; 👎 = rangé (plus jamais proposé, ni repris des recettes prêtes ; « Plats rangés » pour le ressortir).
+  const asked = new Set<string>();
+  for (const d of [today, addDays(today, -1)]) for (const sl of SLOTS) {
+    const slot = s.slots[slotKey(d, sl)], dish = slot?.dish;
+    if (!slot?.eaten || dish?.kind !== 'cook') continue;
+    const r = s.recipes[s.preps[dish.prep]?.recipe ?? ''];
+    if (!r || r.archived || asked.has(r.id) || s.tasks[avisKey(r.id)]?.done) continue;
+    const c = current(r);
+    if (c.tags.includes('favori')) continue;
+    asked.add(r.id);
+    add({ key: `avis:${r.id}`, code: 'avis', prio: BASE.avis + (d === today ? 10 : 0), title: `${capital(c.name)} : on refait ?`,
+      sub: 'Votre avis règle les prochains menus : 👍 il revient plus souvent, 👎 il n\'est plus jamais proposé (Nos plats › Plats rangés pour le ressortir).',
+      actions: [{ label: '👍 À refaire', drafts: [{ t: 'recipe.save', p: { recipe: r.id, content: { ...c, tags: [...c.tags, 'favori'] } } }] },
+        { label: '👎 Plus jamais', drafts: [{ t: 'recipe.archive', p: { recipe: r.id, archived: true } }] },
+        { label: 'Sans avis', drafts: [{ t: 'task.set', p: { key: avisKey(r.id), done: true } }] }] });
   }
 
   // Reste d'un paquet acheté la semaine précédente, que la liste redemande : « déjà au placard ? » d'un toucher.

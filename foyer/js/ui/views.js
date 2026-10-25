@@ -23,18 +23,19 @@ import { ritualCard, ritualPromo, weekBatchButton, ritualSection } from './sheet
 import { budgetCard, reportView } from './sheets/budget.js';
 import { weekBalance, TARGET, SOURCES } from '../core/balance.js';
 import { VARIETIES } from '../core/model.js';
-import { RELAY } from './config.js';
+import { RELAY, VERSION } from './config.js';
 import { openLine } from './sheets/shop.js';
 import { cartChangesCard, shopWeekFor } from './sheets/drive.js';
 import { reglerSection, decisionsSummary } from './sheets/decisions.js';
 import { exclusionsSummary } from './sheets/allergies.js';
 import { shortcutsHtml, usageSummary } from './usage.js';
+import { coinceSummary } from './coince.js';
+import { on, settingsOn, modulesSection } from './modules.js';
 import { packsFor } from '../core/drive.js';
 import { ingredientKey } from '../core/ingredients.js';
 import { dishLook } from '../core/visual.js';
 import { catalogNow } from './catalog.js';
 import { discoveriesFor } from '../core/propose.js';
-const VERSION = '1.0.0';
 const plural = (n, one, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
 /* ---------- Visuel d'un repas ---------- */
 export function slotLook(v) {
@@ -85,7 +86,7 @@ export function todayView() {
     const t = deriveToday(A.r, A.now());
     const s = S();
     const n = unsent();
-    const ritualHtml = ritualCard(t.ritual);
+    const ritualHtml = on('batch') ? ritualCard(t.ritual) : '';
     const cartTodo = cartChangesCard(shopWeekFor(s, t.date, thisWeek())); // le menu a changé après le drive : à reporter sur Auchan
     const bothEmpty = t.cards.length === 2 && t.cards.every(c => c.view.status === 'vide');
     const cards = (bothEmpty ? t.cards.slice(0, 1) : t.cards).map((c, i) => {
@@ -134,7 +135,7 @@ export function todayView() {
     const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
     return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}${shortcutsHtml()}
-    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
+    <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide || !on('batch') ? '' : ritualPromo()}</div></div></main>`;
 }
 /* ---------- Semaine ---------- */
 function slotButton(k, label) {
@@ -159,7 +160,7 @@ export function weekView() {
     const head = `<div class="weeknav"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
     <h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
     </div>${week !== thisWeek() ? `<button class="btn small-btn quiet" data-a="wk" data-d="0">${week > thisWeek() && week === addDays(thisWeek(), 7) ? 'Revenir à la semaine en cours' : 'Cette semaine'}</button>` : ''}
-    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>${weekBatchButton(week)}
+    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>${on('batch') ? weekBatchButton(week) : ''}
       <details class="more"><summary class="btn ghost">Plus d'options</summary><div class="actions"><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div></details></div>`;
     let body;
     if (wide) {
@@ -262,7 +263,7 @@ export function shopView() {
         ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
         : `<button class="btn big block" data-a="drive" data-week="${week}">🛒 Commander au drive</button>`) : ''}
     ${A.ui.store ? '' : cartChangesCard(week)}
-    ${A.ui.store ? '' : '<button class="btn ghost block" data-a="invoice">🧾 Lire la facture du drive</button>'}
+    ${A.ui.store || !on('factures') ? '' : '<button class="btn ghost block" data-a="invoice">🧾 Lire la facture du drive</button>'}
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
@@ -270,7 +271,7 @@ export function shopView() {
     ${sections}
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(l => lineRow(l, week)).join('')}</ul></details>` : ''}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}</ul></details>` : ''}
-    ${A.ui.store ? '' : budgetCard(week, list)}
+    ${A.ui.store || !on('budget') ? '' : budgetCard(week, list)}
     <div class="actions"><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
     <p class="small muted">Cocher = acheté (ou mis au panier) pour ces courses. Cela ne crée ni stock ni date. Montants : estimations automatiques, rien à saisir.</p></main>`;
 }
@@ -293,9 +294,9 @@ CLICK['storeMode'] = async () => {
 };
 /* ---------- Maison ---------- */
 export function homeView() {
-    const sec = A.ui.home;
+    const sec = A.ui.home === 'bilan' && !on('budget') ? 'plats' : A.ui.home;
     const tabs = [['plats', 'Nos plats'], ['portions', 'Restes'], ['surveiller', 'À surveiller'], ['bilan', 'Bilan'], ['reglages', 'Réglages']]
-        .map(([id, label]) => `<button class="tag" data-a="homeSec" data-s="${id}" aria-pressed="${sec === id}">${label}</button>`).join('');
+        .filter(([id]) => id !== 'bilan' || on('budget')).map(([id, label]) => `<button class="tag" data-a="homeSec" data-s="${id}" aria-pressed="${sec === id}">${label}</button>`).join('');
     const body = sec === 'plats' ? platsView() : sec === 'portions' ? portionsView() : sec === 'surveiller' ? watchListView() : sec === 'bilan' ? reportView() : settingsView();
     return `<div class="top"><h1>Maison</h1></div><main id="main" tabindex="-1"><div class="chips" role="group" aria-label="Sections">${tabs}</div>${body}</main>`;
 }
@@ -358,12 +359,16 @@ function settingsView() {
       <p class="small muted">Maximum : une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite. Toujours : jamais deux fois le même plat dans la semaine, pas un plat déjà prévu à moins de 2 semaines s'il reste autre chose, pas deux plats du même genre.</p></section>
     <section class="card stack"><h2>Allergies et refus</h2><p>${esc(exclusionsSummary(s.settings.exclude))}</p>
       <button class="btn ghost" data-a="allergies">${s.settings.exclude?.allergens.length || s.settings.exclude?.foods.length ? 'Changer' : 'Indiquer des allergies ou des refus'}</button></section>
+    <section class="card stack"><h2>Ça coince</h2><p>${esc(coinceSummary())}</p>
+      <p class="small muted">Gardé sur ce téléphone seulement. Copiez la liste pour l'envoyer, elle sert à corriger ce qui gêne.</p><button class="btn ghost" data-a="coinceList">Voir et copier</button>
+      <label class="item"><input type="checkbox" data-c="coinceShow" ${A.device.coince ? 'checked' : ''}><span>Bouton « Ça coince ? » en haut des écrans</span></label></section>
     <section class="card stack"><h2>Votre usage</h2><p>${esc(usageSummary())}</p>
       <p class="small muted">Compté sur ce téléphone seulement, pour mettre en raccourci ce qui revient le plus.</p><button class="btn ghost" data-a="usage">Voir et épingler</button></section>
     <section class="card stack"><h2>Décisions automatiques</h2><p>${esc(decisionsSummary())}</p>
       <p class="small muted">Décidées une fois : Aujourd'hui ne montre ensuite que ce qu'aucune règle ne tranche.</p><button class="btn ghost" data-a="decisions">Voir et changer</button></section>
-    ${ritualSection()}
-    ${agendaSection()}
+    ${modulesSection()}
+    ${settingsOn('batch') || settingsOn('budget') ? ritualSection() : ''}
+    ${settingsOn('agenda') ? agendaSection() : ''}
     <section class="card stack"><h2>Affichage</h2><label class="field">Thème<select data-c="theme"><option value="auto" ${A.device.theme === 'auto' ? 'selected' : ''}>Comme le téléphone</option><option value="light" ${A.device.theme === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${A.device.theme === 'dark' ? 'selected' : ''}>Sombre</option></select></label>
       <button class="btn ghost" data-a="demo">Mode découverte (exemple, rien n'est enregistré)</button></section>
     <section class="card stack"><h2>Ce que fait Foyer, et ce qu'il ne fait pas</h2>

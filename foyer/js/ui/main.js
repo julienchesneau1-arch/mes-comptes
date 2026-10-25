@@ -27,6 +27,7 @@ import './sheets/drive.js';
 import './sheets/invoice.js';
 import './sheets/discover.js';
 import { track } from './usage.js';
+import { coinceButton, coinceStep } from './coince.js';
 const TABS = ['aujourdhui', 'semaine', 'courses', 'maison'];
 // Identifie l'élément qui a le focus pour le retrouver après un nouveau rendu (clavier, lecteur d'écran).
 function focusKey() {
@@ -56,6 +57,7 @@ function render() {
         nav.hidden = false;
     const tab = A.ui.tab;
     app.innerHTML = demo + (tab === 'semaine' ? weekView() : tab === 'courses' ? shopView() : tab === 'maison' ? homeView() : todayView());
+    $('.top', app)?.insertAdjacentHTML('beforeend', coinceButton()); // « Ça coince ? » : même place sur les quatre écrans (bandeau collant)
     for (const el of $$('[data-pct]', app))
         el.style.width = `${el.dataset['pct'] ?? 0}%`; // jauges : CSP sans style écrit dans le HTML
     for (const sm of $$('details > summary', app))
@@ -87,6 +89,7 @@ function route() {
         window.scrollTo(0, 0);
         $('#main')?.focus({ preventScroll: true });
         track(`t:${tab}`);
+        coinceStep(`t:${tab}`);
     }
 }
 function boot() {

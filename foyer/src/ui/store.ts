@@ -2,6 +2,7 @@
 // Copies de secours dans IndexedDB (5 dernières), prises avant chaque fusion ou restauration.
 import { type AnyEv, validEvent } from '../core/model.ts';
 import { sortLog } from '../core/reduce.ts';
+import { type ModChoices, readChoices } from '../core/modules.ts';
 
 const LOG = 'foyer:journal', DEVICE = 'foyer:appareil';
 
@@ -21,6 +22,8 @@ export interface Device {
   ritualHint: boolean;       // présentation du rituel batch encore proposée
   usage: boolean;            // compter l'usage sur ce téléphone (raccourcis d'Aujourd'hui), jamais envoyé
   pins: string[];            // raccourcis épinglés (« r:<recette> » ou « a:<action> »), 4 au plus
+  mods: ModChoices;          // fonctions avancées activées ou masquées sur ce téléphone (mode essentiel : rien de choisi)
+  coince: boolean;           // bouton « Ça coince ? » en haut des écrans (l'essai fini, on peut le masquer)
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -61,13 +64,15 @@ export function loadDevice(newId: () => string): Device {
     ritualHint: d.ritualHint !== false,
     usage: d.usage !== false,
     pins: Array.isArray(d.pins) ? d.pins.filter((k): k is string => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
+    mods: readChoices(d.mods),
+    coince: d.coince !== false,
   };
   saveDevice(dev);
   return dev;
 }
 export function saveDevice(d: Device): void { try { localStorage.setItem(DEVICE, JSON.stringify(d)); } catch { /* sans effet en navigation privée */ } }
 
-export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage']) try { localStorage.removeItem(k); } catch { /* rien */ } }
+export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage', 'foyer:coince']) try { localStorage.removeItem(k); } catch { /* rien */ } }
 
 /* ---------- Copies de secours (IndexedDB) ---------- */
 interface Snap { id: number; reason: string; n: number; log: string }

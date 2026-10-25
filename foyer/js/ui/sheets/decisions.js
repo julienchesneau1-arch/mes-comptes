@@ -7,9 +7,10 @@ import { SNOOZE_MAX_MS } from '../../core/reduce.js';
 import { A, S, dispatch, me } from '../state.js';
 import { esc, openSheet, sheetHead, toast } from '../dom.js';
 import { CLICK, CHANGE } from '../registry.js';
+import { on } from '../modules.js';
 const CHIP = {
     conflit: ['conflit', 'À résoudre'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
-    surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'],
+    surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'], avis: ['info', 'Votre avis'],
 };
 const OPEN = {
     slot: a => `data-a="slot" data-k="${esc(a)}"`, watch: a => `data-a="watch" data-id="${esc(a)}"`,
@@ -24,7 +25,8 @@ function card(x) {
 }
 // Section « À régler » : 5 cartes au plus, triées (échéance proche, blocage, repas) ; le reste replié.
 export function reglerSection(t) {
-    const { shown, hidden } = exceptions(A.r, t, me(), A.now());
+    const all = exceptions(A.r, t, me(), A.now()), keep = (x) => x.code !== 'placard' || on('placard');
+    const shown = all.shown.filter(keep), hidden = all.hidden.filter(keep);
     if (!shown.length)
         return '';
     return `<section class="card stack" aria-labelledby="exc-h"><h2 id="exc-h">À régler</h2><ul class="exc-list">${shown.map(card).join('')}</ul>
