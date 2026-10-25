@@ -116,3 +116,13 @@ test('famille lue sur les ingrédients quand les catégories ne la disent pas ; 
   assert.equal(why(parseWikiRecipe(page('Bouillon de poule', ['1 poule', '2 carottes', '1 poireau'], cat('Cuisine française')))), 'dessert ou préparation de base');
   assert.equal(why(parseWikiRecipe(page('Omelette nature', ['6 œufs', '20 g de beurre', '1 pincée de sel'], cat('Cuisine française')))), 'pas un plat de repas'); // œufs seuls, sans catégorie de plat
 });
+
+test('sections en gras ou en définition, « Par personne : », « Donne 10 portions »', async () => {
+  const { yieldOf } = await import('../src/core/wikibook.ts');
+  const r = parseWikiRecipe({ pageid: 9, revid: 1, title: 'Livre de cuisine/Bœuf aux carottes', categories: cat('Cuisine française'),
+    content: "Pour 4 personnes.\n'''Ingrédients'''\n* 800 g de bœuf\n* 1 kg de carottes\n* 2 oignons\n;Préparation :\n# Couper.\n# Mijoter." });
+  assert.ok(r.ok && r.recipe.yield === 4 && r.recipe.main === 'viande' && r.recipe.steps.length === 2);
+  assert.equal(yieldOf('X', '* Par personne :\n* 1 escalope de veau'), 1);
+  assert.equal(yieldOf('X', 'Donne : 10 portions'), 10);
+  assert.equal(yieldOf('X', '* 1 truite par personne (200 à 300 g)\n* 50 g d\'amandes'), null); // « par personne » mêlé à des totaux : ambigu, rien
+});

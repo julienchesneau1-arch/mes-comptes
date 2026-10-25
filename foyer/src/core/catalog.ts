@@ -9,6 +9,9 @@ import { type CatalogRecipe, familyOf } from './wikibook.ts';
 import { nameKey, norm } from './text.ts';
 import { dishType } from './visual.ts';
 import { dishBlocked } from './allergens.ts';
+import type { SlotKey } from './dates.ts';
+import { type Draft, newId } from './reduce.ts';
+import { setDish } from './commands.ts';
 
 export interface Catalog {
   source: string; sourceUrl: string; license: string; licenseUrl: string; note: string; generated: string; count: number;
@@ -120,4 +123,24 @@ export function familiesOf(s: State, recipes: readonly string[]): Set<string> {
     if (f) out.add(f);
   }
   return out;
+}
+
+/* ---------- Recettes prêtes, comme chez Jow : prévues d'un toucher ---------- */
+
+// Plat de « Nos plats » qui porte déjà ce nom (une recette prête ajoutée une fois n'est jamais dupliquée).
+export const ownedFor = (s: State, r: CatalogRecipe): string | null =>
+  Object.values(s.recipes).find(x => nameKey(current(x).name) === nameKey(r.title))?.id ?? null;
+// Ajouter à « Nos plats » : la recette, sa source et sa licence ; yieldN : nombre de personnes dit par le foyer si la page ne le dit pas.
+export function addCatalog(s: State, r: CatalogRecipe, yieldN: number | null = null): { recipe: string; drafts: Draft[] } {
+  const owned = ownedFor(s, r);
+  if (owned) return { recipe: owned, drafts: [] };
+  const recipe = newId();
+  return { recipe, drafts: [{ t: 'recipe.save', p: { recipe, content: toContent(r, yieldN) } }] };
+}
+// Prévoir sur un repas : ajoutée à « Nos plats » si besoin, puis posée comme n'importe quel plat (mêmes règles : restes repris…).
+export function planCatalog(s: State, slot: SlotKey, r: CatalogRecipe, yieldN: number | null = null): Draft[] {
+  const owned = ownedFor(s, r);
+  if (owned) return setDish(s, slot, owned);
+  const { recipe, drafts } = addCatalog(s, r, yieldN), d = s.slots[slot]?.dish;
+  return [...drafts, ...(d ? [{ t: 'slot.clear', p: { slot } } as Draft] : []), { t: 'slot.cook', p: { slot, prep: newId(), recipe, extra: 0 } }];
 }

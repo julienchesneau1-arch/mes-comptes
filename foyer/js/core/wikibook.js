@@ -93,10 +93,13 @@ export const familyOf = (name) => FAMILY.find(([, re]) => re.test(name))?.[0] ??
 // Classiques du quotidien en France : préférés dans les propositions (moins d'achats inhabituels).
 const CLASSIC = /^(Recettes de tous les jours|Cuisine (française|provençale|alsacienne|lyonnaise|bretonne|normande|savoyarde|auvergnate|bourguignonne|basque|lorraine|comtoise|corse|niçoise|du Nord|picarde|landaise|périgourdine|gasconne|limousine|berrichonne|champenoise|ardennaise|occitane|languedocienne|charentaise|vendéenne|tourangelle|angevine|dauphinoise|ardéchoise|béarnaise|bordelaise|nantaise|parisienne|flamande|du Sud-Ouest))$/;
 const TYPE_TAGS = [['Soupes', 'soupe'], ['Salades', 'salade'], ['Pâtes alimentaires', 'pâtes'], ['Recettes de pizzas', 'pizza'], ['Recettes de tartes', 'tarte']];
+// Titres de section : « == Ingrédients == », mais aussi une ligne seule en gras ou en définition (« '''Ingrédients''' », « ;Préparation : »),
+// que le texte affiché réduit à « Ingrédients » : reconnue seulement pour les mots qui ouvrent une partie de recette.
+const PSEUDO_HEAD = /^\s*;?\s*((?:liste des |les )?ingr[ée]dients?(?:\s+(?:pour|\().{0,40})?|pr[ée]paration|recette|[ée]tapes?|instructions|r[ée]alisation|m[ée]thode|d[ée]roulement)\s*:?\s*$/i;
 function sections(text) {
     const out = [{ head: '', body: '' }];
     for (const line of text.split('\n')) {
-        const h = /^(={2,4})\s*(.+?)\s*\1\s*$/.exec(line);
+        const h = /^(={2,4})\s*(.+?)\s*\1\s*$/.exec(line) ?? (() => { const m = PSEUDO_HEAD.exec(line); return m ? [line, '', m[1]] : null; })();
         if (h)
             out.push({ head: (h[2] ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''), body: '' });
         else
@@ -110,7 +113,7 @@ function sections(text) {
 const NUM = '(\\d{1,2}|[a-zéè]+)';
 const RANGE = '(?:\\s*(?:à|a|-|ou)\\s*\\d{1,2})?';
 const YIELD_RES = [
-    new RegExp(`pour\\s*:?\\s*${NUM}${RANGE}\\s*(?:personnes?|pers\\.?|portions?|parts?|couverts?|convives?|adultes?|gourmands?|mangeurs?|assiettes?)`, 'i'),
+    new RegExp(`(?:pour|donne(?:\\s+de)?)\\s*:?\\s*${NUM}${RANGE}\\s*(?:personnes?|pers\\.?|portions?|parts?|couverts?|convives?|adultes?|gourmands?|mangeurs?|assiettes?)`, 'i'),
     new RegExp(`(?:nombre de\\s+)?(?:personnes|convives|couverts|portions|parts)\\s*:\\s*${NUM}\\b`, 'i'),
     new RegExp(`ingredients?\\s*\\(?\\s*pour\\s*:?\\s*${NUM}\\b`, 'i'),
     new RegExp(`\\b${NUM}${RANGE}\\s*(?:personnes|convives|adultes|pers\\.)`, 'i'),
@@ -119,6 +122,8 @@ export function yieldOf(title, before) {
     const t = /\bpour\s+(\d{1,2})(?:\s*personnes?)?\s*$/i.exec(title);
     if (t)
         return Number(t[1]);
+    if (/^\s*[*#:;]*\s*(?:quantit[ée]s?\s+)?par personne\s*:?\s*$/im.test(before))
+        return 1; // « Par personne : » en tête de liste
     for (const re of YIELD_RES) {
         for (const m of before.matchAll(new RegExp(re.source, 'gi'))) {
             const v = n(m[1] ?? '');
