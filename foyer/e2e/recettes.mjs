@@ -49,7 +49,9 @@ await step('foyer neuf, aucun plat : les idées du repas viennent des recettes p
   await page.getByText(new RegExp(`${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} prévu ce midi · ajouté à vos plats`)).first().waitFor();
   console.log('   prévu :', title);
   await page.getByRole('link', { name: 'Courses', exact: true }).click();
-  if ((await page.locator('main li .item-btn .title').count()) < 2) throw new Error('courses vides après une recette prête');
+  await page.getByRole('heading', { name: 'Courses', level: 1 }).waitFor();
+  const lines = page.locator('main li .item-btn .title');
+  await lines.nth(1).waitFor({ timeout: 3000 }).catch(async () => { throw new Error('courses vides après une recette prête : ' + (await text(page.locator('main'))).slice(0, 300)); });
 });
 await step('choix d\'un plat : « Recettes prêtes » pour ce repas, et la recherche', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
