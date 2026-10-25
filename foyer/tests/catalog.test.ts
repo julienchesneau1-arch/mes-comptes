@@ -2,9 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { household, CURRY, MON, content } from './helpers.ts';
-import { type Catalog, readCatalog, search, toContent } from '../src/core/catalog.ts';
+import { type Catalog, readCatalog, search, toContent, planCatalog, addCatalog, ownedFor } from '../src/core/catalog.ts';
 import type { CatalogRecipe } from '../src/core/wikibook.ts';
-import { proposeWeek, acceptDrafts, nextDiscovery } from '../src/core/propose.ts';
+import { proposeWeek, acceptDrafts, nextDiscovery, discoveriesFor } from '../src/core/propose.ts';
 import { deriveShopping } from '../src/core/shopping.ts';
 import { current } from '../src/core/model.ts';
 
@@ -69,4 +69,23 @@ test('accepter une découverte : le plat entre dans « Nos plats » avec sa sour
   // « Autre idée » : jamais une recette déjà vue ou déjà dans vos plats.
   const alt = nextDiscovery(a.s, CAT, `${MON}|soir`, MON, new Set(['wb2', 'wb3']));
   assert.ok(alt && !['wb2', 'wb3', first?.id].includes(alt.recipe.id) && alt.recipe.yield !== null);
+});
+
+test('recette prête prévue d\'un toucher : ajoutée à vos plats et cuisinée ; nombre de personnes dit par le foyer ; jamais en double', () => {
+  const { a } = household();
+  const by = (t: string) => CAT.recipes.find(r => r.title === t)!, basq = by('Poulet basquaise'), rata = by('Ratatouille'), yassa = by('Poulet yassa');
+  const prepOf = (k: string) => { const d = a.s.slots[k]?.dish; return d?.kind === 'cook' ? a.s.preps[d.prep] : undefined; };
+  const ds = discoveriesFor(a.s, CAT, `${MON}|soir`, 10);
+  assert.ok(ds.length >= 3 && !ds.some(d => d.recipe.yield === null));                  // proposées : jamais sans nombre de personnes
+  a.emit(...planCatalog(a.s, `${MON}|soir`, basq));
+  const id = ownedFor(a.s, basq);
+  assert.ok(id && prepOf(`${MON}|soir`)?.recipe === id && current(a.s.recipes[id]!).yield === 4);
+  assert.ok(deriveShopping(a.s, MON).lines.some(l => /poulet/i.test(l.name)));
+  a.emit(...planCatalog(a.s, '2026-10-06|soir', basq));                              // déjà dans vos plats : même fiche, pas de doublon
+  assert.equal(Object.values(a.s.recipes).filter(r => current(r).name === 'Poulet basquaise').length, 1);
+  assert.equal(addCatalog(a.s, basq).drafts.length, 0);
+  a.emit(...planCatalog(a.s, '2026-10-07|soir', rata, 2));                           // la page ne le dit pas : 2, dit par le foyer
+  assert.equal(current(a.s.recipes[ownedFor(a.s, rata)!]!).yield, 2);
+  a.emit(...planCatalog(a.s, `${MON}|soir`, yassa));                                 // repas déjà prévu : remplacé
+  assert.equal(prepOf(`${MON}|soir`)?.recipe, ownedFor(a.s, yassa));
 });
