@@ -3,7 +3,8 @@
 // (quantité × prix = montant, au centime près). Rien n'est deviné : une ligne non vérifiable est signalée comme telle.
 // Données personnelles : seules les lignes portant un montant en euros sont lues, et seuls le nom du produit, sa contenance
 // et son prix sont retenus. Nom, adresse, carte de fidélité, numéro de commande ne sortent jamais de cette fonction.
-// Règles génériques (factures françaises) : elles seront calées sur une facture Auchan réelle, copie anonymisée en test.
+// Factures Auchan drive : lecture dédiée, calée sur trois factures réelles (octobre 2026), reproduites anonymisées en test ;
+// les autres formats passent par les règles génériques (factures françaises).
 import { type LocalDate, isDate } from './dates.ts';
 import type { State } from './model.ts';
 import { parseSize } from './drive.ts';
@@ -46,7 +47,7 @@ const SKIP_RE = /^(?:€|eur|x|\*|%|kg|l|le|\/kg|\/l|€\/kg|€\/l|-?\d{1,3}(?:
 const cents = (s: string): number => Math.round(Number(s.replace(',', '.')) * 100);
 // Lignes qui ne sont pas des produits : totaux, taxes, frais de service, remises, paiement. Expressions précises :
 // « Œufs frais » ou « Préparation pour gâteau » restent des produits.
-const NOT_ITEM = /\b(total|sous-total|tva|t\.v\.a|ht|ttc|remises?|reductions?|avantages?|cagnotte|fidelite|bons? d'achat|coupons?|economies?|frais (?:de |d')?(?:livraison|preparation|service|port|retrait|gestion)|livraison|paiement|payer|paye|rendu|acompte|arrondi|montant|avoir|consigne|carte (?:bancaire|cb|de fidelite)|cb|visa|mastercard)\b/;
+const NOT_ITEM = /\b(total|sous-total|tva|t\.v\.a|ht|ttc|remises?|reductions?|avantages?|cagnotte|waaoh|fidelite|bons? d'achat|coupons?|economies?|frais (?:de |d')?(?:livraison|preparation|service|port|retrait|gestion)|livraison|paiement|payer|paye|rendu|acompte|arrondi|montant|avoir|consigne|carte (?:bancaire|cb|de fidelite|cadeau)|cb|visa|mastercard)\b/;
 const TOTAL_STRONG = /\b(net a payer|total a payer|total ttc|montant total|total paye|montant paye|total de la commande|total commande)\b/;
 const MONTHS = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
 
@@ -79,8 +80,37 @@ export function labelSize(label: string): { size: string; unit: string } | null 
 // Nom imprimé, sans code article ni code-barres (suites de 5 chiffres ou plus) en tête ou en fin.
 const cleanLabel = (s: string): string => s.replace(/^(?:\d{5,}\s+)+/, '').replace(/(?:\s+\d{5,})+$/, '').replace(/\s+/g, ' ').trim().slice(0, 120);
 
+// Ligne de facture Auchan : « code · produit · prix U. HT · remise U. HT (facultative) · qté · total net HT · taux TVA ·
+// cagnotte (facultative) · total net TTC ». Retenue seulement si deux calculs tombent juste : (prix − remise) × qté = total HT
+// (à 1 centime par article près, le prix unitaire étant arrondi à l'affichage) et total HT × (1 + TVA) = total TTC (à 1 centime).
+// Prix retenu : le TTC net de remise ; la cagnotte, versée sur la carte pour un prochain achat, n'est pas déduite.
+const VAT = new Set([0, 210, 550, 1000, 2000]);
+function readColumns(words: readonly string[]): InvoiceLine | null {
+  let k = words.length;
+  while (k > 0 && (MONEY_RE.test(words[k - 1] ?? '') || /^\d{1,3}$/.test(words[k - 1] ?? ''))) k--;
+  const t = words.slice(k), m = (i: number): number | null => (i >= 0 && MONEY_RE.test(t[i] ?? '') ? cents(t[i] as string) : null);
+  const ttc = m(t.length - 1);
+  if (t.length < 5 || ttc === null || ttc <= 0) return null;
+  for (const cag of [0, 1]) {
+    const e = t.length - 1 - cag, rate = m(e - 1), ht = m(e - 2), qi = e - 3, q = /^\d{1,3}$/.test(t[qi] ?? '') ? Number(t[qi]) : 0;
+    if ((cag && m(e) === null) || rate === null || !VAT.has(rate) || ht === null || ht <= 0 || q < 1) continue;
+    if (Math.abs(Math.round(ht * (10000 + rate) / 10000) - ttc) > 1) continue;
+    for (const rem of [1, 0]) {
+      const pu = m(qi - 1 - rem), off = rem ? m(qi - 1) : 0;
+      if (pu === null || off === null || Math.abs((pu - off) * q - ht) > q) continue;
+      const label = cleanLabel(words.slice(0, k + qi - 1 - rem).join(' '));
+      if ((label.match(/[a-zà-ÿ]/gi) ?? []).length < 3) return null;
+      const sz = labelSize(label);
+      return { label, n: q, unitCents: Math.round(ttc / q), cents: ttc, loose: false, weight: null, size: sz?.size ?? null, unit: sz?.unit ?? null, sure: true };
+    }
+  }
+  return null;
+}
+
 function readLine(line: string): InvoiceLine | null {
   const words = line.replace(/€/g, ' € ').replace(/×/g, ' x ').replace(/[\u00a0\u202f]/g, ' ').split(/\s+/).filter(Boolean);
+  const col = readColumns(words);
+  if (col) return col;
   const toks = tail(words), of = (k: Tok['k']) => toks.filter(x => x.t.k === k);
   const last = of('money').at(-1);
   if (!last || last.t.v <= 0) return null;
@@ -108,27 +138,51 @@ function readLine(line: string): InvoiceLine | null {
   return { label, n, unitCents: unit, cents: total, loose, weight, size: loose ? '1' : sz?.size ?? null, unit: loose ? 'kg' : sz?.unit ?? null, sure };
 }
 
+// Date d'achat : celle de la livraison ou du retrait, sinon de la commande, sinon de la facture. Le libellé est sur la même ligne
+// (« Facture du 03/10/2026 ») ou juste au-dessus, en colonne (« Date de commande : », la date en dessous). Chez Auchan,
+// « Facture éditée le » donne le jour du téléchargement : la date de commande passe devant.
+const DATE_RANK: readonly (readonly [RegExp, number])[] = [[/livr|retrait|enlev/, 3], [/commande/, 2], [/facture|date|emis|edit/, 1]];
+const dateRank = (s: string): number => Math.max(0, ...DATE_RANK.filter(([re]) => re.test(s)).map(([, n]) => n));
 function readDate(lines: readonly string[]): LocalDate | null {
-  let first: LocalDate | null = null;
+  let best: { day: LocalDate; rank: number } | null = null, pending = 0, ttl = 0;
   for (const line of lines) {
     const s = norm(line);
     const m = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\b/.exec(s), t = new RegExp(`\\b(\\d{1,2}) (${MONTHS.join('|')}) (\\d{4})\\b`).exec(s);
     const y = m ? (m[3]?.length === 2 ? `20${m[3]}` : m[3]) : t?.[3], mo = m ? m[2] : t ? String(MONTHS.indexOf(t[2] ?? '') + 1) : null, d = m ? m[1] : t?.[1];
-    if (!y || !mo || !d) continue;
-    const day = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    if (!isDate(day) || y < '2000' || y > '2099') continue;
-    if (/(facture|commande|livraison|retrait|date)/.test(s)) return day;
-    first ??= day;
+    const day = y && mo && d ? `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}` : '';
+    if (!day || !isDate(day) || (y ?? '') < '2000' || (y ?? '') > '2099') {
+      const r = dateRank(s);
+      if (r) { pending = r; ttl = 2; } else if (ttl) ttl--;
+      continue;
+    }
+    const rank = Math.max(dateRank(s.slice(0, (m ?? t)?.index ?? 0)), ttl ? pending : 0);
+    if (!best || rank > best.rank) best = { day, rank };
+    pending = 0; ttl = 0;
   }
-  return first;
+  return best?.day ?? null;
 }
+
+// En-têtes répétés en haut de chaque page (Auchan) et numéros de page : ils ne coupent pas un nom de produit sur deux pages.
+const NOISE = /^(?:votre (?:commande|facture|code)|prix u\.|reference caracteristiques|\(ht\)|\d{1,2} ?\/ ?\d{1,2}$)/;
+// Suite du nom du produit sur la ligne suivante (« lait 4x125g », « 250g », « Reggiano AOP râpé 60g ») : commence par une
+// minuscule ou un chiffre, ou par une majuscule si elle porte une contenance ; courte, sans montant, ni « : », ni suite de
+// 5 chiffres (code postal, numéro), ni mot d'adresse. Un nom de personne n'a pas de contenance : il n'est jamais rattaché.
+const NOT_CONT = /[:@]|\d{5}|\d[,.]\d{2}\b|\b(?:rue|avenue|bd|boulevard|chemin|allee|impasse|place|route|quai|cedex)\b/;
+const isCont = (raw: string, s: string): boolean => raw.length <= 60 && !NOT_CONT.test(s) && (/^[a-zà-ÿ0-9]/.test(raw) || labelSize(raw) !== null);
 
 export function parseInvoice(lines: readonly string[]): Invoice {
   const out: InvoiceLine[] = [];
-  let strong: number | null = null, weak: number | null = null, ignored = 0;
+  let strong: number | null = null, weak: number | null = null, ignored = 0, last: InvoiceLine | null = null;
   for (const raw of lines) {
     const s = norm(raw);
+    if (NOISE.test(s) || (/\d{6}/.test(s) && !/\d[,.]\d{2}\b/.test(s))) continue; // numéros de commande, de facture, de carte : jamais lus
     const r = readLine(raw);
+    if (!r && last && !NOT_ITEM.test(s) && isCont(raw.trim(), s)) {
+      last.label = cleanLabel(`${last.label} ${raw}`);
+      if (!last.loose) { const sz = labelSize(last.label); last.size = sz?.size ?? null; last.unit = sz?.unit ?? null; }
+      continue;
+    }
+    last = null;
     if (NOT_ITEM.test(s)) {
       const amount = r?.cents ?? null;
       if (amount !== null && TOTAL_STRONG.test(s)) strong = amount;
@@ -136,7 +190,7 @@ export function parseInvoice(lines: readonly string[]): Invoice {
       else if (amount !== null) ignored++;
       continue;
     }
-    if (r) out.push(r);
+    if (r) { out.push(r); last = r; }
   }
   return { day: readDate(lines), total: strong ?? weak, lines: out, sum: out.reduce((n, l) => n + l.cents, 0), ignored };
 }
@@ -146,17 +200,24 @@ export function parseInvoice(lines: readonly string[]): Invoice {
 export interface Candidate { key: string; name: string; not?: RegExp }
 const STOP = new Set(['auchan', 'bio', 'x', 'g', 'kg', 'l', 'cl', 'ml', 'le', 'la', 'les', 'de', 'du', 'des', 'd', 'a', 'au', 'aux', 'en', 'et',
   'avec', 'sans', 'piece', 'pc', 'pcs', 'mon', 'ma', 'mes', 'notre', 'pour', 'sur', 'un', 'une']);
-const words = (s: string): string[] => nameKey(s).split(/[ '-]+/).filter(w => w && !STOP.has(w) && !/^\d/.test(w));
+// Abréviations des libellés courts d'Auchan (vues sur de vraies factures : « PDT 2,5KG FOUR », « FILET PLT BLANC »).
+const ABBR: Record<string, string> = { pdt: 'pommes de terre', plt: 'poulet', scisse: 'saucisse', from: 'fromage', brioc: 'brioche', auc: 'auchan', ss: 'sans' };
+const words = (s: string): string[] => nameKey(norm(s).split(/\s+/).map(w => ABBR[w] ?? w).join(' ')).split(/[ '-]+/).filter(w => w && !STOP.has(w) && !/^\d/.test(w));
 
 // Le candidat dont tous les mots figurent dans le nom imprimé ; le plus précis gagne (« sauce tomate » avant « tomate »),
 // puis celui dont le premier mot vient en tête du nom. Égalité indécidable : aucun choix (la personne choisit).
+// Le produit est nommé en tête : « KIRI Fromage fondu à la crème » n'est pas de la crème, ni « Brioche goût pomme » une pomme.
+// La marque en capitales qui précède un nom en minuscules (« AUCHAN TAVOLA IN ITALIA Parmigiano ») ne compte pas. Un
+// ingrédient d'un mot doit être l'un des deux premiers mots du produit ; de plusieurs mots, commencer dans les trois premiers.
+const product = (label: string): string => /[a-zà-ÿ]/.test(label) ? label.replace(/^(?:[^a-zà-ÿ\s]+\s+)+(?=\S*[a-zà-ÿ])/, '') : label;
 export function matchKey(label: string, cands: readonly Candidate[]): Candidate | null {
-  const lw = words(label), plain = norm(label);
+  const lw = words(product(label)), plain = norm(label);
   let best: { c: Candidate; score: number; pos: number } | null = null, tie = false;
   for (const c of cands) {
     const cw = words(c.name);
     if (!cw.length || !cw.every(w => lw.includes(w)) || c.not?.test(plain)) continue;
     const score = cw.length, pos = lw.indexOf(cw[0] as string);
+    if (pos > (score > 1 ? 2 : 1)) continue;
     if (!best || score > best.score || (score === best.score && pos < best.pos)) { best = { c, score, pos }; tie = false; }
     else if (score === best.score && pos === best.pos && c.key !== best.c.key) tie = true;
   }

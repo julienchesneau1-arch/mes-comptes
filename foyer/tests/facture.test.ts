@@ -1,9 +1,10 @@
 // Lecteur de factures du drive : texte du PDF → lignes → produits et prix, rapprochement, prix payé dans le panier estimé.
-// Format fictif en attendant une facture Auchan réelle (copie anonymisée à venir) : on teste les règles, pas un format inventé.
+// Deux factures fictives : un format générique, et le format réel d'Auchan drive (mise en page relevée sur trois vraies
+// factures, lues avec les données personnelles masquées ; contenu entièrement inventé).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { household, content, MON } from './helpers.ts';
-import { makePdf, SAMPLE_ROWS } from './pdf-fixture.ts';
+import { makePdf, SAMPLE_ROWS, AUCHAN_ROWS } from './pdf-fixture.ts';
 import { type Paid, validEvent } from '../src/core/model.ts';
 import { setRefPrices } from '../src/core/refprice.ts';
 import { q } from '../src/core/rational.ts';
@@ -36,6 +37,33 @@ test('facture fictive : produits, quantités, pesée, date, total ; données per
   assert.deepEqual(inv.lines.map(l => [l.size, l.unit]), [['1', 'kg'], ['1', 'kg'], ['12', 'piece'], ['500', 'g'], ['500', 'g']]);
   const kept = inv.lines.map(l => l.label).join(' | ');
   for (const pii of ['Camille', 'Exemple', 'rue', '900000001', 'Villefictive']) assert.ok(!kept.includes(pii), `retenu à tort : ${pii}`);
+});
+
+test('facture Auchan drive : colonnes vérifiées par deux calculs, remise et cagnotte, nom sur deux lignes, date de commande, paiements écartés', () => {
+  const inv = parseInvoice(toLines(items(AUCHAN_ROWS)));
+  assert.equal(inv.day, '2026-10-08');                                         // date de commande, pas « Facture éditée le » (téléchargement)
+  assert.equal(inv.total, 4677);                                               // « Total à payer », pas le total avant remises
+  assert.equal(inv.sum, 4677);
+  assert.deepEqual(inv.lines.map(l => [l.label, l.n, l.unitCents, l.cents, l.size, l.unit, l.sure]), [
+    ['AUCHAN Beurre doux 250g', 1, 258, 258, '250', 'g', true],               // TTC net ; la cagnotte (0,25) n'est pas déduite
+    ['AUCHAN Crème dessert au chocolat au lait 4x125g', 2, 138, 276, '500', 'g', true],
+    ['MARQUE Thé glacé saveur pêche 4x1.25L', 4, 412, 1646, '5', 'l', true],  // (5,20 − 1,30 de remise) × 4 = 15,60 HT → 16,46 TTC
+    ['AUCHAN TAVOLA Parmigiano Reggiano AOP râpé 60g', 2, 124, 248, '60', 'g', true], // suite en majuscule, gardée car elle porte une contenance
+    ['PRIX BAS FILET PLT BLANC 600G', 2, 643, 1286, '600', 'g', true],
+    ['AUCHAN Confiture extra de figue 50% de fruits 360g', 1, 168, 168, '360', 'g', true], // suite après le changement de page
+    ['AUCHAN Légumes pour couscous 5 portions 1kg', 2, 206, 411, '1', 'kg', true],   // « 5 » du nom n'est pas la quantité
+    ['MARQUE Déodorant fraîcheur 50ml', 2, 192, 384, '50', 'ml', true],      // TVA 20 %
+  ]);                                                                          // « Vignettes » à 0,00 € : pas un achat
+  const kept = inv.lines.map(l => l.label).join(' | ');
+  for (const pii of ['Camille', 'EXEMPLE', 'rue', '900000001', 'VILLEFICTIVE', '0000000', 'WAAOH', 'CARTE']) assert.ok(!kept.includes(pii), `retenu à tort : ${pii}`);
+});
+
+test('colonnes Auchan : une ligne qui ne tombe pas juste n\'est pas lue comme telle', () => {
+  const one = (l: string) => parseInvoice([l]).lines[0];
+  assert.equal(one('3000000000011 AUCHAN Beurre doux 2,41 1 2,41 5,50 2,54')?.cents, 254);
+  assert.equal(one('3000000000011 AUCHAN Beurre doux 2,41 1 2,41 5,50 2,99'), undefined);     // 2,41 HT × 1,055 ≠ 2,99 : rien n'est deviné
+  assert.equal(one('3000000000011 AUCHAN Beurre doux 2,41 3 2,41 5,50 2,54'), undefined);     // 3 × 2,41 ≠ 2,41
+  assert.equal(one('3000000000011 AUCHAN Beurre doux 2,41 1 2,41 7,00 2,58'), undefined);     // 7 % : pas un taux de TVA français
 });
 
 test('formats de ligne : quantité en tête, montant seul, deux montants sans rapport, remise, taxes', () => {
@@ -132,12 +160,30 @@ test('candidats : ingrédients de la semaine (avec leur forme), génériques, d�
   assert.equal(matchKey('Petits pois extra-fins surgelés 1kg', c)?.key, 'petit pois|surgele');
 });
 
+test('rapprochement sur les libellés Auchan : produit nommé en tête, marque ignorée, abréviations', () => {
+  const c = ['crème', 'pomme', 'lait', 'avocat', 'brioche', 'filet de poulet', 'poulet', 'pommes de terre', 'saucisse de Toulouse', 'fromage frais', 'parmesan', 'cabillaud']
+    .map(n => ({ key: n, name: n }));
+  const m = (l: string) => matchKey(l, c)?.name ?? null;
+  assert.equal(m('KIRI Fromage fondu à la crème en portion 216g'), null);           // fromage fondu, pas de la crème
+  assert.equal(m('PITCH Brioche goût pomme poire 8 pièces'), 'brioche');            // « goût pomme » ne fait pas une pomme
+  assert.equal(m('AUCHAN BARRE FOURRE LAIT 125G'), null);
+  assert.equal(m('AUCHAN Tartinable guacamole morceaux d\'avocat 200g'), null);
+  assert.equal(m('PRIX BAS FILET PLT BLANC 600G'), 'filet de poulet');              // « PLT » : poulet
+  assert.equal(m('PDT 2,5KG FOUR'), 'pommes de terre');
+  assert.equal(m('AUCHAN SCISSE TOULOUSE 4X100G'), 'saucisse de Toulouse');
+  assert.equal(m('AUCHAN FROM FRAIS 3,7% X4'), 'fromage frais');
+  assert.equal(m('MON POISSONNIER Filet de cabillaud 1 pièce 200g'), 'cabillaud'); // marque en capitales ignorée
+  assert.equal(m('AUC CREME 15% POT 20CL'), 'crème');
+});
+
 test('PDF réel : texte extrait par pdf.js embarqué (sur l\'appareil), puis lu', async () => {
   const lib = await import(new URL('../vendor/pdfjs/pdf.min.js', import.meta.url).href) as PdfLib & { GlobalWorkerOptions: { workerSrc: string } };
   lib.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.js', import.meta.url).href;
   const inv = parseInvoice(toLines(await pdfItems(lib, makePdf(SAMPLE_ROWS))));
   assert.equal(inv.total, 1300);
   assert.equal(inv.sum, 1300);
+  const auchan = parseInvoice(toLines(await pdfItems(lib, makePdf(AUCHAN_ROWS)))); // même chemin que sur le téléphone
+  assert.deepEqual([auchan.day, auchan.total, auchan.sum, auchan.lines.length], ['2026-10-08', 4677, 4677, 8]);
   assert.equal(inv.lines.length, 5);
   assert.equal(inv.lines[2]?.label, 'Œufs frais plein air x12');              // accents et « Œ » : encodage WinAnsi rendu fidèlement
   await assert.rejects(pdfItems(lib, new TextEncoder().encode('pas un pdf')), (e: Error) => e.name === 'InvalidPDFException');
