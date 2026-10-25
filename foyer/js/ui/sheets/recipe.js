@@ -4,18 +4,20 @@ import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredien
 import { parseRecipeText, lineText, fromWeb } from '../../core/recipe-text.js';
 import { RELAY } from '../config.js';
 import { relayHeaders } from '../../core/relay.js';
-import { TAGS } from '../../core/propose.js';
+import { TAGS, isUpcoming } from '../../core/propose.js';
 import { newId } from '../../core/reduce.js';
 import { portions } from '../../core/plan.js';
 import { prepTitle } from '../../core/status.js';
 import { qFrom, mul, div, q } from '../../core/rational.js';
 import { UNIT, toBase, showQty } from '../../core/units.js';
-import { fmtSlot } from '../../core/dates.js';
+import { fmtSlot, slotOrder } from '../../core/dates.js';
 import { allergenLabel, dishAllergens, dishBlocked } from '../../core/allergens.js';
 import { capitalize } from '../../core/text.js';
 import { S, clock, dispatch } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, $, toast, keepAwake } from '../dom.js';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.js';
+import { track } from '../usage.js';
+import { A, setDevice } from '../state.js';
 let draft = null;
 const fromContent = (id, c, banner = '') => ({
     id, name: c?.name ?? '', yield: c?.yield ? String(c.yield) : '', ing: (c?.ingredients ?? []).map(lineText).join('\n'), steps: (c?.steps ?? []).join('\n'),
@@ -138,8 +140,60 @@ CLICK['rArchive'] = () => {
 };
 CLICK['rDup'] = () => { if (!draft)
     return; draft = { ...draft, id: null, name: `${draft.name} (copie)`, tags: new Set(draft.tags), banner: 'Copie : le contenu est repris, pas les préparations ni les portions.' }; show(); };
-CLICK['recipe'] = d => openRecipe(d['id'] ?? null);
+CLICK['recipe'] = d => openRecipeView(d['id'] ?? '');
+CLICK['recipeEdit'] = d => openRecipe(d['id'] ?? null);
 CLICK['newRecipe'] = () => openRecipe(null);
+/* ---------- Fiche recette : à lire d'un toucher (le formulaire seulement sur « Modifier ») ---------- */
+// Comme le mode Cuisine de Paprika : ingrédients, étapes et allergènes d'un coup d'œil, écran allumé tant que la fiche est ouverte.
+// Un plat réduit à son nom n'a rien à lire : il s'ouvre directement pour être complété.
+export function openRecipeView(id) {
+    const r = S().recipes[id];
+    if (!r)
+        return;
+    const c = current(r);
+    if (!c.ingredients.length && !c.steps.length) {
+        openRecipe(id);
+        return;
+    }
+    track(`r:${id}`);
+    void keepAwake(true);
+    openSheet({ id: `rview:${id}`, onClose: () => { void keepAwake(false); }, render: () => viewHtml(id) });
+}
+function viewHtml(id) {
+    const s = S(), r = s.recipes[id], now = clock();
+    if (!r)
+        return sheetHead('Plat introuvable');
+    const c = current(r), pin = `r:${id}`, pinned = A.device.pins.includes(pin);
+    const next = Object.values(s.preps).filter(p => p.recipe === id && !p.done && p.slot && isUpcoming(p.slot, now.date, now.hour))
+        .sort((a, b) => slotOrder(a.slot) - slotOrder(b.slot))[0];
+    const n = next ? portions(s, next).planned : 0;
+    const times = [c.prepMin ? `préparation ${c.prepMin} min` : '', c.cookMin ? `cuisson ${c.cookMin} min` : ''].filter(Boolean).join(' · ');
+    const ahead = c.ahead.map(a => `${a.when === 'veille' ? 'La veille' : 'Le matin'} : ${a.label}`);
+    return `${sheetHead(esc(c.name), [c.yield ? `pour ${c.yield}` : 'rendement non renseigné', times].filter(Boolean).join(' · '))}
+    ${next ? `<div class="banner info"><p class="grow">Prévu ${esc(fmtSlot(next.slot, now.date))} : ${n} portion${n > 1 ? 's' : ''} à préparer.</p><button class="btn small-btn" data-a="cook" data-id="${next.id}">👩‍🍳 Cuisiner (${n})</button></div>` : ''}
+    <section class="card"><h3 class="section-title">Ingrédients${c.yield ? ` pour ${c.yield}` : ''}</h3>${allergenHtml(c.ingredients.map(l => l.name))}
+      ${c.ingredients.length ? `<ul class="parsed">${c.ingredients.map(l => `<li>${esc(lineLabel(l))}</li>`).join('')}</ul>` : '<p class="muted">Aucun ingrédient renseigné.</p>'}</section>
+    ${c.steps.length ? `<section class="card"><h3 class="section-title">Étapes</h3><ol class="steps">${c.steps.map(st => `<li>${esc(st)}</li>`).join('')}</ol></section>` : ''}
+    ${ahead.length ? `<section class="card"><h3 class="section-title">À faire avant</h3><ul class="parsed">${ahead.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+    ${c.note ? `<p class="small muted">${esc(c.note)}</p>` : ''}
+    <div class="actions"><button class="btn ghost" data-a="recipeEdit" data-id="${id}">Modifier</button>
+      <button class="btn quiet" data-a="recipePin" data-id="${id}" aria-pressed="${pinned}">${pinned ? 'Retirer des raccourcis' : 'Épingler en raccourci'}</button></div>
+    <p class="small muted">L'écran reste allumé tant que cette fiche est ouverte.</p>`;
+}
+CLICK['recipePin'] = d => {
+    const k = `r:${d['id'] ?? ''}`, pins = A.device.pins;
+    if (pins.includes(k))
+        setDevice({ pins: pins.filter(x => x !== k) });
+    else if (pins.length >= 4) {
+        toast('4 raccourcis épinglés au plus : retirez-en un dans Maison › Réglages › Votre usage.');
+        return;
+    }
+    else {
+        setDevice({ pins: [...pins, k] });
+        toast('Épinglé : en haut d\'Aujourd\'hui');
+    }
+    A.render();
+};
 /* ---------- Coller une recette ---------- */
 let pasted = '';
 let webUrl = '';

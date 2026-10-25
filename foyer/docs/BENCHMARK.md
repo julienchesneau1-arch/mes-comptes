@@ -43,11 +43,21 @@
 
 **V3.2–V3.3 (23 octobre 2026) — Pimzi.** Pimzi (pimzi.app, lu par la recherche web : la lecture directe du site était impossible depuis l'environnement) compose une semaine de dîners dans un budget choisi, pour 20 enseignes, prix « calés à ±10 % », liste par rayon, « déjà au placard », allergènes ; 14,99 $/mois ou 59,99 $ à vie. Repris dans Foyer : budget tenu d'office par remplacement des plats chers (avec un garde-fou absent chez Pimzi : jamais sur un prix mal connu), coût par portion, veto d'un toucher (V3.3) ; allergies (les 14 allergènes réglementaires) et aliments refusés, « étiquette à vérifier » sur les produits transformés, budget et allergies demandés à l'accueil, estimations calées sur nos propres factures, « déjà au placard ? » pour le reste d'un paquet (V3.4). Pimzi garde l'avance sur la couverture des prix (niveaux de prix par enseigne, non sourcés publiquement) et sur le choix de l'enseigne (20 ; Foyer : Auchan). Foyer reste gratuit, local, à deux, et ne montre que ce qui est chiffré.
 
+**V3.5 (25 octobre 2026) — trouver vite.** Paprika ouvre une recette en lecture avec un mode Cuisine (écran allumé, ingrédients à cocher, étape en cours) ; Mealime ouvre la recette depuis le planning et range les favoris à part (fiches App Store et aide en ligne, consultées le 25 octobre 2026). Repris : fiche en lecture d'un toucher, écran allumé, épingler une recette. Au-delà : raccourcis tirés de votre usage réel, mais dans une zone fixe et recalculés une fois par jour, parce que les études montrent qu'un menu qui se réordonne seul ralentit (Findlater et McGrenere, CHI 2004 ; Gajos et al., AI Magazine 2009) alors qu'une zone « fréquents » séparée accélère (Sears et Shneiderman, 1994). La mesure ne quitte jamais le téléphone. Paprika garde l'avance sur les minuteurs détectés dans les étapes.
+
 ## Ce qui ferait passer Foyer devant partout
 
 1. ~~Activer le relais~~ : fait le 4 octobre 2026 (projet Supabase dédié) ; synchro automatique et import web sont en service.
 2. **Deux semaines d'usage réel** à deux sur iPhone, et corriger ce qui gêne (`PLAN.md`, étape C).
 3. Puis, selon ce que l'usage montre : photos des plats, synchro instantanée.
+
+## Sources consultées le 25 octobre 2026 (V3.5)
+
+- Sears et Shneiderman, « Split menus: effectively using selection frequency to organize menus » (1994) : https://www.cs.umd.edu/~ben/papers/Sears1994Split.pdf
+- Findlater et McGrenere, « A comparison of static, adaptive, and adaptable menus » (CHI 2004) : https://www.cs.ubc.ca/labs/edapt/papers/findlater2004.pdf
+- Gajos et al., interfaces adaptatives (AI Magazine 2009) : https://kgajos.seas.harvard.edu/papers/AIMag09-AUIs.pdf
+- Paprika Recipe Manager 3 (App Store) : https://apps.apple.com/us/app/-/id1303222868
+- Mealime, recettes favorites : https://support.mealime.com/article/104-favorite-recipes
 
 ## Sources consultées le 4 octobre 2026
 

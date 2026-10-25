@@ -52,6 +52,7 @@ const FILES = [
   'js/core/text.js',
   'js/core/today.js',
   'js/core/units.js',
+  'js/core/usage.js',
   'js/core/visual.js',
   'js/core/watch.js',
   'js/core/weekgen.js',
@@ -87,6 +88,7 @@ const FILES = [
   'js/ui/sheets/slot.js',
   'js/ui/state.js',
   'js/ui/store.js',
+  'js/ui/usage.js',
   'js/ui/views.js',
 ];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); });

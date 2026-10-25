@@ -25,6 +25,7 @@ import './sheets/shop.js';
 import './sheets/drive.js';
 import './sheets/invoice.js';
 import './sheets/discover.js';
+import { track } from './usage.js';
 const TABS = ['aujourdhui', 'semaine', 'courses', 'maison'];
 // Identifie l'élément qui a le focus pour le retrouver après un nouveau rendu (clavier, lecteur d'écran).
 function focusKey() {
@@ -84,6 +85,7 @@ function route() {
     if (changed) {
         window.scrollTo(0, 0);
         $('#main')?.focus({ preventScroll: true });
+        track(`t:${tab}`);
     }
 }
 function boot() {

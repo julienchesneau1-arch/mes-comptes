@@ -386,19 +386,27 @@ export function acceptDrafts(s, proposals) {
         if (p.dish?.kind === 'outside')
             drafts.push({ t: 'slot.outside', p: { slot: p.slot, note: p.dish.note } });
     }
+    // Restes d'un plat déjà prévu : ses portions « en plus » leur étaient destinées et baissent d'autant (une fois pour toutes).
+    const extraLeft = new Map();
     for (const p of proposals) {
         if (p.dish?.kind !== 'from')
             continue;
         const d = s.slots[p.dish.source]?.dish;
         const prep = p.dish.prep ?? prepAt.get(p.dish.source) ?? (d?.kind === 'cook' ? d.prep : null);
-        if (prep)
-            drafts.push({ t: 'slot.from', p: { slot: p.slot, prep } });
+        if (!prep)
+            continue;
+        drafts.push({ t: 'slot.from', p: { slot: p.slot, prep } });
+        const ex = s.preps[prep];
+        if (ex && !ex.done && ex.extra > 0)
+            extraLeft.set(prep, Math.max(0, (extraLeft.get(prep) ?? ex.extra) - people(p.slot)));
     }
+    for (const [prep, extra] of extraLeft)
+        if (extra !== s.preps[prep]?.extra)
+            drafts.push({ t: 'prep.extra', p: { prep, extra } });
     // « Plat entier » proposé : le surplus au-delà du repas et de ses boîtes est compté « en plus ».
     for (const p of proposals) {
         if (p.dish?.kind !== 'cook' || p.dish.extra)
             continue;
-        const people = (k) => s.members.filter(m => (p2(k)?.presence[m.id] ?? presenceOf(s, k, m.id)) !== 'dehors').length + (p2(k)?.guests ?? 0);
         const needed = people(p.slot) + proposals.filter(x => x.dish?.kind === 'from' && x.dish.source === p.slot).reduce((n, x) => n + people(x.slot), 0);
         const extra = wholeExtra(s, p.dish.recipe, needed);
         const cook = drafts.find(x => x.t === 'slot.cook' && x.p.slot === p.slot);
@@ -407,6 +415,7 @@ export function acceptDrafts(s, proposals) {
     }
     return drafts;
     function p2(k) { return proposals.find(x => x.slot === k); }
+    function people(k) { return s.members.filter(m => (p2(k)?.presence[m.id] ?? presenceOf(s, k, m.id)) !== 'dehors').length + (p2(k)?.guests ?? 0); }
 }
 export function leftovers(s, today) {
     const out = [];

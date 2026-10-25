@@ -19,6 +19,8 @@ export interface Device {
   pushHash: string;          // rappels déjà déposés (évite de les redéposer à l'identique)
   guide: boolean;            // carte « Premiers pas » affichée
   ritualHint: boolean;       // présentation du rituel batch encore proposée
+  usage: boolean;            // compter l'usage sur ce téléphone (raccourcis d'Aujourd'hui), jamais envoyé
+  pins: string[];            // raccourcis épinglés (« r:<recette> » ou « a:<action> »), 4 au plus
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -57,13 +59,15 @@ export function loadDevice(newId: () => string): Device {
     pushHash: typeof d.pushHash === 'string' ? d.pushHash : '',
     guide: d.guide !== false,
     ritualHint: d.ritualHint !== false,
+    usage: d.usage !== false,
+    pins: Array.isArray(d.pins) ? d.pins.filter((k): k is string => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
   };
   saveDevice(dev);
   return dev;
 }
 export function saveDevice(d: Device): void { try { localStorage.setItem(DEVICE, JSON.stringify(d)); } catch { /* sans effet en navigation privée */ } }
 
-export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus']) try { localStorage.removeItem(k); } catch { /* rien */ } }
+export function wipe(): void { for (const k of [LOG, DEVICE, 'foyer:relais', 'foyer:agenda', 'foyer:vus', 'foyer:usage']) try { localStorage.removeItem(k); } catch { /* rien */ } }
 
 /* ---------- Copies de secours (IndexedDB) ---------- */
 interface Snap { id: number; reason: string; n: number; log: string }

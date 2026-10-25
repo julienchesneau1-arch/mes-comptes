@@ -6,13 +6,16 @@ export const CLICK: Record<string, Handler> = {};
 export const CHANGE: Record<string, Handler> = {};
 export const INPUT: Record<string, Handler> = {};
 export const SUBMIT: Record<string, FormHandler> = {};
+// Écouteur des touchers d'action (mesure de l'usage sur ce téléphone, ui/usage.ts) ; un seul, posé au démarrage.
+let actionHook: ((name: string) => void) | null = null;
+export const onAction = (fn: (name: string) => void): void => { actionHook = fn; };
 
 export function wire(root: Document): void {
   root.addEventListener('click', e => {
     const el = (e.target as Element | null)?.closest<HTMLElement>('[data-a]');
     if (!el || el.matches(':disabled')) return;
     const fn = CLICK[el.dataset['a'] ?? ''];
-    if (fn) { e.preventDefault(); fn(el.dataset, el); }
+    if (fn) { e.preventDefault(); actionHook?.(el.dataset['a'] ?? ''); fn(el.dataset, el); }
   });
   root.addEventListener('change', e => {
     const el = e.target as HTMLElement | null;

@@ -1,6 +1,6 @@
 // Commandes métier → événements. Pures : elles lisent l'état et décrivent les changements ; l'aperçu les simule avant d'enregistrer.
 import { type SlotKey, parseSlot, slotKey, addDays, daysBetween, slotOrder } from './dates.ts';
-import { type State, current } from './model.ts';
+import { type Prep, type State, current } from './model.ts';
 import { type Draft, newId } from './reduce.ts';
 import { dependents, portions, servings } from './plan.ts';
 
@@ -12,9 +12,38 @@ export function wholeExtra(s: State, recipe: string, needed: number): number {
   return c && c.yield && c.tags.includes(WHOLE) ? Math.max(0, Math.min(30, c.yield - needed)) : 0;
 }
 
+// Des restes pour ce créneau. Les portions « en plus » d'un plat pas encore préparé lui étaient destinées : elles baissent
+// d'autant, sinon « 2 ce soir + 2 en plus » puis le même plat demain midi ferait préparer 6 portions au lieu de 4.
+export function fromDrafts(s: State, slot: SlotKey, prepId: string, n: number = servings(s, slot)): Draft[] {
+  const prep = s.preps[prepId], out: Draft[] = [{ t: 'slot.from', p: { slot, prep: prepId } }];
+  if (prep && !prep.done && prep.extra > 0 && n > 0) out.push({ t: 'prep.extra', p: { prep: prepId, extra: Math.max(0, prep.extra - n) } });
+  return out;
+}
+
+// Le même plat, cuisiné peu avant (6 jours au plus) avec des portions en plus, ou déjà prêt avec assez de portions libres :
+// ce repas les reprend au lieu de le cuisiner une seconde fois. Le plus récent d'abord.
+export const REUSE_DAYS = 6;
+export function reusable(s: State, slot: SlotKey, recipe: string): Prep | null {
+  const at = parseSlot(slot);
+  if (!at) return null;
+  const n = Math.max(1, servings(s, slot));
+  let best: Prep | null = null;
+  for (const x of Object.values(s.preps)) {
+    if (x.recipe !== recipe || !x.slot || slotOrder(x.slot) >= slotOrder(slot)) continue;
+    const d = parseSlot(x.slot)?.date;
+    if (!d || daysBetween(d, at.date) > REUSE_DAYS) continue;
+    const ok = x.done ? (portions(s, x).free ?? 0) >= n : x.extra > 0;
+    if (ok && (!best || slotOrder(x.slot) > slotOrder(best.slot as SlotKey))) best = x;
+  }
+  return best;
+}
+
 // Poser un plat sur un créneau. Un plat pas encore préparé change simplement de recette : ses boîtes et restes liés suivent.
-export function setDish(s: State, slot: SlotKey, recipe: string): Draft[] {
+// Le même plat préparé peu avant avec des portions en plus : ce repas les reprend (fresh : le cuisiner quand même à nouveau).
+export function setDish(s: State, slot: SlotKey, recipe: string, fresh = false): Draft[] {
   const d = s.slots[slot]?.dish;
+  const reuse = !fresh && d?.kind !== 'cook' ? reusable(s, slot, recipe) : null;
+  if (reuse) return [...(d ? [{ t: 'slot.clear', p: { slot } } as Draft] : []), ...fromDrafts(s, slot, reuse.id)];
   if (d?.kind === 'cook') {
     const prep = s.preps[d.prep];
     if (prep && !prep.done) {
@@ -28,7 +57,7 @@ export function setDish(s: State, slot: SlotKey, recipe: string): Draft[] {
 
 export function setLeftovers(s: State, slot: SlotKey, prep: string): Draft[] {
   const d = s.slots[slot]?.dish;
-  return [...(d ? [{ t: 'slot.clear', p: { slot } } as Draft] : []), { t: 'slot.from', p: { slot, prep } }];
+  return [...(d ? [{ t: 'slot.clear', p: { slot } } as Draft] : []), ...fromDrafts(s, slot, prep)];
 }
 
 export function setOutside(s: State, slot: SlotKey, note: string, dependentsMode: 'detach' | 'keep' = 'keep'): Draft[] {

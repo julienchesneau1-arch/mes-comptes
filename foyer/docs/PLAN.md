@@ -183,6 +183,24 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | Enseigne au choix (Pimzi : 20) | **non fait** | Foyer est bâti sur le drive Auchan du foyer ; d'autres enseignes demanderaient leurs propres recherches et contenances |
 | Placard en navigateur | **livré** | `e2e/placard.mjs` : deux semaines à horloge figée, paquet de 500 g retenu et pris pour 300 g, la semaine suivante « À régler » propose 200 g, « On en a » laisse 100 g à acheter ; axe sur la carte |
 
+### V3.5 (préparer juste, trouver vite — retours de Julien du 25 octobre 2026)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Portions en plus reprises | **livré** (correctif) | Défaut : « + 2 en plus » lundi soir puis le même plat mardi midi créait une seconde préparation (2 + 2 + 2 = 6). `setDish` reprend un plat cuisiné jusqu'à 6 jours avant avec des portions en plus (ou prêt avec assez de portions libres) ; `setLeftovers` (« en cuisiner plus ») et les boîtes d'une semaine générée baissent aussi les portions en plus. « Cuisiner à nouveau » garde l'autre choix. Navigateur : 600 g de spaghetti, pas 900 g |
+| Fiche recette en lecture | **livré** | Un plat s'ouvre sur ses ingrédients, étapes, allergènes et « Cuisiner (n) » s'il est prévu ; écran allumé ; « Modifier » ouvre le formulaire. Un plat réduit à son nom s'ouvre directement pour être complété |
+| Usage compté, raccourcis | **livré** | `usage.ts` : compteurs par jour sur le téléphone seulement ; raccourcis en haut d'Aujourd'hui (épinglés, puis servis 3 fois en 30 jours ; 4 au plus ; recalculés une fois par jour) ; Réglages › Votre usage : le plus servi, épingler, outils pas servis depuis 30 jours (après 14 jours de mesure), couper, effacer |
+| Masquer les outils jamais servis | **non fait** | Rien n'est masqué : un outil saisonnier (agenda, facture) disparaîtrait au moment d'en avoir besoin. Ils restent à leur place, hors des raccourcis |
+
+Gestes pour ouvrir une recette (d'après le code, avant → après) :
+
+| Tâche | Avant | Après |
+|---|---|---|
+| Recette du repas de ce soir | 1 si elle a des étapes, sinon 2 (Voir › Recette) ; arrivée sur le formulaire | 1 (« Étapes » ou « Recette ») ; fiche en lecture |
+| Une recette souvent ouverte | 2 à 3 (Maison › plat, puis déplier les étapes) ; formulaire | 1 (raccourci d'Aujourd'hui, dès 3 ouvertures en 30 jours ou épinglée) |
+| N'importe quelle recette | 3 (Maison › plat › déplier) ; formulaire | 2 (Maison › plat) ; fiche en lecture |
+| Un outil souvent servi (drive, facture, découvrir…) | 2 (onglet › bouton) | 1 (raccourci) |
+
 ## 3. Plan concret pour la suite
 
 **Étape A — Mise en service (Julien, ~10 min)**
@@ -306,4 +324,5 @@ Zéro erreur console sur l'ensemble des scénarios navigateur.
 | 2026-10-23 | Mes Comptes | File d'exceptions côté Mes Comptes (PR B de 4) : « prévu échu » et « dépense commune payée en perso » dans la liste « À faire » existante, adaptés à son modèle (pas de journal ; décision gardée dans `shared`, fusionnée à la synchro, le remboursement fait l'emporte) ; cache hors ligne v41 | livré | Pas d'écran de réglage du seuil de 20 € (la spec interdit de toucher l'interface au-delà de la liste) ; pas de propriétaire par opération dans Mes Comptes : les statistiques par compte ne bougent pas |
 | 2026-10-23 | V3.3 | Semaine générée en liste d'approbation, budget tenu d'office (Pimzi), brouillon partagé, durées dans le choix (PR C de 4) | livré | Couverture des prix encore faible sur les recettes du catalogue ; approbation jour par jour non faite |
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
+| 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-23 | Vérification | « Déjà au placard ? » éprouvé en navigateur sur deux semaines (`placard.mjs`, 4 étapes, axe 0 défaut) | livré | Non vérifié sur iPhone |

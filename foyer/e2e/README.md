@@ -15,6 +15,7 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/regler.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/semaine.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/pimzi.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/placard.mjs
+CHROMIUM_PATH=/chemin/vers/chromium node e2e/usage.mjs
 ```
 
 - `parcours.mjs` : création du foyer, recette complétée, proposition de semaine (maximum de nouveautés, recette sans nombre de personnes complétée dans le récapitulatif), panier prêt, courses, panier mis à jour après un changement du menu, conseil qualité-prix, commande guidée au drive Auchan (sans ouvrir de page Auchan), Aujourd'hui, feuille d'un créneau, rechargement (journal identique), mode découverte, grille ordinateur, zoom 200 % ; axe-core WCAG 2.0/2.1/2.2 A et AA sur 11 écrans.
@@ -24,6 +25,7 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/placard.mjs
 - `rituel.mjs` : horloge figée au samedi 10 octobre 2026 puis au dimanche : rituel activé depuis Aujourd'hui, menu en cartes avec plats « Batch », feuille du batch (boîtes à emporter, légumes à préparer en une fois), drive avec prix noté, budget, montant payé, bilan, séance de batch jusqu'à la célébration ; axe en clair et en sombre. `deux-telephones.mjs` fige aussi l'horloge (lundi 10 h).
 
 - `pimzi.mjs` : lundi 5 octobre 2026, accueil en 4 étapes avec allergies (gluten, lait) et « porc » refusé : menu réel approuvé sans aucune ligne de courses qui soit du gluten ou du lait ni plat signalé exclu, fiche d'un plat (« Gluten (farine) : ce plat n'est plus proposé », céleri « à vérifier sur l'étiquette ») ; axe sur l'accueil, les courses et la fiche. Les autres scénarios passent la 4e étape (« Continuer »).
+- `usage.mjs` : lundi 5 puis mardi 6 octobre 2026 : spaghetti lundi soir « + 2 portions en plus », puis le même plat mardi midi : « reprend les 2 portions en plus de ce soir », 600 g aux courses (pas 900 g) ; fiche recette en lecture (pas le formulaire), ouverte 3 fois ; le lendemain, raccourci « 📖 Spaghetti bolo » en haut d'Aujourd'hui ; Réglages › Votre usage, épingler « Nouveau plat » ; axe sur le choix du plat, la fiche, les raccourcis et Votre usage.
 - `placard.mjs` : lundi 28 septembre puis lundi 5 octobre 2026 (horloge avancée, page rechargée) : spaghetti prévus, paquet de 500 g retenu depuis la ligne de courses et pris pour 300 g ; la semaine suivante en redemande : « À régler » propose « il devrait en rester 200 g », « On en a (200 g) » laisse 100 g à acheter ; axe sur la carte.
 - `semaine.mjs` : lundi 5 octobre 2026, catalogue et prix réels du dépôt, budget de 5 € saisi à l'accueil (volontairement impossible) : la semaine arrive prête en liste, plats remplacés d'office ou dépassement expliqué (jamais un coût par portion partiel), veto « ↻ » et « ✕ », brouillon retrouvé tel quel depuis « À régler », « ✅ Tout approuver » → panier prêt ; axe sur la liste.
 - `parcours.mjs`, `rituel.mjs`, `deux-telephones.mjs`, `synchro-auto.mjs`, `facture.mjs` approuvent la semaine depuis la liste ; `parcours.mjs` passe ensuite par les cartes (« Voir en cartes ») pour éprouver geste et « autre idée ».

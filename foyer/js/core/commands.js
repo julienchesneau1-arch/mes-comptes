@@ -10,9 +10,42 @@ export function wholeExtra(s, recipe, needed) {
     const c = r ? current(r) : null;
     return c && c.yield && c.tags.includes(WHOLE) ? Math.max(0, Math.min(30, c.yield - needed)) : 0;
 }
+// Des restes pour ce créneau. Les portions « en plus » d'un plat pas encore préparé lui étaient destinées : elles baissent
+// d'autant, sinon « 2 ce soir + 2 en plus » puis le même plat demain midi ferait préparer 6 portions au lieu de 4.
+export function fromDrafts(s, slot, prepId, n = servings(s, slot)) {
+    const prep = s.preps[prepId], out = [{ t: 'slot.from', p: { slot, prep: prepId } }];
+    if (prep && !prep.done && prep.extra > 0 && n > 0)
+        out.push({ t: 'prep.extra', p: { prep: prepId, extra: Math.max(0, prep.extra - n) } });
+    return out;
+}
+// Le même plat, cuisiné peu avant (6 jours au plus) avec des portions en plus, ou déjà prêt avec assez de portions libres :
+// ce repas les reprend au lieu de le cuisiner une seconde fois. Le plus récent d'abord.
+export const REUSE_DAYS = 6;
+export function reusable(s, slot, recipe) {
+    const at = parseSlot(slot);
+    if (!at)
+        return null;
+    const n = Math.max(1, servings(s, slot));
+    let best = null;
+    for (const x of Object.values(s.preps)) {
+        if (x.recipe !== recipe || !x.slot || slotOrder(x.slot) >= slotOrder(slot))
+            continue;
+        const d = parseSlot(x.slot)?.date;
+        if (!d || daysBetween(d, at.date) > REUSE_DAYS)
+            continue;
+        const ok = x.done ? (portions(s, x).free ?? 0) >= n : x.extra > 0;
+        if (ok && (!best || slotOrder(x.slot) > slotOrder(best.slot)))
+            best = x;
+    }
+    return best;
+}
 // Poser un plat sur un créneau. Un plat pas encore préparé change simplement de recette : ses boîtes et restes liés suivent.
-export function setDish(s, slot, recipe) {
+// Le même plat préparé peu avant avec des portions en plus : ce repas les reprend (fresh : le cuisiner quand même à nouveau).
+export function setDish(s, slot, recipe, fresh = false) {
     const d = s.slots[slot]?.dish;
+    const reuse = !fresh && d?.kind !== 'cook' ? reusable(s, slot, recipe) : null;
+    if (reuse)
+        return [...(d ? [{ t: 'slot.clear', p: { slot } }] : []), ...fromDrafts(s, slot, reuse.id)];
     if (d?.kind === 'cook') {
         const prep = s.preps[d.prep];
         if (prep && !prep.done) {
@@ -26,7 +59,7 @@ export function setDish(s, slot, recipe) {
 }
 export function setLeftovers(s, slot, prep) {
     const d = s.slots[slot]?.dish;
-    return [...(d ? [{ t: 'slot.clear', p: { slot } }] : []), { t: 'slot.from', p: { slot, prep } }];
+    return [...(d ? [{ t: 'slot.clear', p: { slot } }] : []), ...fromDrafts(s, slot, prep)];
 }
 export function setOutside(s, slot, note, dependentsMode = 'keep') {
     return [...removeDish(s, slot, dependentsMode), { t: 'slot.outside', p: { slot, note } }];

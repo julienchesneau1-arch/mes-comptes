@@ -28,6 +28,7 @@ import { openLine } from './sheets/shop.js';
 import { cartChangesCard, shopWeekFor } from './sheets/drive.js';
 import { reglerSection, decisionsSummary } from './sheets/decisions.js';
 import { exclusionsSummary } from './sheets/allergies.js';
+import { shortcutsHtml, usageSummary } from './usage.js';
 import { packsFor } from '../core/drive.js';
 import { ingredientKey } from '../core/ingredients.js';
 import { dishLook } from '../core/visual.js';
@@ -61,7 +62,8 @@ function cardActions(v, primary = true) {
             {
                 const rc = p ? S().recipes[p.recipe] : undefined;
                 const steps = rc ? current(rc).steps.length : 0;
-                return `<button class="${B}" data-a="eat" data-k="${k}">On a mangé</button>${p ? `<button class="btn soft" data-a="prepared" data-id="${p.id}" data-k="${k}">C'est préparé</button>` : ''}${p && steps ? `<button class="btn ghost" data-a="cook" data-id="${p.id}">Étapes</button>` : ''}${more}`;
+                const read = !steps && rc && current(rc).ingredients.length ? `<button class="btn ghost" data-a="recipe" data-id="${rc.id}">Recette</button>` : '';
+                return `<button class="${B}" data-a="eat" data-k="${k}">On a mangé</button>${p ? `<button class="btn soft" data-a="prepared" data-id="${p.id}" data-k="${k}">C'est préparé</button>` : ''}${p && steps ? `<button class="btn ghost" data-a="cook" data-id="${p.id}">Étapes</button>` : read}${more}`;
             }
         case 'pret':
         case 'attend':
@@ -120,7 +122,7 @@ export function todayView() {
     const who = s.members.find(m => m.id === A.device.me)?.name;
     const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
     return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
-  <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}
+  <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}${shortcutsHtml()}
     <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide ? '' : ritualPromo()}</div></div></main>`;
 }
 /* ---------- Semaine ---------- */
@@ -223,7 +225,7 @@ export function shopView() {
     const week = A.ui.shopWeek ?? shopWeekFor(s, c.date, thisWeek());
     const list = deriveShopping(s, week);
     const banner = !list.meals ? '' : list.incomplete.length
-        ? `<div class="banner partial"><p class="grow"><strong>${plural(list.incomplete.length, 'plat', 'plats')} sans quantités</strong> (${esc(list.incomplete.map(x => x.name).join(', '))}) : à acheter de mémoire, ou compléter la recette.</p><button class="btn small-btn ghost" data-a="recipe" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
+        ? `<div class="banner partial"><p class="grow"><strong>${plural(list.incomplete.length, 'plat', 'plats')} sans quantités</strong> (${esc(list.incomplete.map(x => x.name).join(', '))}) : à acheter de mémoire, ou compléter la recette.</p><button class="btn small-btn ghost" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
         : '<p class="banner ok">Complète pour les repas renseignés de la semaine.</p>';
     // Lignes sans aucune quantité (« sel », « 1 boîte de ? ») : rangées à part, en bas, pour ne pas relire toute la liste.
     const vague = (l) => !l.need && l.unknown.length > 0;
@@ -342,6 +344,8 @@ function settingsView() {
       <p class="small muted">Maximum : une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite. Toujours : jamais deux fois le même plat dans la semaine, pas un plat déjà prévu à moins de 2 semaines s'il reste autre chose, pas deux plats du même genre.</p></section>
     <section class="card stack"><h2>Allergies et refus</h2><p>${esc(exclusionsSummary(s.settings.exclude))}</p>
       <button class="btn ghost" data-a="allergies">${s.settings.exclude?.allergens.length || s.settings.exclude?.foods.length ? 'Changer' : 'Indiquer des allergies ou des refus'}</button></section>
+    <section class="card stack"><h2>Votre usage</h2><p>${esc(usageSummary())}</p>
+      <p class="small muted">Compté sur ce téléphone seulement, pour mettre en raccourci ce qui revient le plus.</p><button class="btn ghost" data-a="usage">Voir et épingler</button></section>
     <section class="card stack"><h2>Décisions automatiques</h2><p>${esc(decisionsSummary())}</p>
       <p class="small muted">Décidées une fois : Aujourd'hui ne montre ensuite que ce qu'aucune règle ne tranche.</p><button class="btn ghost" data-a="decisions">Voir et changer</button></section>
     ${ritualSection()}

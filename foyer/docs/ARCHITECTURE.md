@@ -44,6 +44,8 @@
 
 **ADR-21 — Reprises Pimzi : allergies, calage, budget à l'accueil, placard ; tout dérivé, rien de deviné.** Allergies et refus : réglage `exclude` de `settings.set` (14 allergènes de l'annexe II du règlement (UE) n° 1169/2011, 20 aliments refusés au plus) ; `allergens.ts` lit le seul nom de l'ingrédient (expressions les plus longues d'abord : « lait de coco » n'est pas du lait, « noix de Saint-Jacques » est un mollusque, « pâté » n'est pas « pâte ») et sépare « contient » (exclu des propositions, vos plats comme les découvertes) de « étiquette à vérifier » (produit transformé : bouillon, sauce, charcuterie — proposé, signalé dans les courses et au drive) ; un aliment refusé se compare mot à mot, « porc » et « alcool » couvrent leur famille. Ce n'est pas un avis médical : l'étiquette fait foi. Calage : médiane des rapports prix payé ÷ prix Insee sur les articles comparables (même unité, sans forme), 5 au moins, bornée à [0,5 ; 2], appliquée aux seules estimations Insee — Pimzi cale par enseigne sans source publique, Foyer sur vos propres factures. Budget et allergies : 4e étape facultative de l'accueil ; aucun montant suggéré (pas de source). Placard : `surpluses` estime le reste d'un paquet pris la semaine précédente (paquets entiers − besoin d'alors, en supposant les plats cuisinés comme prévu) ; la carte « À régler » le propose, « On en a » émet `shop.pantry`, « Plus rien » un `task.set` ; rien n'est déduit sans réponse. Aucun nouveau type d'événement.
 
+**ADR-22 — Portions en plus reprises ; usage compté sur le téléphone, raccourcis à navigation fixe.** Un repas qui prend le même plat qu'un repas cuisiné jusqu'à 6 jours avant, avec des portions « en plus » (ou prêt avec assez de portions libres), devient ses restes (`slot.from`) et les portions en plus baissent d'autant (`prep.extra`) : « 2 + 2 en plus » puis le même plat le lendemain midi = 4 portions, plus 6. Même règle pour « en cuisiner plus » et pour les boîtes d'une semaine générée ; « Cuisiner à nouveau » garde le choix inverse. Aucun changement du réducteur (le rejeu des journaux existants est inchangé). Usage : compteurs par jour (actions, onglets, fiches recette ouvertes) dans `localStorage` (`foyer:usage`), jamais synchronisés, envoyés ni sauvegardés, coupables et effaçables, coupés en mode découverte ; 60 jours gardés. Les onglets ne bougent jamais (l'adaptation qui réorganise ralentit : Findlater et McGrenere, CHI 2004 ; Gajos et al., 2009) : les raccourcis sont des copies dans une zone fixe en haut d'Aujourd'hui (« split menu », Sears et Shneiderman, 1994), recalculés une fois par jour, 4 au plus, épinglables (la personnalisation est préférée à l'adaptation seule). Une recette s'ouvre en fiche de lecture (ingrédients, étapes, allergènes, écran allumé), le formulaire sur « Modifier ».
+
 ## Carte des modules
 
 ```
@@ -61,7 +63,7 @@ src/core/            logique pure, sans DOM, testée sous Node
   status.ts          état lisible d'un créneau, problèmes à résoudre
   today.ts           écran Aujourd'hui (cartes, tâches, « pas encore pris », idées)
   propose.ts         proposition de semaine, copie de semaine, restes
-  commands.ts        commandes métier → événements (poser, déplacer, retirer, manger)
+  commands.ts        commandes métier → événements (poser, reprendre les portions en plus, déplacer, retirer, manger)
   preview.ts         previewChange : simulation + différences lisibles
   watch.ts           produits surveillés : contrôles limités et sourcés
   describe.ts        phrase d'une action (conflits)
@@ -87,9 +89,10 @@ src/core/            logique pure, sans DOM, testée sous Node
   exceptions.ts      file « À régler » : conflits, personne à la maison, cuisson à confirmer, restes, reste d'un paquet au placard, repas sans plat ; priorité, plafond de 5, « plus tard »
   allergens.ts       allergies et refus : 14 allergènes (annexe II du règlement (UE) n° 1169/2011) lus sur le nom, « contient » / « étiquette à vérifier », familles « porc » et « alcool »
   placard.ts         reste estimé d'un paquet acheté la semaine précédente, redemandé par la liste (« déjà au placard ? »)
+  usage.ts           usage compté sur le téléphone : compteurs par jour, raccourcis (épinglés, puis servis 3 fois en 30 jours), outils pas servis
   invoice.ts         factures du drive : texte du PDF (pdf.js injecté) → lignes → produits vérifiés par le calcul, total, date ; ingrédients candidats et rapprochement
   classics.ts        plats classiques proposés au démarrage
-src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts, découvertes déjà vues : seen.ts, prix et produits chargés au démarrage : prices.ts, panier prêt et mis à jour : sheets/drive.ts, lecture d'une facture : sheets/invoice.ts, « À régler » et Décisions automatiques : sheets/decisions.ts, allergies et refus : sheets/allergies.ts)
+src/ui/              interface (HTML échappé, délégation d'événements, <dialog> natifs, glisser-déposer, synchro automatique, rappels : push.ts, menu en cartes : sheets/deck.ts, découvertes déjà vues : seen.ts, prix et produits chargés au démarrage : prices.ts, panier prêt et mis à jour : sheets/drive.ts, lecture d'une facture : sheets/invoice.ts, « À régler » et Décisions automatiques : sheets/decisions.ts, allergies et refus : sheets/allergies.ts, raccourcis et « Votre usage » : usage.ts)
 vendor/pdfjs/        pdf.js 6.3.289 (Mozilla, Apache-2.0), chargé seulement à la lecture d'une facture ; provenance et empreintes : README.md
 supabase/            migrations (relais, rappels) et fonctions foyer-import, foyer-push et foyer-agenda (déployées le 4 octobre 2026 sur le projet dédié)
 tests/               node --test, TypeScript exécuté directement par Node 22
