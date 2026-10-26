@@ -18,6 +18,7 @@ import { S, clock, dispatch } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, $, toast, keepAwake } from '../dom.ts';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.ts';
 import { track } from '../usage.ts';
+import { photoFor, photoHero } from '../catalog.ts';
 import { A, setDevice } from '../state.ts';
 
 interface Draft { id: string | null; name: string; yield: string; ing: string; steps: string; veille: string; matin: string; tags: Set<string>; note: string; banner: string; prep: string; cook: string }
@@ -149,6 +150,7 @@ function viewHtml(id: string): string {
   const times = [c.prepMin ? `préparation ${c.prepMin} min` : '', c.cookMin ? `cuisson ${c.cookMin} min` : ''].filter(Boolean).join(' · ');
   const ahead = c.ahead.map(a => `${a.when === 'veille' ? 'La veille' : 'Le matin'} : ${a.label}`);
   return `${sheetHead(esc(c.name), [c.yield ? `pour ${c.yield}` : 'rendement non renseigné', times].filter(Boolean).join(' · '))}
+    ${photoHero(photoFor(c.name))}
     ${next ? `<div class="banner info"><p class="grow">Prévu ${esc(fmtSlot(next.slot as string, now.date))} : ${n} portion${n > 1 ? 's' : ''} à préparer.</p><button class="btn small-btn" data-a="cook" data-id="${next.id}">👩‍🍳 Cuisiner (${n})</button></div>` : ''}
     <section class="card"><h3 class="section-title">Ingrédients${c.yield ? ` pour ${c.yield}` : ''}</h3>${allergenHtml(c.ingredients.map(l => l.name))}
       ${c.ingredients.length ? `<ul class="parsed">${c.ingredients.map(l => `<li>${esc(lineLabel(l))}</li>`).join('')}</ul>` : '<p class="muted">Aucun ingrédient renseigné.</p>'}</section>

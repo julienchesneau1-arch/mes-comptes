@@ -435,3 +435,11 @@ table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .recap .plan-row { display: grid; gap: .375rem; }
 .recap .row-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; padding-left: 3.75rem; }
 .week-total { margin: 0; font-weight: 700; }
+
+/* Photos des plats (catalogue, licences libres) : par-dessus l'emoji coloré, qui reste visible pendant le chargement ou hors ligne. */
+.look, .idea .art, .hero-art, .deck-art { position: relative; overflow: hidden; }
+.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-art .chip, .deck-art .badge, .deck-art .badges, .deck-art .stamp { z-index: 1; }
+.photo-hero { margin: 0 0 .75rem; }
+.photo-hero img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r); background: var(--paper); }
+.photo-hero figcaption { margin-top: .375rem; }

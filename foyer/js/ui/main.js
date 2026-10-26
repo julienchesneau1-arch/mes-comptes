@@ -28,6 +28,8 @@ import './sheets/invoice.js';
 import './sheets/discover.js';
 import { track } from './usage.js';
 import { coinceButton, coinceStep } from './coince.js';
+import { updateBadge } from './badge.js';
+import { startLive } from './live.js';
 const TABS = ['aujourdhui', 'semaine', 'courses', 'maison'];
 // Identifie l'élément qui a le focus pour le retrouver après un nouveau rendu (clavier, lecteur d'écran).
 function focusKey() {
@@ -71,6 +73,7 @@ function render() {
     }
     if (keep)
         $(keep)?.focus({ preventScroll: true });
+    updateBadge();
 }
 function route() {
     const h = location.hash.slice(1);
@@ -102,6 +105,7 @@ function boot() {
     wireDrag(document);
     route();
     startAutoSync();
+    startLive();
     loadRefPrices();
     void loadCatalog().then(c => { if (c)
         render(); }); // recettes prêtes : choix d'un plat et idées d'Aujourd'hui

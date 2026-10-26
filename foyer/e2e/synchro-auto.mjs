@@ -14,7 +14,7 @@ for (const f of ['index.html', 'styles.css', 'manifest.webmanifest', 'icon.svg',
 cpSync(join(SRC, 'e2e/catalogue-essai.json'), join(DIR, 'catalogue.json')); // extrait fixe : résultats reproductibles
 const conf = join(DIR, 'js/ui/config.js'); // seule l'adresse du relais change : le reste de la configuration (version…) est gardé
 writeFileSync(conf, readFileSync(conf, 'utf8').replace(/export const RELAY = [^\n]*\n/, "export const RELAY = { url: 'https://relais.test', key: 'cle-publique' };\n"));
-writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test"));
+writeFileSync(join(DIR, 'index.html'), readFileSync(join(DIR, 'index.html'), 'utf8').replace("connect-src 'self'", "connect-src 'self' https://relais.test wss://relais.test"));
 const TYPES = { '.json': 'application/json', '.woff2': 'font/woff2', '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
   const p = join(DIR, decodeURIComponent((req.url ?? '/').split('?')[0]).replace(/\/$/, '/index.html'));
@@ -57,11 +57,29 @@ async function relay(route) {
   return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(out) });
 }
 
+// Signal temps réel simulé (Supabase Realtime, diffusion Phoenix) : relayé aux autres téléphones abonnés au même canal.
+const sockets = new Set(), heard = [];
+async function realtime(ws) {
+  const me = { ws, topics: new Set() };
+  sockets.add(me);
+  ws.onClose(() => sockets.delete(me));
+  ws.onMessage(raw => {
+    const m = JSON.parse(String(raw));
+    if (m.event === 'phx_join') { me.topics.add(m.topic); ws.send(JSON.stringify({ topic: m.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: m.ref, join_ref: m.ref })); }
+    else if (m.event === 'heartbeat') ws.send(JSON.stringify({ topic: 'phoenix', event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: m.ref }));
+    else if (m.event === 'broadcast') {
+      heard.push(m.payload);
+      for (const o of sockets) if (o !== me && o.topics.has(m.topic)) o.ws.send(JSON.stringify({ topic: m.topic, event: 'broadcast', payload: m.payload, ref: null }));
+    }
+  });
+}
+
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium' });
 const errors = [];
 const phone = async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   await ctx.route('https://relais.test/**', relay);
+  await ctx.routeWebSocket(/^wss:\/\/relais\.test\/realtime\//, realtime);
   const p = await ctx.newPage(); p.setDefaultTimeout(8000);
   p.on('pageerror', e => errors.push('pageerror ' + e.message)); p.on('console', m => { if (m.type() === 'error') errors.push('console ' + m.text()); });
   return p;
@@ -122,6 +140,17 @@ await step('B coche un article ; A le voit coché sans rien faire d\'autre que r
   await A.waitForTimeout(1500);
   const checked = await A.locator('input[data-c="shopCheck"]:checked').count();
   if (checked !== 1) throw new Error(`${checked} ligne(s) cochée(s) chez A, 1 attendue`);
+});
+await step('A coche un autre article ; B le voit coché en moins de 3 s sans rien toucher (signal temps réel, vide)', async () => {
+  for (const p of [A, B]) await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); // connexions ouvertes, app visible
+  await A.waitForTimeout(800);
+  const keys = await A.locator('input[data-c="shopCheck"]:not(:checked)').evaluateAll(els => els.map(e => e.getAttribute('data-key')));
+  const key = keys[0];
+  const t0 = Date.now();
+  await A.locator(`input[data-c="shopCheck"][data-key="${key}"]`).check({ force: true });
+  await B.locator(`input[data-c="shopCheck"][data-key="${key}"]:checked`).waitFor({ state: 'attached', timeout: 3000 });
+  console.log(`   reçu chez B en ${Date.now() - t0} ms (relève toutes les 20 s sinon)`);
+  if (!heard.length || heard.some(p => JSON.stringify(p.payload) !== '{}')) throw new Error('signal absent ou non vide : ' + JSON.stringify(heard));
 });
 await step('le relais ne contient aucun texte en clair', async () => {
   // Un bloc chiffré n'est que du base64url ; du JSON en clair aurait des guillemets, espaces ou accolades.

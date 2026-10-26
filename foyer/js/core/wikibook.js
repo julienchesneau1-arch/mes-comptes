@@ -1,6 +1,3 @@
-// Catalogue de recettes tiré du « Livre de cuisine » de Wikilivres (CC BY-SA 4.0) : lecture déterministe du wikitexte, sans IA.
-// Une recette n'entre au catalogue que si elle est exploitable telle quelle : nombre de personnes, au moins 3 ingrédients
-// dont la moitié chiffrés, des étapes, et un plat de repas (ni dessert, ni boisson, ni cuisine historique).
 import { parseIngredient } from './ingredients.js';
 import { UNIT, matchUnit, toBase } from './units.js';
 import { qFrom } from './rational.js';

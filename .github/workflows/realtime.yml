@@ -1,0 +1,17 @@
+name: realtime
+# Vérifie sur le vrai relais (Supabase Realtime) que le signal « relève maintenant » passe d'un téléphone à l'autre.
+on:
+  workflow_dispatch:
+  push:
+    paths: ['foyer/scripts/realtime-check.mjs', 'foyer/src/core/nudge.ts', 'foyer/src/ui/config.ts', '.github/workflows/realtime.yml']
+jobs:
+  realtime:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: foyer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/realtime-check.mjs

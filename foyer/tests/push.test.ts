@@ -26,17 +26,18 @@ test('rappels : tâche de la veille, boîte, semaine suivante vide ; identifiant
     { t: 'slot.cook', p: { slot: `${MON}|soir`, prep: 'prep0001', recipe: 'curry001', extra: 1 } },
     { t: 'slot.from', p: { slot: '2026-10-06|midi', prep: 'prep0001' } },
   );
-  const list = remindersFor(a.s, NOW);
+  const others = (now: Date) => remindersFor(a.s, now).filter(r => !r.title.startsWith('🍽️')); // « Ce soir » : voir v38.test.ts
+  const list = others(NOW);
   assert.deepEqual(list.map(r => [r.at, r.title]), [
     ['2026-10-04T17:00:00.000Z', '⏰ Sortir le poulet du congélateur'], // dimanche 19 h, veille du curry
     ['2026-10-05T19:00:00.000Z', '🥡 Boîte de Alex'],                     // lundi 21 h, pour mardi midi
     ['2026-10-11T16:00:00.000Z', '🗓️ La semaine prochaine est vide'],     // dimanche 18 h
   ]);
   assert.match(list[0]?.body ?? '', /^Pour Curry/);
-  assert.deepEqual(remindersFor(a.s, NOW).map(r => r.rid), list.map(r => r.rid)); // même rappel, même identifiant
+  assert.deepEqual(others(NOW).map(r => r.rid), list.map(r => r.rid)); // même rappel, même identifiant
   assert.notEqual(reminderId('x', 'a', 't', 'b'), reminderId('x', 'a', 't2', 'b'));
   assert.ok(list.every(r => /^[0-9a-f]{16}$/.test(r.rid)));
-  assert.deepEqual(remindersFor(a.s, new Date('2026-10-05T20:00:00Z')).map(r => r.title), ['🗓️ La semaine prochaine est vide']); // le passé n'est jamais renvoyé
+  assert.deepEqual(others(new Date('2026-10-05T20:00:00Z')).map(r => r.title), ['🗓️ La semaine prochaine est vide']); // le passé n'est jamais renvoyé
 });
 
 test('rappel chiffré : lisible avec la clé du foyer, dans l\'app comme dans le service worker ; illisible sans', async () => {

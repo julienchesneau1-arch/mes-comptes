@@ -62,7 +62,7 @@ const validAisleOrder = (v) => Array.isArray(v) && v.length <= 20 && new Set(v).
 function validSettings(v) {
     return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
         && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
-        && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']);
+        && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']) && (v['evening'] === undefined || v['evening'] === null || isHHMM(v['evening']));
 }
 export function validIngredient(v) {
     if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120))
@@ -116,7 +116,8 @@ const P = {
     'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
         && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
         && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
-        && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude']),
+        && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude'])
+        && (p['evening'] === undefined || p['evening'] === null || isHHMM(p['evening'])),
     'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
     'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
     'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),

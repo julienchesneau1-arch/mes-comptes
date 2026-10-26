@@ -16,7 +16,7 @@ import { eur } from '../../core/money.ts';
 import { idOf, propCost, fitBudget, plannedCost, alternativesFor, toItems, fromItems } from '../../core/weekgen.ts';
 import { capital, prepTitle } from '../../core/status.ts';
 import { presence } from '../../core/plan.ts';
-import { loadCatalog } from '../catalog.ts';
+import { loadCatalog, withPhoto, photoImg } from '../catalog.ts';
 import { A, S, clock, dispatch, thisWeek } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.ts';
 import { CLICK, CHANGE } from '../registry.ts';
@@ -42,9 +42,9 @@ export function cardInfo(p: Proposal, all: readonly Proposal[] = []): { look: Lo
   if (d?.kind === 'cook') {
     const r = s.recipes[d.recipe], c = r ? current(r) : null;
     const name = c?.name ?? 'Plat';
-    return { look: dishLook(name, c?.ingredients.map(l => l.name) ?? []), name, badges: [...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : []), ...(c?.tags.includes('rapide') ? ['⚡ Rapide'] : [])], link: null };
+    return { look: withPhoto(dishLook(name, c?.ingredients.map(l => l.name) ?? []), name), name, badges: [...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : []), ...(c?.tags.includes('rapide') ? ['⚡ Rapide'] : [])], link: null };
   }
-  if (d?.kind === 'new') return { look: dishLook(d.catalog.title, d.catalog.ingredients), name: d.catalog.title, badges: ['✨ Nouveau', ...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : [])], link: d.catalog.url };
+  if (d?.kind === 'new') return { look: { ...dishLook(d.catalog.title, d.catalog.ingredients), ...(d.catalog.photo ? { photo: d.catalog.photo.src } : {}) }, name: d.catalog.title, badges: ['✨ Nouveau', ...(D?.batch.has(p.slot) ? ['👩‍🍳 Batch'] : [])], link: d.catalog.url };
   if (d?.kind === 'from') {
     const src = all.find(x => x.slot === d.source);
     const base = src ? cardInfo(src) : null;
@@ -90,7 +90,7 @@ function cardHtml(p: Proposal, behind = false): string {
   if (behind) return `<div class="deck-card behind" aria-hidden="true"><div class="deck-art t-${info.look.theme}"></div></div>`;
   const n = eaters(p);
   return `<article class="deck-card" aria-labelledby="deck-name">
-    <div class="deck-art t-${info.look.theme}"><span class="art-emoji" aria-hidden="true">${info.look.emoji}</span>
+    <div class="deck-art t-${info.look.theme}"><span class="art-emoji" aria-hidden="true">${info.look.emoji}</span>${photoImg(info.look)}
       <span class="badge">${esc(capital(fmtSlot(p.slot, today)))}</span>${info.badges.length ? `<span class="badges">${info.badges.slice(0, 2).map(b => `<span class="badge new">${esc(b)}</span>`).join('')}</span>` : ''}
       <span class="stamp yes" aria-hidden="true">MIAM ❤</span><span class="stamp no" aria-hidden="true">AUTRE ↻</span></div>
     <div class="deck-body"><h3 id="deck-name">${esc(info.name)}</h3>
@@ -147,7 +147,7 @@ function summaryHtml(): string {
     const info = cardInfo(p, d.props), c = cooks(p) ? propCost(s, d.props, p) : null, when = capital(fmtSlot(p.slot, today));
     // Coût par portion seulement s'il est fiable (80 % des ingrédients chiffrés) : un minimum très partiel tromperait.
     const price = p.dish?.kind === 'from' ? 'restes : rien à acheter' : c?.reliable && c.perPortion ? `≈ ${eur(c.perPortion)} la portion` : '';
-    return `<li class="plan-row"><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}</span>
+    return `<li class="plan-row"><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}${photoImg(info.look)}</span>
       <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(when)}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}${price ? ` · ${esc(price)}` : ''}${d.swapped.includes(p.slot) ? ' · 💶 moins cher, pour tenir le budget' : ''}</span></span></div>
       <div class="row-actions">${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${d.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}
       ${cooks(p) ? `<button class="btn small-btn ghost" data-a="listOther" data-k="${p.slot}" aria-label="Autre idée pour ${esc(when.toLowerCase())}">↻ Autre idée</button>` : ''}

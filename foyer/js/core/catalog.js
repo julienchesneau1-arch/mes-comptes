@@ -1,3 +1,7 @@
+// Plats « à découvrir » : catalogue tiré de Wikilivres (CC BY-SA 4.0), comme l'inspiration de Jow mais sans recette inventée.
+// Vos plats passent d'abord ; une découverte par semaine au plus (davantage tant que vous avez peu de plats).
+// Rien n'entre dans « Nos plats » sans votre accord, et chaque recette garde sa source et sa licence.
+import { validPhoto } from './photos.js';
 import { current } from './model.js';
 import { parseIngredient, aisleOf } from './ingredients.js';
 import { familyOf } from './wikibook.js';
@@ -22,7 +26,10 @@ export function readCatalog(x) {
             && (o['yield'] === null || (Number.isInteger(o['yield']) && o['yield'] >= 1 && o['yield'] <= 20)) && (o['minutes'] === null || Number.isInteger(o['minutes']))
             && isStrArr(o['ingredients'], 40) && isStrArr(o['steps'], 20) && isStrArr(o['tags'], 10)
             && typeof o['url'] === 'string' && o['url'].startsWith('https://fr.wikibooks.org/wiki/');
-    });
+    }).map(r => { if (r.photo !== undefined && !validPhoto(r.photo)) {
+        const { photo: _, ...rest } = r;
+        return rest;
+    } return r; }); // photo douteuse : la recette reste, sans photo
     return { source: String(c['source'] ?? ''), sourceUrl: String(c['sourceUrl'] ?? ''), license: c['license'], licenseUrl: String(c['licenseUrl'] ?? ''),
         note: String(c['note'] ?? ''), generated: String(c['generated'] ?? ''), count: recipes.length, recipes };
 }

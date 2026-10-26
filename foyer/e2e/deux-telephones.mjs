@@ -14,6 +14,7 @@ const mute = route => {
 const mk = async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', permissions: ['clipboard-read', 'clipboard-write'] });
   await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, mute);
+  await ctx.routeWebSocket(/^wss:\/\/[a-z0-9]+\.supabase\.co\//, ws => ws.onMessage(m => { const d = JSON.parse(String(m)); if (d.event === 'phx_join' || d.event === 'heartbeat') ws.send(JSON.stringify({ topic: d.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: d.ref })); })); // signal temps réel simulé (aucun réseau)
   await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: readFileSync(new globalThis.URL('./catalogue-essai.json', import.meta.url), 'utf8') }));
   const page = await ctx.newPage(); page.setDefaultTimeout(6000);
   await page.clock.setFixedTime(new Date('2026-10-05T08:00:00Z')); // lundi 10 h à Paris : « ce soir » reste à venir, quelle que soit l'heure du test

@@ -111,7 +111,7 @@ test('rappels du rituel : samedi 17 h les courses, dimanche 14 h le batch ; tâc
   const { a } = planned();
   a.emit(...batchDrafts(a.s, SUN, ['prepcurr', 'prepchil'], true));
   const sat8 = new Date('2026-10-03T06:00:00Z');
-  const list = remindersFor(a.s, sat8).map(r => [r.at, r.title]);
+  const list = remindersFor(a.s, sat8).filter(r => !r.title.startsWith('🍽️')).map(r => [r.at, r.title]); // « Ce soir » : voir v38.test.ts
   assert.deepEqual(list.slice(0, 3), [
     ['2026-10-03T15:00:00.000Z', '🛒 Courses du batch à commander'],       // samedi 17 h
     ['2026-10-03T17:00:00.000Z', '⏰ Sortir le poulet du congélateur'],    // samedi 19 h : veille du batch, pas du repas

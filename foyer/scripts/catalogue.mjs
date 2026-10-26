@@ -1,8 +1,9 @@
 // Régénère catalogue.json depuis le « Livre de cuisine » de Wikilivres (licence CC BY-SA 4.0), par l'API officielle MediaWiki.
 // Lancer depuis foyer/ avec un accès réseau : node scripts/catalogue.mjs (la CI le fait : .github/workflows/catalogue.yml).
 // Une recette n'entre que si parseWikiRecipe la juge exploitable ; les raisons d'écart sont comptées et affichées.
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { parseWikiRecipe } from '../src/core/wikibook.ts';
+import { photoFrom } from '../src/core/photos.ts';
 
 const API = 'https://fr.wikibooks.org/w/api.php';
 const UA = 'FoyerCatalogue/1.0 (https://github.com/julienchesneau1-arch/mes-comptes)';
@@ -54,6 +55,41 @@ for (const p of pages.values()) {
   if (r.ok) recipes.push(r.recipe); else why.set(r.why, (why.get(r.why) ?? 0) + 1);
 }
 recipes.sort((a, b) => a.title.localeCompare(b.title, 'fr') || a.id.localeCompare(b.id));
+
+// 4. Photos : image principale libre de chaque page retenue (Wikimedia Commons), vignette de 500 px enregistrée dans img/plats
+// et servie par Foyer. Licence non libre, dessin, petite image ou auteur inconnu : pas de photo (jamais une image inventée).
+const DIR = new URL('../img/plats/', import.meta.url);
+mkdirSync(DIR, { recursive: true });
+const lead = new Map(); // wb<pageid> → nom du fichier
+for (let i = 0; i < recipes.length; i += 50) {
+  const ids = recipes.slice(i, i + 50).map(r => r.id.slice(2));
+  const j = await call({ action: 'query', prop: 'pageimages', piprop: 'name', pilicense: 'free', pageids: ids.join('|') });
+  for (const p of j.query?.pages ?? []) if (p.pageimage) lead.set(`wb${p.pageid}`, p.pageimage.replace(/_/g, ' '));
+  await sleep(300);
+}
+const infos = new Map(); // nom du fichier → réponse imageinfo
+const files = [...new Set(lead.values())];
+for (let i = 0; i < files.length; i += 50) {
+  const j = await call({ action: 'query', prop: 'imageinfo', iiprop: 'url|mime|size|extmetadata', iiurlwidth: '500', iiextmetadatafilter: 'Artist|Credit|LicenseShortName',
+    titles: files.slice(i, i + 50).map(f => `File:${f}`).join('|') });
+  for (const p of j.query?.pages ?? []) infos.set(String(p.title ?? '').replace(/^[^:]+:/, '').replace(/_/g, ' '), p);
+  await sleep(300);
+}
+const kept = new Set(), dropped = new Map();
+for (const r of recipes) {
+  const file = lead.get(r.id);
+  if (!file) continue;
+  const got = photoFrom(r.id, infos.get(file));
+  if (!got) { dropped.set('licence, format, taille ou auteur', (dropped.get('licence, format, taille ou auteur') ?? 0) + 1); continue; }
+  const res = await fetch(got.thumb, { headers: { 'User-Agent': UA } });
+  const type = res.headers.get('content-type') ?? '', body = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+  if (!body || !type.startsWith('image/') || body.length > 400_000) { dropped.set('téléchargement', (dropped.get('téléchargement') ?? 0) + 1); continue; }
+  writeFileSync(new URL(got.photo.src.replace(/^img\/plats\//, ''), DIR), body);
+  r.photo = got.photo; kept.add(got.photo.src.replace(/^img\/plats\//, ''));
+  await sleep(150);
+}
+for (const f of readdirSync(DIR)) if (!kept.has(f)) unlinkSync(new URL(f, DIR)); // photos d'anciennes recettes : retirées
+console.log(`photos : ${kept.size} sur ${recipes.length} recettes (image principale trouvée : ${lead.size}) · écartées : ${JSON.stringify(Object.fromEntries(dropped))}`);
 writeFileSync(new URL('../catalogue.json', import.meta.url), `${JSON.stringify({
   source: 'Wikilivres, « Livre de cuisine »', sourceUrl: 'https://fr.wikibooks.org/wiki/Livre_de_cuisine',
   license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
