@@ -178,12 +178,13 @@ export function explain(l: ShopLine): string[] {
 export const checkSig = (l: ShopLine): string => sig(l.toBuy, l.unknown.length);
 
 // Liste en texte, à partager par message ou à coller dans des notes.
-export function shoppingText(list: ShoppingList, title: string, s?: State): string {
+// restock : produits de la maison à racheter cette semaine (core/restock.ts), rangés dans Maison & hygiène.
+export function shoppingText(list: ShoppingList, title: string, s?: State, restock: readonly { name: string; qty: string }[] = []): string {
   const out = [title];
   for (const a of s ? orderedAisles(s) : AISLES) {
     const ls = list.lines.filter(l => l.aisle === a.id && !l.done);
-    const ms = list.manual.filter(m => m.aisle === a.id && !m.checked);
-    if (!ls.length && !ms.length) continue;
+    const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = a.id === 'maison' ? restock : [];
+    if (!ls.length && !ms.length && !rs.length) continue;
     out.push('', `${a.icon} ${a.label}`);
     for (const l of ls) {
       const qtxt = lineQty(l);
@@ -191,6 +192,7 @@ export function shoppingText(list: ShoppingList, title: string, s?: State): stri
       out.push(`☐ ${l.name}${l.form ? ` (${l.form})` : ''}${qtxt ? ` · ${qtxt}` : ''}${unk}`);
     }
     for (const m of ms) out.push(`☐ ${m.name}${m.qty ? ` · ${m.qty}` : ''}`);
+    for (const r of rs) out.push(`☐ ${r.name}${r.qty ? ` · ${r.qty}` : ''}`);
   }
   if (list.incomplete.length) out.push('', `⚠️ Liste partielle : ${list.incomplete.map(x => x.name).join(', ')} (${list.incomplete.length > 1 ? 'ingrédients à compléter' : 'ingrédients à compléter'})`);
   return out.join('\n');

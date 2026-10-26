@@ -64,6 +64,7 @@ export function loadDevice(newId) {
         pins: Array.isArray(d.pins) ? d.pins.filter((k) => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
         mods: readChoices(d.mods),
         coince: d.coince !== false,
+        restockHint: d.restockHint !== false,
     };
     saveDevice(dev);
     return dev;

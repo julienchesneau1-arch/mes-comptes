@@ -320,4 +320,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Le soir sans y penser | « Ce soir : … » à l'heure choisie ; « rien de prévu » quand c'est le cas |
 | Ce qui attend, sur l'icône | Le nombre de choses à régler, comme une app native |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.8 incluses).
+## 25. V3.9 — les petites choses qui manquent d'un coup (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Au bon moment, pas chaque semaine | Un produit de la maison n'apparaît dans les courses que la semaine où il devrait manquer |
+| Une estimation dite, puis l'usage | Hypothèse de départ écrite sous chaque produit, rapportée au nombre de personnes ; dès les premiers achats notés, le rythme réel du foyer |
+| Rien à saisir chaque semaine | Cocher dans la liste ou lire la facture suffit à noter l'achat |
+| Le foyer garde la main | « Il en faut », « il en reste », rythme fixe, produit à soi, suivi arrêté sans rien perdre |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.9 incluses).

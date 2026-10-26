@@ -11,8 +11,9 @@ import { S, clock, dispatch } from '../state.ts';
 import { openSheet, sheetHead, esc, refreshSheet, closeSheet } from '../dom.ts';
 import { CLICK, CHANGE, INPUT, SUBMIT } from '../registry.ts';
 import { shopWeekFor } from './drive.ts';
+import { nameOf, restockFromInvoice } from '../../core/restock.ts';
 
-interface Reading { inv: Invoice; week: LocalDate; cands: Candidate[]; picks: string[] }
+interface Reading { inv: Invoice; week: LocalDate; cands: Candidate[]; picks: string[]; restock: string[] }
 let reading: Reading | null = null, busy = false, error = '';
 
 export function openInvoice(): void { reading = null; busy = false; error = ''; openSheet({ id: 'invoice', render: invoiceHtml }); }
@@ -44,7 +45,7 @@ function show(lines: readonly string[]): void {
   }
   const s = S(), day = inv.day ?? clock().date, week = shopWeekFor(s, day, weekOf(day, s.settings.weekStart));
   const cands = candidates(s, [week, addDays(week, 7), addDays(week, -7)]).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  reading = { inv, week, cands, picks: inv.lines.map(l => capitalize(matchKey(l.label, cands)?.name ?? '')) };
+  reading = { inv, week, cands, picks: inv.lines.map(l => capitalize(matchKey(l.label, cands)?.name ?? '')), restock: restockFromInvoice(s, inv.lines.map(l => l.label)) };
 }
 
 const lineText = (l: Invoice['lines'][number]): string => l.loose && l.weight !== null
@@ -64,7 +65,11 @@ function invoiceHtml(): string {
         <label class="field">Texte copié depuis la facture<textarea name="text" rows="6" maxlength="60000"></textarea></label><button class="btn ghost">Lire ce texte</button></form></details>
     </section>${privacy}`;
   }
-  const { inv, week, cands, picks } = reading, spent = S().shop[week]?.spent ?? null;
+  const { inv, week, cands, picks, restock } = reading, spent = S().shop[week]?.spent ?? null;
+  const day = inv.day ?? clock().date;
+  // Produits de la maison suivis, reconnus sur la facture : leur achat est noté au jour de la facture (le rythme s'en corrige).
+  const house = restock.length ? `<fieldset><legend>Produits de la maison achetés</legend>${restock.map(id => `<label class="item"><input type="checkbox" name="r_${esc(id)}" checked><span>${esc(nameOf(id, S().restock[id]))}</span></label>`).join('')}
+    <p class="small muted">Achat noté au ${esc(fmtDayShort(day))} : Foyer recalcule quand il en faudra de nouveau.</p></fieldset>` : '';
   const check = inv.total === null ? '<p class="small muted">Total de la facture non trouvé : vérifiez les lignes.</p>'
     : inv.total === inv.sum ? '<p class="banner ok">Lecture complète : les lignes lues font exactement le total de la facture.</p>'
       : `<p class="banner partial">Lignes lues : ${esc(eur(inv.sum))} · total facturé : ${esc(eur(inv.total))}. L'écart vient des remises, des frais ou de lignes non comprises.</p>`;
@@ -76,6 +81,7 @@ function invoiceHtml(): string {
     <form data-f="invoiceSave" class="stack">
       <p class="small">Vérifiez l'ingrédient proposé pour chaque produit ; videz le champ pour ne pas le retenir.</p>
       <ul class="plain stack">${rows}</ul>
+      ${house}
       <datalist id="invoice-cands">${cands.map(c => `<option value="${esc(capitalize(c.name))}"></option>`).join('')}</datalist>
       ${inv.total !== null && inv.total <= MAX_CENTS ? `<label class="item"><input type="checkbox" name="spent"${spent ? '' : ' checked'}><span>Noter ${esc(eur(inv.total))} payés pour les courses de la semaine du ${esc(fmtDayShort(week))}${spent ? ` (remplace ${esc(eur(spent.cents))})` : ''}</span></label>` : ''}
       <button class="btn big block">Retenir ces prix</button>
@@ -114,11 +120,13 @@ SUBMIT['invoiceSave'] = data => {
     seen.add(key);
     drafts.push({ t: 'price.paid', p: { key, label: l.label, cents: l.unitCents, size: l.size, unit: l.unit, loose: l.loose, day } });
   });
+  const house = reading.restock.filter(id => data.get(`r_${id}`) !== null);
+  for (const id of house) drafts.push({ t: 'restock.bought', p: { id, day, bought: true } });
   const paid = data.get('spent') !== null && inv.total !== null && inv.total <= MAX_CENTS;
   if (paid && inv.total !== null) drafts.push({ t: 'shop.spent', p: { week, cents: inv.total } });
   if (!drafts.length) { error = ''; closeSheet(); return; }
   reading = null;
   closeSheet();
-  dispatch(drafts, { toast: `${seen.size} prix payé${seen.size > 1 ? 's' : ''} retenu${seen.size > 1 ? 's' : ''}${paid && inv.total !== null ? ` · ${eur(inv.total)} notés` : ''}` });
+  dispatch(drafts, { toast: `${seen.size} prix payé${seen.size > 1 ? 's' : ''} retenu${seen.size > 1 ? 's' : ''}${paid && inv.total !== null ? ` · ${eur(inv.total)} notés` : ''}${house.length ? ` · ${house.length} produit${house.length > 1 ? 's' : ''} de la maison` : ''}` });
 };
 CLICK['invoice'] = () => openInvoice();

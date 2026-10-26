@@ -213,6 +213,54 @@ Gestes pour ouvrir une recette (d'après le code, avant → après) :
 | Widget, Apple Watch | **non fait** | Impossible pour une app web |
 | Correction Supabase (pg_net) | **en attente** | La confirmation du serveur Supabase n'arrive pas jusqu'au téléphone : correction à faire dans l'éditeur SQL (une ligne, voir § 4) |
 
+### V3.9 (produits de la maison — demande de Julien du 26 octobre 2026)
+
+« Dentifrice, papier toilette, Sopalin… : des choses très soudaines ; une catégorie mise à jour automatiquement en termes de
+timing, pas toutes les semaines. » Foyer suit 29 produits (15 d'office, 14 à cocher selon l'équipement ou l'usage) et des
+produits ajoutés par le foyer ; chacun revient dans les courses, rayon Maison & hygiène, la seule semaine où il devrait manquer.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Catalogue et estimation de départ | **livré** | Hypothèse écrite par produit (contenance et usage courants), rapportée au nombre de personnes ; affichée sous chaque produit (tableau ci-dessous) |
+| Rythme appris | **livré** | Un intervalle connu : moyenne avec l'estimation ; deux ou plus : médiane des 3 derniers (un achat oublié ne fausse pas tout) ; deux achats à moins de 5 jours = un seul passage. 7 tests (`tests/v39.test.ts`) |
+| Dans les courses au bon moment | **livré** | Semaine des prochaines courses : ce qui manque d'ici sa fin, retard compris ; semaine suivante : ce qui manquera seulement là ; jamais acheté depuis le suivi : supposé à moitié entamé. E2E `maison.mjs` : rien la première semaine, gel douche, essuie-tout, papier toilette, mouchoirs la suivante |
+| Achat noté d'un geste | **livré** | Coche dans la liste (décoche = retiré), « Oui, tout cocher » après le drive, « Acheté aujourd'hui » sur la fiche |
+| Facture du drive | **livré** | Les produits suivis reconnus sur la facture sont notés achetés au jour de la facture (case à décocher) ; E2E : papier WC et lessive notés au 3 octobre |
+| Il en faut / il en reste / rythme choisi / produit à soi | **livré** | « Il en faut maintenant » : dans les courses de la semaine ; « Il en reste encore » : reporté d'un quart du rythme (une semaine au moins) ; rythme fixe de 7 à 180 jours ; produit ajouté avec son rythme |
+| Prix des produits de la maison dans le budget | **non fait** | Aucun prix de référence fiable pour ces produits : le panier estimé ne les compte pas (rien d'inventé) |
+
+| Produit | Groupe | Suivi d'office | Base | Pour 2 personnes | Hypothèse de départ |
+|---|---|---|---|---|---|
+| Dentifrice | Hygiène | oui | 50 j pour 1 personne | 25 j | tube de 75 ml (≈ 100 g) : ≈ 1 g par brossage, 2 brossages par jour |
+| Brosses à dents | Hygiène | oui | 90 j, un par personne | 90 j | à changer tous les 3 mois, le conseil courant des dentistes |
+| Papier toilette | Hygiène | oui | 48 j pour 1 personne | 24 j | ≈ 1 rouleau tous les 4 jours par personne |
+| Gel douche | Hygiène | oui | 25 j pour 1 personne | 13 j | flacon de 250 ml : ≈ 10 ml par douche, une douche par jour |
+| Shampooing | Hygiène | oui | 60 j pour 1 personne | 30 j | flacon de 250 ml : ≈ 10 ml par lavage, 3 lavages par semaine |
+| Déodorant | Hygiène | oui | 45 j, un par personne | 45 j | ≈ 6 semaines par déodorant |
+| Savon pour les mains | Hygiène | oui | 40 j pour 1 personne | 20 j | flacon de 300 ml : ≈ 1,5 ml par lavage, 5 lavages par jour |
+| Mouchoirs | Hygiène | oui | 40 j pour 1 personne | 20 j | boîte d'≈ 100 : 2 à 3 par jour en moyenne sur l'année |
+| Cotons-tiges | Hygiène | non | 200 j pour 1 personne | 100 j | boîte d'≈ 200 : ≈ 1 par jour |
+| Cotons démaquillants | Hygiène | non | 45 j pour le foyer | 45 j | paquet d'≈ 80 : ≈ 2 par jour |
+| Lames de rasoir | Hygiène | non | 30 j pour le foyer | 30 j | paquet de 4 : ≈ 1 lame par semaine |
+| Protections périodiques | Hygiène | non | 28 j pour le foyer | 28 j | un cycle ≈ 28 jours |
+| Essuie-tout (Sopalin) | Cuisine et entretien | oui | 40 j pour 1 personne | 20 j | ≈ 1 rouleau tous les 10 jours par personne |
+| Liquide vaisselle | Cuisine et entretien | oui | 60 j pour 1 personne | 30 j | flacon de 500 ml : ≈ 1 mois pour 2 personnes |
+| Éponges | Cuisine et entretien | oui | 21 j pour le foyer | 21 j | une éponge neuve par semaine, pour l'hygiène |
+| Sacs poubelle | Cuisine et entretien | oui | 80 j pour 1 personne | 40 j | ≈ 1 sac tous les 4 jours par personne |
+| Lessive | Cuisine et entretien | oui | 105 j pour 1 personne | 53 j | bidon d'≈ 30 lavages : ≈ 2 machines par semaine et par personne |
+| Nettoyant multi-usage | Cuisine et entretien | oui | 45 j pour le foyer | 45 j | un spray ≈ 6 semaines |
+| Nettoyant WC | Cuisine et entretien | oui | 45 j pour le foyer | 45 j | un flacon ≈ 6 semaines |
+| Tablettes lave-vaisselle | Cuisine et entretien | non | 80 j pour 1 personne | 40 j | boîte de 40 : ≈ 1 lavage tous les 2 jours par personne |
+| Sel lave-vaisselle | Cuisine et entretien | non | 120 j pour le foyer | 120 j | ≈ 1 kg tous les 4 mois (selon la dureté de l'eau) |
+| Liquide de rinçage | Cuisine et entretien | non | 90 j pour le foyer | 90 j | un flacon ≈ 3 mois |
+| Adoucissant | Cuisine et entretien | non | 105 j pour 1 personne | 53 j | comme la lessive : ≈ 30 lavages |
+| Eau de Javel | Cuisine et entretien | non | 90 j pour le foyer | 90 j | une bouteille ≈ 3 mois |
+| Papier aluminium | Cuisine et entretien | non | 120 j pour le foyer | 120 j | un rouleau ≈ 4 mois |
+| Film alimentaire | Cuisine et entretien | non | 120 j pour le foyer | 120 j | un rouleau ≈ 4 mois |
+| Papier cuisson | Cuisine et entretien | non | 90 j pour le foyer | 90 j | un rouleau ≈ 3 mois |
+| Sacs congélation | Cuisine et entretien | non | 90 j pour le foyer | 90 j | une boîte ≈ 3 mois |
+| Filtres à café | Cuisine et entretien | non | 60 j pour le foyer | 60 j | boîte de 80 : ≈ 1 à 2 par jour |
+
 ### V3.7 (apprendre de l'usage réel — choix de Julien du 25 octobre 2026)
 
 | Fonction | Statut | Preuve |
@@ -367,6 +415,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.9 | Produits de la maison : 29 produits suivis au bon rythme (estimation par personne, puis rythme appris des achats notés et des factures), dans les courses seulement la semaine où ils manquent | livré | Estimations de départ = hypothèses écrites, corrigées par l'usage ; non vérifié sur iPhone ; prix non comptés dans le budget |
 | 2026-10-26 | V3.8 | Photos libres des plats (CI, auto-hébergées, crédits), synchro quasi instantanée (signal Realtime), rappel « Ce soir », pastille sur l'icône | livré | 110 photos sur 424 recettes (pages Wikilivres illustrées sous licence libre) ; signal mesuré à 7 ms sur le vrai relais par la CI ; signal temps réel et pastille non vérifiés sur iPhone |
 | 2026-10-25 | V3.7 | Avis 👍/👎 après le repas, « Ça coince ? » (gênes notées sur le téléphone), mode essentiel (fonctions avancées affichées à l'usage ou à la demande) | livré | Seuils et choix par défaut posés, pas encore mesurés ; à juger pendant l'essai de deux semaines |
 | 2026-10-25 | Factures | Lecteur calé sur trois factures Auchan réelles (masquées avant lecture, jamais versées) : colonnes vérifiées par deux calculs (remise, TVA), nom du produit sur deux lignes et deux pages, date de commande, paiements (cagnotte, carte cadeau) écartés, produit rapproché par son nom de tête, abréviations (« PLT », « PDT »…) | livré | Une seule enseigne calée ; format susceptible de changer côté Auchan (lecture générique en secours, « Aucune ligne reconnue » sinon) |

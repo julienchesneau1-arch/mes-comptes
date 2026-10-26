@@ -4,6 +4,7 @@ import { type SlotKey, parseSlot } from './dates.ts';
 import type { Prep } from './model.ts';
 import { type AnyEv, type Ev, type EventType, type Rejection, type Slot, type State, type WeekShop, emptyState, current } from './model.ts';
 import { portions, invalidate } from './plan.ts';
+import { RESTOCK_DEF } from './restock.ts';
 
 export interface Replay { state: State; rejected: Map<string, Rejection>; maxLc: number; count: number; events: ReadonlyMap<string, AnyEv>; undone: ReadonlySet<string> }
 
@@ -341,6 +342,33 @@ function apply(s: State, e: AnyEv): void {
     }
     case 'week.draft': {
       s.drafts[e.p.week] = { items: e.p.items.map(x => ({ ...x })), by: e.by, at: e.at };
+      return;
+    }
+    case 'restock.set': {
+      const prev = s.restock[e.p.id], known = !!RESTOCK_DEF[e.p.id], name = known ? undefined : e.p.name ?? prev?.name;
+      if (!known && !name) conflict('produit inconnu');
+      const days = e.p.days !== undefined ? e.p.days : prev?.days ?? null;
+      if (!known && days === null) conflict('fréquence à choisir pour un produit ajouté');
+      if (prev && prev.on === e.p.on && prev.days === days && prev.name === name) noop('inchangé');
+      // Suivi repris après une pause : nouveau départ ; les achats notés restent.
+      const since = prev && (prev.on || !e.p.on) ? prev.since : e.p.day;
+      s.restock[e.p.id] = { on: e.p.on, ...(name ? { name } : {}), days, since, bought: prev?.bought ?? [], due: prev?.due ?? null };
+      return;
+    }
+    case 'restock.bought': {
+      const it = s.restock[e.p.id] ?? noop('produit non suivi');
+      if (e.p.bought) {
+        if (it.bought.includes(e.p.day)) noop('achat déjà noté');
+        it.bought = [...it.bought, e.p.day].sort().slice(-12);
+      } else {
+        if (!it.bought.includes(e.p.day)) noop('aucun achat noté ce jour-là');
+        it.bought = it.bought.filter(d => d !== e.p.day);
+      }
+      return;
+    }
+    case 'restock.due': {
+      const it = s.restock[e.p.id] ?? noop('produit non suivi');
+      it.due = e.p.due ? { day: e.p.due, set: e.p.day } : null;
       return;
     }
     case 'week.discard': {

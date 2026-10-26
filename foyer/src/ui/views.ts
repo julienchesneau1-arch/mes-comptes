@@ -10,7 +10,7 @@ import { activeWatch, DGCCRF_URL } from '../core/watch.ts';
 import { portions } from '../core/plan.ts';
 import { showQty } from '../core/units.ts';
 import { norm } from '../core/text.ts';
-import { A, S, clock, thisWeek, unsent, otherNames, dispatch } from './state.ts';
+import { A, S, clock, thisWeek, unsent, otherNames, dispatch, setDevice } from './state.ts';
 import { esc, toast, keepAwake } from './dom.ts';
 import { needsInstall } from './sheets/settings.ts';
 import { enabled as autoOn, statusLabel, sync as autoSync } from './autosync.ts';
@@ -37,6 +37,7 @@ import { ingredientKey } from '../core/ingredients.ts';
 import { dishLook, type Look } from '../core/visual.ts';
 import { catalogNow, withPhoto, photoImg } from './catalog.ts';
 import { discoveriesFor } from '../core/propose.ts';
+import { type RestockLine, restockFor } from '../core/restock.ts';
 
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n > 1 ? many : one}`;
 
@@ -224,10 +225,20 @@ function lineRow(l: ShopLine, week: LocalDate): string {
     <span class="qty">${esc(l.done && !l.check?.delta ? '' : qty || (l.unknown.length ? '?' : ''))}</span></button></div></li>`;
 }
 
+// Produit de la maison dû (core/restock.ts) : dans le rayon Maison & hygiène, seulement les semaines où il devrait manquer.
+const every = (r: RestockLine): string => `${r.rhythm.basis === 'choisi' ? '' : '≈ '}tous les ${r.rhythm.days} j${r.rhythm.basis === 'achats' ? ' (vos achats)' : r.rhythm.basis === 'estimation' ? ' (estimation)' : ''}`;
+function restockRow(r: RestockLine): string {
+  const sub = r.done && r.last ? `acheté le ${fmtDayShort(r.last)} · prochain vers le ${fmtDayShort(r.due)}`
+    : `${r.late ? 'devait manquer' : 'devrait manquer'} vers le ${fmtDayShort(r.due)} · ${every(r)}`;
+  return `<li class="${r.done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="restockCheck" data-id="${esc(r.id)}" ${r.done ? 'checked' : ''} aria-label="${esc(r.name)} : pris"><span></span></label>
+    <button class="item-btn grow" data-a="restockItem" data-id="${esc(r.id)}"><span class="grow"><span class="title">${esc(r.name)}</span><br><span class="sub">${esc(sub)}</span></span><span class="qty">${esc(r.done ? '' : r.qty)}</span></button></div></li>`;
+}
+const restockLines = (week: LocalDate): RestockLine[] => restockFor(S(), week, shopWeekFor(S(), clock().date, thisWeek()), clock().date);
+
 export function shopView(): string {
   const s = S(), c = clock();
   const week = A.ui.shopWeek ?? shopWeekFor(s, c.date, thisWeek());
-  const list = deriveShopping(s, week);
+  const list = deriveShopping(s, week), rs = restockLines(week), rTodo = rs.filter(r => !r.done), rDone = rs.filter(r => r.done);
   const banner = !list.meals ? '' : list.incomplete.length
     ? `<div class="banner partial"><p class="grow"><strong>${plural(list.incomplete.length, 'plat', 'plats')} sans quantités</strong> (${esc(list.incomplete.map(x => x.name).join(', '))}) : à acheter de mémoire, ou compléter la recette.</p><button class="btn small-btn ghost" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
     : '<p class="banner ok">Complète pour les repas renseignés de la semaine.</p>';
@@ -238,19 +249,21 @@ export function shopView(): string {
   const manualRow = (m: typeof list.manual[number]) => `<li class="${m.checked ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="itemCheck" data-week="${week}" data-id="${m.id}" ${m.checked ? 'checked' : ''} aria-label="${esc(m.name)} : pris"><span></span></label>
     <button class="item-btn grow" data-a="item" data-week="${week}" data-id="${m.id}"><span class="grow"><span class="title">${esc(m.name)}</span><br><span class="sub">ajouté à la main</span></span><span class="qty">${esc(m.qty)}</span></button></div></li>`;
   const sections = orderedAisles(s).map(a => {
-    const ls = todo.filter(l => l.aisle === a.id), ms = mTodo.filter(m => m.aisle === a.id);
-    if (!ls.length && !ms.length) return '';
-    return `<section class="card" aria-labelledby="a-${a.id}"><h2 id="a-${a.id}"><span aria-hidden="true">${a.icon}</span> ${esc(a.label)}</h2><ul class="list">${ls.map(l => lineRow(l, week)).join('')}${ms.map(manualRow).join('')}</ul></section>`;
+    const ls = todo.filter(l => l.aisle === a.id), ms = mTodo.filter(m => m.aisle === a.id), rr = a.id === 'maison' ? rTodo : [];
+    if (!ls.length && !ms.length && !rr.length) return '';
+    return `<section class="card" aria-labelledby="a-${a.id}"><h2 id="a-${a.id}"><span aria-hidden="true">${a.icon}</span> ${esc(a.label)}</h2><ul class="list">${ls.map(l => lineRow(l, week)).join('')}${ms.map(manualRow).join('')}${rr.map(restockRow).join('')}</ul></section>`;
   }).join('');
   const staples = Object.entries(s.staples).filter(([, st]) => !list.manual.some(m => norm(m.name) === norm(st.name)));
-  const doneCount = done.length + mDone.length;
+  const doneCount = done.length + mDone.length + rDone.length, toBuy = todo.length + mTodo.length + toJudge.length + rTodo.length;
+  const restockPromo = !Object.keys(s.restock).length && !A.ui.store && A.device.restockHint && week === shopWeekFor(s, c.date, thisWeek())
+    ? `<div class="banner info"><p class="grow"><strong>Dentifrice, papier toilette, essuie-tout…</strong> Foyer peut les remettre dans la liste quand ils devraient manquer, sans rien noter chaque semaine.</p><button class="btn small-btn" data-a="restockList">Choisir</button><button class="btn small-btn quiet" data-a="restockHintOff">Pas maintenant</button></div>` : '';
   const known = [...new Set([...Object.values(s.staples).map(x => x.name), ...Object.values(s.shop).flatMap(w => Object.values(w.items).map(x => x.name)),
     ...Object.values(s.recipes).flatMap(r => current(r).ingredients.map(l => l.name))])].sort((x, y) => x.localeCompare(y, 'fr')).slice(0, 300);
   return `<div class="top"><h1>Courses</h1><button class="btn small-btn ${A.ui.store ? '' : 'ghost'}" data-a="storeMode" aria-pressed="${A.ui.store}">Mode magasin</button><button class="btn small-btn ghost" data-a="shareList" data-week="${week}">Partager</button></div>
   <main id="main" tabindex="-1">
     <div class="weeknav"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><h2>Pour la semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
     ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner}
-    ${todo.length + mTodo.length + toJudge.length && !A.ui.store ? (s.shop[week]?.spent
+    ${toBuy && !A.ui.store ? (s.shop[week]?.spent
       ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
       : `<button class="btn big block" data-a="drive" data-week="${week}">🛒 Commander au drive</button>`) : ''}
     ${A.ui.store ? '' : cartChangesCard(week)}
@@ -258,12 +271,13 @@ export function shopView(): string {
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
-    <p class="muted">${todo.length + mTodo.length + toJudge.length ? `${plural(todo.length + mTodo.length + toJudge.length, 'article', 'articles')} à acheter` : list.meals ? 'Tout est acheté pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>
+    <p class="muted">${toBuy ? `${plural(toBuy, 'article', 'articles')} à acheter` : list.meals ? 'Tout est acheté pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>
     ${sections}
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(l => lineRow(l, week)).join('')}</ul></details>` : ''}
-    ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}</ul></details>` : ''}
+    ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(l => lineRow(l, week)).join('')}${mDone.map(manualRow).join('')}${rDone.map(restockRow).join('')}</ul></details>` : ''}
+    ${restockPromo}
     ${A.ui.store || !on('budget') ? '' : budgetCard(week, list)}
-    <div class="actions"><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
+    <div class="actions"><button class="btn ghost" data-a="restockList">🧴 Produits de la maison</button><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
     <p class="small muted">Cocher = acheté (ou mis au panier) pour ces courses. Cela ne crée ni stock ni date. Montants : estimations automatiques, rien à saisir.</p></main>`;
 }
 // Après le drive : un geste coche tout ce qui reste (chaque ligne garde son besoin du moment, comme une coche à la main).
@@ -272,9 +286,11 @@ CLICK['allBought'] = d => {
   const drafts: Draft[] = [
     ...list.lines.filter(l => !l.done).map(l => ({ t: 'shop.check' as const, p: { week, key: l.key, needAt: checkSig(l), name: l.name } })),
     ...list.manual.filter(m => !m.checked).map(m => ({ t: 'shop.item' as const, p: { week, id: m.id, name: m.name, qty: m.qty, aisle: m.aisle, checked: true, removed: false } })),
+    ...restockLines(week).filter(r => !r.done).map(r => ({ t: 'restock.bought' as const, p: { id: r.id, day: clock().date, bought: true } })),
   ];
   dispatch(drafts, { toast: `${plural(drafts.length, 'article coché', 'articles cochés')} : tout est acheté` });
 };
+CLICK['restockHintOff'] = () => { setDevice({ restockHint: false }); A.render(); };
 CLICK['shopWk'] = d => { A.ui.shopWeek = addDays(d['w'] ?? thisWeek(), Number(d['d'])); A.render(); };
 CLICK['toggleDone'] = () => { A.ui.showDone = !A.ui.showDone; A.render(); };
 CLICK['storeMode'] = async () => {
@@ -389,7 +405,7 @@ CLICK['ack'] = d => { dispatch([{ t: 'conflict.ack', p: { event: d['id'] ?? '' }
 CLICK['line'] = d => openLine(d['week'] ?? '', d['key'] ?? '');
 CLICK['shareList'] = async d => {
   const week = d['week'] ?? thisWeek();
-  const text = shoppingText(deriveShopping(S(), week), `🛒 Courses · semaine du ${fmtDayShort(week)}`, S());
+  const text = shoppingText(deriveShopping(S(), week), `🛒 Courses · semaine du ${fmtDayShort(week)}`, S(), restockLines(week).filter(r => !r.done));
   try { if (navigator.share) { await navigator.share({ text }); return; } } catch (e) { if (e instanceof DOMException && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text); toast('Liste copiée'); } catch { toast('Copie impossible'); }
 };

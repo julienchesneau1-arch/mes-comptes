@@ -24,6 +24,7 @@ export interface Device {
   pins: string[];            // raccourcis épinglés (« r:<recette> » ou « a:<action> »), 4 au plus
   mods: ModChoices;          // fonctions avancées activées ou masquées sur ce téléphone (mode essentiel : rien de choisi)
   coince: boolean;           // bouton « Ça coince ? » en haut des écrans (l'essai fini, on peut le masquer)
+  restockHint: boolean;      // proposition « Produits de la maison » dans les courses, tant qu'aucun n'est choisi
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -66,6 +67,7 @@ export function loadDevice(newId: () => string): Device {
     pins: Array.isArray(d.pins) ? d.pins.filter((k): k is string => typeof k === 'string' && /^[ar]:[A-Za-z0-9]{1,40}$/.test(k)).slice(0, 4) : [],
     mods: readChoices(d.mods),
     coince: d.coince !== false,
+    restockHint: d.restockHint !== false,
   };
   saveDevice(dev);
   return dev;
