@@ -16,6 +16,7 @@ import { CLICK, CHANGE, SUBMIT, INPUT, num } from '../registry.js';
 import { setLeftovers } from '../../core/commands.js';
 import { productSection, adviceHtml } from './drive.js';
 import { lineAlert } from '../../core/allergens.js';
+import { lastBought } from '../../core/restock.js';
 const when = (iso) => { const p = paris(new Date(iso)); return `${fmtDayShort(p.date)} ${String(p.hour).padStart(2, '0')} h ${String(p.minute).padStart(2, '0')}`; };
 /* ---------- Ligne calculée ---------- */
 export function openLine(week, key) { openSheet({ id: `line:${key}`, render: () => lineHtml(week, key) }); }
@@ -77,19 +78,22 @@ CLICK['pantryClear'] = d => {
         dispatch([{ t: 'shop.pantry', p: { week, key, qty: null, needAt: l.needAt } }], { toast: 'Vérification effacée' });
 };
 CHANGE['aisleSet'] = (d, el) => dispatch([{ t: 'aisle.set', p: { key: nameKey(d['name'] ?? ''), aisle: el.value } }], { toast: 'Rayon mémorisé pour ce produit' });
-// Coche d'une ligne calculée : « pris » mémorise ce qui restait à acheter à cet instant.
+// Coche d'une ligne calculée : « pris » mémorise ce qui restait à acheter à cet instant. Ligne qui porte aussi un produit du
+// quotidien (data-restock : sucre d'une recette et réserve du placard) : l'achat de ce produit est noté ou retiré avec elle.
 CHANGE['shopCheck'] = (d, el) => {
     const week = d['week'] ?? '', key = d['key'] ?? '';
     const l = deriveShopping(S(), week).lines.find(x => x.key === key);
     if (!l)
         return;
-    const on = el.checked;
+    const on = el.checked, rid = d['restock'] ?? '', it = rid ? S().restock[rid] : undefined, last = it ? lastBought(it) : null;
+    const restock = !it ? [] : on ? [{ t: 'restock.bought', p: { id: rid, day: clock().date, bought: true } }]
+        : last ? it.bought.filter(x => x >= last).map(day => ({ t: 'restock.bought', p: { id: rid, day, bought: false } })) : [];
     if (on)
-        dispatch([{ t: 'shop.check', p: { week, key, needAt: checkSig(l), name: l.name } }]);
+        dispatch([{ t: 'shop.check', p: { week, key, needAt: checkSig(l), name: l.name } }, ...restock]);
     else if (l.check)
-        dispatch([{ t: 'shop.check', p: { week, key, needAt: null } }]);
+        dispatch([{ t: 'shop.check', p: { week, key, needAt: null } }, ...restock]);
     else if (l.pantry?.active)
-        dispatch([{ t: 'shop.pantry', p: { week, key, qty: null, needAt: l.needAt } }]);
+        dispatch([{ t: 'shop.pantry', p: { week, key, qty: null, needAt: l.needAt } }]); // « on en a » : aucun achat à retirer
 };
 /* ---------- Articles ajoutés à la main et habituels ---------- */
 export function addItemDrafts(week, text) {

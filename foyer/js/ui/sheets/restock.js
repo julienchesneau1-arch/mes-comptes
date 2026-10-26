@@ -1,7 +1,7 @@
-// Produits de la maison (core/restock.ts) : choisir ceux que Foyer suit, voir quand chacun devrait manquer, corriger d'un geste
+// Produits du quotidien (core/restock.ts) : choisir ceux que Foyer suit, voir quand chacun devrait manquer, corriger d'un geste
 // (« il en faut », « il en reste »), fixer un rythme, ajouter un produit à soi. Les achats se notent dans la liste ou par la facture.
 import { addDays, daysBetween, fmtDayShort, fmtRelDay } from '../../core/dates.js';
-import { RESTOCK, RESTOCK_DEF, GROUP_LABEL, estimate, lastBought, later, nameOf, nextDue, packOf, rhythm, rhythmText, trips } from '../../core/restock.js';
+import { RESTOCK, RESTOCK_DEF, GROUP_LABEL, GROUPS, estimate, lastBought, later, nameOf, nextDue, packOf, rhythm, rhythmText, trips } from '../../core/restock.js';
 import { newId } from '../../core/reduce.js';
 import { capitalize, plural } from '../../core/text.js';
 import { S, clock, dispatch } from '../state.js';
@@ -21,14 +21,14 @@ export function openRestock() { openSheet({ id: 'restock', render: listHtml }); 
 export function openRestockItem(id) { openSheet({ id: `restock:${id}`, render: () => itemHtml(id) }); }
 function listHtml() {
     const s = S(), n = people();
-    const head = sheetHead('🧴 Produits de la maison', 'Remis aux courses quand ils devraient manquer : pas chaque semaine, seulement quand il le faut.');
+    const head = sheetHead('🔁 Produits du quotidien', 'Petit-déjeuner, placard, hygiène, entretien : remis aux courses quand ils devraient manquer, pas chaque semaine.');
     if (!Object.keys(s.restock).length) {
         // Premier choix : les produits courants sont cochés, ceux qui dépendent de l'équipement (lave-vaisselle…) ne le sont pas.
-        const group = (g) => `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
+        const group = (g) => `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${g === 'petitdej' || g === 'placard' ? '<p class="small muted">Rien d\'office : cochez ce que vous prenez (café ou thé, tartines ou céréales…).</p>' : ''}${RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
       <span class="grow">${esc(d.name)}<br><span class="small muted">${esc(`≈ tous les ${estimate(d, n)} jours pour ${plural(n, 'personne')} · ${d.why}`)}</span></span></label>`).join('')}</fieldset>`;
         return `${head}<form data-f="restockStart" class="stack">
       <p class="small">Cochez ce que vous achetez régulièrement. Foyer part d'une estimation (écrite sous chaque produit), puis apprend votre vrai rythme à chaque achat noté : coche dans la liste de courses ou facture du drive lue.</p>
-      ${group('hygiene')}${group('entretien')}
+      ${GROUPS.map(group).join('')}
       <button class="btn big block">Commencer le suivi</button></form>`;
     }
     const row = (id) => {
@@ -40,11 +40,10 @@ function listHtml() {
     const mine = Object.keys(s.restock).filter(id => !RESTOCK_DEF[id]).sort((a, b) => nameOf(a, s.restock[a]).localeCompare(nameOf(b, s.restock[b]), 'fr'));
     const section = (title, ids) => ids.length ? `<section class="card stack"><h3 class="section-title">${esc(title)}</h3><ul class="list">${ids.map(row).join('')}</ul></section>` : '';
     return `${head}
-    ${section(GROUP_LABEL.hygiene, RESTOCK.filter(d => d.group === 'hygiene').map(d => d.id))}
-    ${section(GROUP_LABEL.entretien, RESTOCK.filter(d => d.group === 'entretien').map(d => d.id))}
+    ${GROUPS.map(g => section(GROUP_LABEL[g], RESTOCK.filter(d => d.group === g).map(d => d.id))).join('')}
     ${section('Ajoutés par vous', mine)}
     <form data-f="restockAdd" class="card stack"><h3 class="section-title">Ajouter un produit</h3>
-      <label class="field">Nom<input type="text" name="name" maxlength="60" required autocomplete="off" placeholder="ex. croquettes du chat, couches, piles"></label>
+      <label class="field">Nom<input type="text" name="name" maxlength="60" required autocomplete="off" placeholder="ex. lait d'avoine, croquettes du chat, piles"></label>
       <label class="field">Environ tous les<select name="days">${EVERY.map(x => `<option value="${x}" ${x === 30 ? 'selected' : ''}>${x} jours</option>`).join('')}</select></label>
       <button class="btn ghost">Ajouter</button></form>
     <p class="small muted">Cocher = suivi. Le rythme part d'une estimation pour ${esc(plural(n, 'personne'))}, puis suit l'écart réel entre vos achats notés (coche dans la liste, facture lue). Deux achats à moins de 5 jours comptent pour un.</p>`;

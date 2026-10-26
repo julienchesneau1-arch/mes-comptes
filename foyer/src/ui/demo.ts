@@ -36,9 +36,9 @@ export function demoLog(now: Date): AnyEv[] {
     { t: 'watch.save', p: { id: 'wpoulet', name: 'Blanc de poulet', qty: '600 g', date: { kind: 'DLC', value: tomorrow }, state: 'ferme', slot: slotKey(today, 'soir') } },
     { t: 'watch.save', p: { id: 'wcreme', name: 'Crème fraîche', qty: '20 cl', date: { kind: 'DLC', value: addDays(today, 4) }, state: 'ouvert', slot: null } },
     { t: 'staple.set', p: { key: 'cafe', name: 'Café', qty: '1 paquet', aisle: 'sucre', removed: false } },
-    // Produits de la maison : dentifrice à racheter cette semaine, papier toilette en retard, le reste plus tard.
-    ...(['dentifrice', 'papiertoilette', 'essuietout', 'lessive', 'eponges'] as const).map(id => ({ t: 'restock.set' as const, p: { id, on: true, day: addDays(today, -90) } })),
-    ...([['dentifrice', -24], ['papiertoilette', -30], ['essuietout', -5], ['lessive', -20], ['eponges', -12]] as const)
+    // Produits du quotidien : dentifrice à racheter cette semaine, papier toilette en retard, le reste plus tard.
+    ...(['dentifrice', 'papiertoilette', 'essuietout', 'lessive', 'eponges', 'cafe', 'sucre'] as const).map(id => ({ t: 'restock.set' as const, p: { id, on: true, day: addDays(today, -90) } })),
+    ...([['dentifrice', -24], ['papiertoilette', -30], ['essuietout', -5], ['lessive', -20], ['eponges', -12], ['cafe', -8], ['sucre', -20]] as const)
       .map(([id, ago]) => ({ t: 'restock.bought' as const, p: { id, day: addDays(today, ago), bought: true } })),
     // Rituel batch (courses le samedi, batch le dimanche), budget et un prix noté au drive.
     { t: 'settings.set', p: { ritual: { shop: 5, shopAt: '1700', cook: 6, cookAt: '0900' }, budget: 9000 } },

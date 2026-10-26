@@ -1,4 +1,4 @@
-// V3.9, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : produits de la maison. Foyer neuf → proposition dans les courses,
+// V3.9-3.10, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : produits du quotidien. Foyer neuf → proposition dans les courses,
 // choix des produits (cochés par défaut : les courants), rien à racheter cette semaine (départ supposé à moitié entamé) ;
 // « Il en faut maintenant » → ligne dans Maison & hygiène ; coche = achat noté, décoche = retiré ; semaine suivante : ce qui
 // manquera ; « Il en reste encore », rythme choisi, produit ajouté par le foyer ; facture collée → achats notés.
@@ -48,10 +48,11 @@ await step('foyer neuf : proposition dans les courses ; produits courants coché
   await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: /Créer le foyer/ }).click();
   await tab('Courses');
-  await page.getByText('Dentifrice, papier toilette, essuie-tout…').waitFor();
+  await page.getByText('Café, sucre, dentifrice, papier toilette…').waitFor();
   await page.getByRole('button', { name: 'Choisir', exact: true }).click();
-  await dlg.getByRole('heading', { name: /Produits de la maison/ }).waitFor();
+  await dlg.getByRole('heading', { name: /Produits du quotidien/ }).waitFor();
   if (!(await dlg.getByRole('checkbox', { name: /Dentifrice/ }).isChecked())) throw new Error('dentifrice non coché par défaut');
+  if (await dlg.getByRole('checkbox', { name: /^Café/ }).isChecked()) throw new Error('café coché d\'office : au foyer de choisir');
   if (await dlg.getByRole('checkbox', { name: /Tablettes lave-vaisselle/ }).isChecked()) throw new Error('lave-vaisselle coché sans savoir s\'il y en a un');
   const t = await text(dlg);
   if (!/≈ tous les 25 jours pour 2 personnes · tube de 75 ml/.test(t)) throw new Error('estimation non expliquée : ' + t.slice(0, 300));
@@ -61,10 +62,10 @@ await step('foyer neuf : proposition dans les courses ; produits courants coché
   await page.getByText(/produits suivis : ils reviendront dans les courses au bon moment/).first().waitFor();
   await page.keyboard.press('Escape');
   if (await maison.count()) throw new Error('rayon Maison & hygiène affiché alors que rien ne manque cette semaine');
-  if (await page.getByText('Dentifrice, papier toilette, essuie-tout…').count()) throw new Error('proposition encore affichée');
+  if (await page.getByText('Café, sucre, dentifrice, papier toilette…').count()) throw new Error('proposition encore affichée');
 });
 await step('« Il en faut maintenant » : dans Maison & hygiène ; coche = achat noté, décoche = retiré', async () => {
-  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   await dlg.getByRole('button', { name: /^Dentifrice/ }).click();
   await dlg.getByText(/Prochain achat : vers le dim\. 18 oct\. \(dans 13 jours\)/).waitFor();
   await axe('maison-fiche');
@@ -101,7 +102,7 @@ await step('semaine suivante : ce qui manquera alors ; « Il en reste encore » 
 });
 await step('produit ajouté par le foyer ; facture collée : achats des produits suivis notés', async () => {
   await page.getByRole('button', { name: 'Semaine précédente' }).click();
-  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   await dlg.getByLabel('Nom').fill('croquettes du chat');
   await dlg.getByLabel('Environ tous les').selectOption('21');
   await dlg.getByRole('button', { name: 'Ajouter', exact: true }).click();
@@ -116,17 +117,59 @@ await step('produit ajouté par le foyer ; facture collée : achats des produits
   await dlg.getByText('Ou coller le texte de la facture').click();
   await dlg.getByLabel('Texte copié depuis la facture').fill(['Facture du 03/10/2026', 'Papier WC doux x12 4,99', 'Lessive liquide 30 lavages 7,99', 'Total à payer 12,98'].join('\n'));
   await dlg.getByRole('button', { name: 'Lire ce texte' }).click();
-  const house = dlg.getByRole('group', { name: 'Produits de la maison achetés' });
+  const house = dlg.getByRole('group', { name: 'Produits du quotidien achetés' });
   await house.waitFor();
   const h = await text(house);
   if (!/Papier toilette/.test(h) || !/Lessive/.test(h) || !/Achat noté au sam\. 3 oct\./.test(h)) throw new Error('facture : ' + h);
   await axe('maison-facture');
   await dlg.getByRole('button', { name: 'Retenir ces prix' }).click();
-  await page.getByText(/2 produits de la maison/).first().waitFor();
-  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await page.getByText(/2 produits du quotidien/).first().waitFor();
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   await dlg.getByRole('button', { name: /^Lessive/ }).click();
   await dlg.getByText('sam. 3 oct. 2026').waitFor();
   await dlg.getByText(/Prochain achat : vers le mer\. 25 nov\./).waitFor();
+});
+
+await step('petit-déjeuner : sucre et lait suivis, crêpes ce soir → une seule ligne par produit ; la coche note les deux achats', async () => {
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
+  await dlg.getByRole('heading', { name: 'Petit-déjeuner' }).waitFor();
+  await dlg.getByRole('checkbox', { name: 'Suivre Sucre' }).check();
+  await dlg.getByRole('checkbox', { name: 'Suivre Lait' }).check();
+  await dlg.getByRole('button', { name: /^Sucre/ }).click();
+  await dlg.getByRole('button', { name: 'Il en faut maintenant' }).click();
+  await page.getByText('Sucre : dans les courses de cette semaine').first().waitFor();
+  await page.keyboard.press('Escape');
+  await tab('Maison');
+  await page.getByRole('button', { name: 'Nos plats', exact: true }).click();
+  await page.getByRole('button', { name: 'Nouveau plat', exact: true }).click();
+  await dlg.getByLabel('Nom du plat').fill('Crêpes');
+  await dlg.getByLabel(/pour combien de portions/).fill('4');
+  await dlg.getByLabel(/^Ingrédients/).fill('250 g de farine\n50 g de sucre\n50 cl de lait\n3 œufs');
+  await dlg.getByRole('button', { name: 'Enregistrer' }).click();
+  await tab('Semaine');
+  const slot = page.locator('[data-a="slot"][data-k="2026-10-05|soir"]');
+  if (!(await slot.count())) await page.getByRole('button', { name: /lundi/i }).first().click();
+  await slot.first().click();
+  await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
+  await dlg.getByRole('button', { name: /Crêpes/ }).first().click();
+  await page.keyboard.press('Escape');
+  await tab('Courses');
+  const sweet = page.locator('section', { has: page.getByRole('heading', { name: /Épicerie sucrée/ }) });
+  const dairy = page.locator('section', { has: page.getByRole('heading', { name: /Crèmerie/ }) });
+  await sweet.getByText('Sucre', { exact: true }).waitFor();
+  if (await page.locator('main .title', { hasText: /^Sucre$/ }).count() !== 1) throw new Error('deux lignes de sucre');
+  if (await page.locator('main .title', { hasText: /^Lait$/ }).count() !== 1) throw new Error('deux lignes de lait');
+  const st = await text(sweet), dt = await text(dairy);
+  if (!/Sucre Crêpes : 25 g · réserve du quotidien comprise 1 kg/.test(st)) throw new Error('sucre : ' + st);   // le paquet à droite
+  if (!/Lait Crêpes : 250 ml · réserve du quotidien comprise 6 briques d'1 L/.test(dt)) throw new Error('lait : ' + dt);
+  await page.screenshot({ path: `${SHOTS}/quotidien-une-ligne.png`, fullPage: true });
+  await axe('quotidien-courses');
+  await tick(sweet, 'Sucre : pris');
+  await page.getByText(/Déjà traités/).first().waitFor();
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
+  await dlg.getByRole('button', { name: /^Sucre/ }).click();
+  await dlg.getByText('lun. 5 oct. 2026').waitFor();                                      // achat de la réserve noté avec la coche
 });
 
 await browser.close();

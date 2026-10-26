@@ -209,9 +209,9 @@ const words = (s: string): string[] => nameKey(norm(s).split(/\s+/).map(w => ABB
 // Le produit est nommé en tête : « KIRI Fromage fondu à la crème » n'est pas de la crème, ni « Brioche goût pomme » une pomme.
 // La marque en capitales qui précède un nom en minuscules (« AUCHAN TAVOLA IN ITALIA Parmigiano ») ne compte pas. Un
 // ingrédient d'un mot doit être l'un des deux premiers mots du produit ; de plusieurs mots, commencer dans les trois premiers.
-const product = (label: string): string => /[a-zà-ÿ]/.test(label) ? label.replace(/^(?:[^a-zà-ÿ\s]+\s+)+(?=\S*[a-zà-ÿ])/, '') : label;
+export const productName = (label: string): string => /[a-zà-ÿ]/.test(label) ? label.replace(/^(?:[^a-zà-ÿ\s]+\s+)+(?=\S*[a-zà-ÿ])/, '') : label;
 export function matchKey(label: string, cands: readonly Candidate[]): Candidate | null {
-  const lw = words(product(label)), plain = norm(label);
+  const lw = words(productName(label)), plain = norm(label);
   let best: { c: Candidate; score: number; pos: number } | null = null, tie = false;
   for (const c of cands) {
     const cw = words(c.name);

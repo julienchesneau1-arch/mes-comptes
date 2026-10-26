@@ -159,12 +159,12 @@ export function explain(l) {
 // Signature à enregistrer quand on coche « pris » : ce qui restait à acheter à ce moment-là.
 export const checkSig = (l) => sig(l.toBuy, l.unknown.length);
 // Liste en texte, à partager par message ou à coller dans des notes.
-// restock : produits de la maison à racheter cette semaine (core/restock.ts), rangés dans Maison & hygiène.
+// restock : produits du quotidien à racheter cette semaine (core/restock.ts), chacun dans son rayon.
 export function shoppingText(list, title, s, restock = []) {
     const out = [title];
     for (const a of s ? orderedAisles(s) : AISLES) {
         const ls = list.lines.filter(l => l.aisle === a.id && !l.done);
-        const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = a.id === 'maison' ? restock : [];
+        const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = restock.filter(r => r.aisle === a.id);
         if (!ls.length && !ms.length && !rs.length)
             continue;
         out.push('', `${a.icon} ${a.label}`);

@@ -76,7 +76,7 @@ await step('« Ça coince ? » en haut de chaque écran ; gêne notée avec l\'�
   await dlg.getByRole('button', { name: 'Copier la liste pour l\'envoyer' }).click();
   await page.getByText('Liste copiée : collez-la dans un message').first().waitFor();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  if (!/^Foyer 3\.9 · 1 gêne notée\n.* · Semaine · Trop long · « je ne trouve pas les portions » · après : /.test(copied)) throw new Error('copie : ' + copied);
+  if (!/^Foyer 3\.10 · 1 gêne notée\n.* · Semaine · Trop long · « je ne trouve pas les portions » · après : /.test(copied)) throw new Error('copie : ' + copied);
   console.log('   copié :', copied.replace(/\n/g, ' ⏎ '));
   await page.keyboard.press('Escape');
 });
