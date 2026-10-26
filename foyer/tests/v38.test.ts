@@ -17,14 +17,18 @@ const info = (over: Record<string, unknown> = {}, meta: Record<string, string> =
 
 test('photo : retenue si libre, assez grande, avec auteur ; crédit en texte seul ; sinon rien', () => {
   const got = photoFrom('wb123', info());
-  assert.deepEqual(got?.photo, { src: 'img/plats/wb123.jpg', author: 'Exemple & Co', license: 'CC BY-SA 4.0', page: 'https://commons.wikimedia.org/wiki/File:Blanquette_de_veau.jpg' });
-  assert.match(got?.thumb ?? '', /^https:\/\/upload\.wikimedia\.org\//);
-  assert.equal(photoFrom('wb123', info({ mime: 'image/svg+xml' })), null);                    // dessin
-  assert.equal(photoFrom('wb123', info({ width: 120, height: 120 })), null);                  // icône
-  assert.equal(photoFrom('wb123', info({}, { LicenseShortName: 'Fair use' })), null);         // non libre
-  assert.equal(photoFrom('wb123', info({}, { Artist: '', Credit: '' })), null);               // auteur inconnu
-  assert.equal(photoFrom('wb123', info({}, { Artist: '', Credit: 'Travail personnel' }))?.photo.author, 'Travail personnel');
-  assert.equal(photoFrom('../x', info()), null);
+  assert.ok(got.ok);
+  assert.deepEqual(got.photo, { src: 'img/plats/wb123.jpg', author: 'Exemple & Co', license: 'CC BY-SA 4.0', page: 'https://commons.wikimedia.org/wiki/File:Blanquette_de_veau.jpg' });
+  assert.match(got.thumb, /^https:\/\/upload\.wikimedia\.org\//);
+  const why = (r: ReturnType<typeof photoFrom>) => (r.ok ? 'retenue' : r.why);
+  assert.equal(why(photoFrom('wb123', info({ mime: 'image/svg+xml' }))), 'format');           // dessin
+  assert.equal(why(photoFrom('wb123', info({ width: 120, height: 120 }))), 'petite image');   // icône
+  assert.equal(why(photoFrom('wb123', info({}, { LicenseShortName: 'Fair use' }))), 'licence'); // non libre
+  assert.equal(why(photoFrom('wb123', info({}, { Artist: '', Credit: '' }))), 'auteur inconnu');
+  const credit = photoFrom('wb123', info({}, { Artist: '', Credit: 'Travail personnel' }));
+  assert.equal(credit.ok && credit.photo.author, 'Travail personnel');
+  assert.equal(why(photoFrom('../x', info())), 'pas de réponse');
+  assert.equal(why(photoFrom('wb123', { title: 'Fichier:X.jpg', missing: true })), 'pas de réponse');
   assert.equal(plainText('<span>Jean&#160;Dupont</span>'), 'Jean Dupont');
 });
 

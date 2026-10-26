@@ -12,20 +12,26 @@ export const validPhoto = (x) => {
 // Texte d'un champ « Artist » de Commons (HTML : liens, balises) : texte seul, espaces resserrés.
 export const plainText = (html) => html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
     .replace(/&#0?39;|&apos;/g, '\'').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
-// Réponse « imageinfo » de l'API MediaWiki pour un fichier → photo retenue et adresse de la vignette à télécharger, ou rien.
-// Écartés : dessins (SVG, GIF), petites images (icônes, logos), licence non libre, auteur inconnu.
 export function photoFrom(id, page) {
     if (typeof page !== 'object' || page === null || !/^wb\d{1,9}$/.test(id))
-        return null;
+        return { ok: false, why: 'pas de réponse' };
     const info = page['imageinfo']?.[0];
     if (!info)
-        return null;
+        return { ok: false, why: 'pas de réponse' };
     const meta = (info['extmetadata'] ?? {});
     const val = (k) => (typeof meta[k]?.value === 'string' ? plainText(meta[k]?.value) : '');
     const ext = EXT[String(info['mime'] ?? '')], w = Number(info['width']), h = Number(info['height']), thumb = String(info['thumburl'] ?? '');
     const license = val('LicenseShortName'), author = (val('Artist') || val('Credit')).slice(0, 120), url = String(info['descriptionurl'] ?? '');
-    if (!ext || !(w >= 300 && h >= 200) || !/^https:\/\/upload\.wikimedia\.org\//.test(thumb) || !FREE_LICENSE.test(license) || !author)
-        return null;
+    if (!ext)
+        return { ok: false, why: 'format' };
+    if (!(w >= 300 && h >= 200))
+        return { ok: false, why: 'petite image' };
+    if (!/^https:\/\/upload\.wikimedia\.org\//.test(thumb))
+        return { ok: false, why: 'vignette' };
+    if (!FREE_LICENSE.test(license))
+        return { ok: false, why: 'licence' };
+    if (!author)
+        return { ok: false, why: 'auteur inconnu' };
     const photo = { src: `img/plats/${id}.${ext}`, author, license, page: url };
-    return validPhoto(photo) ? { photo, thumb } : null;
+    return validPhoto(photo) ? { ok: true, photo, thumb } : { ok: false, why: 'adresse de page' };
 }
