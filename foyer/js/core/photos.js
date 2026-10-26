@@ -26,8 +26,8 @@ export function photoFrom(id, page) {
         return { ok: false, why: 'format' };
     if (!(w >= 300 && h >= 200))
         return { ok: false, why: 'petite image' };
-    if (!/^https:\/\/upload\.wikimedia\.org\//.test(thumb))
-        return { ok: false, why: 'vignette' };
+    if (!/^https:\/\/(?:upload|thumb)\.wikimedia\.org\//.test(thumb))
+        return { ok: false, why: 'vignette' }; // vignettes : thumb.wikimedia.org depuis 2026
     if (!FREE_LICENSE.test(license))
         return { ok: false, why: 'licence' };
     if (!author)

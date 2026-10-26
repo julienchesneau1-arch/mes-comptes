@@ -30,7 +30,7 @@ export function photoFrom(id: string, page: unknown): PhotoRead {
   const license = val('LicenseShortName'), author = (val('Artist') || val('Credit')).slice(0, 120), url = String(info['descriptionurl'] ?? '');
   if (!ext) return { ok: false, why: 'format' };
   if (!(w >= 300 && h >= 200)) return { ok: false, why: 'petite image' };
-  if (!/^https:\/\/upload\.wikimedia\.org\//.test(thumb)) return { ok: false, why: 'vignette' };
+  if (!/^https:\/\/(?:upload|thumb)\.wikimedia\.org\//.test(thumb)) return { ok: false, why: 'vignette' }; // vignettes : thumb.wikimedia.org depuis 2026
   if (!FREE_LICENSE.test(license)) return { ok: false, why: 'licence' };
   if (!author) return { ok: false, why: 'auteur inconnu' };
   const photo = { src: `img/plats/${id}.${ext}`, author, license, page: url };
