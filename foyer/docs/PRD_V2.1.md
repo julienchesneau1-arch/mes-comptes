@@ -345,4 +345,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Une seule commande | La commande guidée au drive propose aussi les produits du quotidien de la semaine ; « Ajouté au panier » note l'achat |
 | Un budget complet, jamais deviné | Prix payé, sinon prix noté, sinon prix moyen Insee rapporté à la contenance ; sans source : compté « sans prix » ; le coût par portion reste celui des repas |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.11 incluses).
+## 28. V3.12 — un toucher par article (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Pas de robot sur Auchan | Le panier se remplit sur Auchan, par la personne ; Foyer ne s'y connecte pas (réservé aux partenaires d'Auchan) |
+| Un toucher par article | « ✓ Ajouté » coche et ouvre la page du suivant dans le même geste |
+| Le bon bouton au bon moment | Avant : ouvrir ; au retour d'Auchan : « Ajouté » en tête |
+| Retenir sans formulaire | L'adresse copiée sur Auchan se retient d'un toucher ; sinon le champ, jamais une supposition |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.12 incluses).

@@ -204,9 +204,20 @@ await step('desserts, fruits, boissons, goûter au choix ; pommes dues → budge
   for (let i = 0; i < 20 && !(await dlg.getByRole('heading', { name: 'Pommes', exact: true }).count()); i++) await dlg.getByRole('button', { name: 'Passer' }).click();
   const card = await text(dlg);
   if (!/Besoin : 1 kg \(≈ 6\)/.test(card) || !/prix moyen Insee pommes/.test(card)) throw new Error('article pommes : ' + card.slice(0, 400));
+  // Retenir le produit d'un toucher : presse-papiers sans page produit → le champ s'ouvre ; puis l'adresse copiée sur Auchan.
+  await page.evaluate(() => navigator.clipboard.writeText('Pommes Golden'));
+  await dlg.getByRole('button', { name: '📋 Retenir le produit copié' }).click();
+  await page.getByText(/ne contient pas de page produit Auchan/).first().waitFor();
+  if (!(await dlg.locator('details:has(form[data-f="productSet"])').evaluate(d => d.open))) throw new Error('champ du lien non ouvert');
+  await page.evaluate(() => navigator.clipboard.writeText('https://www.auchan.fr/pommes-golden/pr-C9990001?xtor=AL-1'));
+  await dlg.getByRole('button', { name: '📋 Retenir le produit copié' }).click();
+  await page.getByText(/Produit retenu pour Pommes/).first().waitFor();
+  const href = await dlg.getByRole('link', { name: /chez Auchan/ }).first().getAttribute('href');
+  if (href !== 'https://www.auchan.fr/pommes-golden/pr-C9990001') throw new Error('lien retenu : ' + href);
+  if (await dlg.getByRole('button', { name: '📋 Retenir le produit copié' }).count()) throw new Error('bouton encore proposé après avoir retenu');
   await page.screenshot({ path: `${SHOTS}/quotidien-drive.png`, fullPage: true });
   await axe('quotidien-drive');
-  await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  await dlg.getByRole('button', { name: '✓ Ajouté au panier' }).click();                  // dernier article : rien à ouvrir ensuite
   await page.getByText('Pommes : au panier').first().waitFor();
   await page.keyboard.press('Escape');
   if (await fruits.getByText('Pommes').count()) throw new Error('pommes encore à acheter après le drive');
