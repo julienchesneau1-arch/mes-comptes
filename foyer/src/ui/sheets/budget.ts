@@ -30,21 +30,21 @@ export function budgetCard(week: LocalDate, list: ShoppingList, restock?: Restoc
       <span role="listitem"><strong>${spent ? esc(eur(spent.cents)) : '–'}</strong>payé</span>
     </div>
     ${meter}
-    ${estimateNote(cart.priced, cart.paid, cart.unpriced, cart.seasonings)}
+    ${estimateNote(cart.priced, cart.paid, cart.unpriced, cart.seasonings, cart.paidCents)}
     <details${spent ? ' open' : ''}><summary>${spent ? 'Montant payé noté' : 'Noter le montant payé (facultatif)'}</summary>
       <button class="btn ghost block" type="button" data-a="invoice">🧾 Lire la facture du drive (montant et prix payés)</button><form data-f="spentSet" data-week="${week}" class="price-row"><label class="field">Montant payé au drive (€)<input name="eur" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 64,30" value="${spent ? amount(spent.cents) : ''}"></label>
       <button class="btn ghost">${spent ? 'Corriger' : 'Noter'}</button>${spent ? `<button class="btn quiet" type="button" data-a="spentClear" data-week="${week}">Effacer</button>` : ''}</form>
       <p class="small muted">Le total de la commande Auchan rend le coût par portion exact. Lire la facture le note tout seul, et ses prix remplacent ensuite les estimations.</p></details></section>`;
 }
 // Source et limites de l'estimation, en une phrase : d'où viennent les prix, ce qui n'est pas chiffré.
-function estimateNote(priced: number, paid: number, unpriced: number, seasonings: number): string {
+function estimateNote(priced: number, paid: number, unpriced: number, seasonings: number, paidCents = 0): string {
   const rp = refPrices();
   if (!rp && !paid) return '<p class="small muted">Prix de référence pas encore chargés (il faut une connexion la première fois).</p>';
-  const parts = [paid ? `${plural(paid, 'article')} au prix payé sur vos factures du drive${priced > paid ? ', les autres' : '.'}` : ''];
+  const parts = [paid ? `${plural(paid, 'article')} au prix payé sur vos factures du drive (${esc(eur(paidCents))} sûrs)${priced > paid ? ', les autres' : '.'}` : ''];
   const src = rp ? `aux <a href="${esc(rp.sourceUrl)}" target="_blank" rel="noopener noreferrer">prix moyens publiés par l'Insee</a> (${esc(monthText(rp.period))}) ou relevés` : 'aux prix relevés';
   if (priced > paid) parts.push(`${paid ? '' : 'Estimé automatiquement '}${src}, pas aux prix d'Auchan. Rien à saisir.`);
   if (unpriced) parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
-  if (seasonings) parts.push('Sel, poivre et épices non comptés.');
+  if (seasonings) parts.push('Eau du robinet, sel, poivre et épices non comptés.');
   parts.push(calibrationText(calibration(S())));
   return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
 }

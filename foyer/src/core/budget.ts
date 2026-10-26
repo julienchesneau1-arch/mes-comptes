@@ -18,10 +18,10 @@ import { nameKey } from './text.ts';
 // reliable : au moins 80 % des articles sont chiffrés ; en dessous, pas de coût par portion (il tromperait).
 // Les assaisonnements (sel, poivre, épices, herbes sèches) ne comptent ni dans le montant ni dans la proportion : quelques centimes.
 // paid : articles chiffrés au prix payé sur une facture du drive (les autres le sont aux prix relevés ou de référence).
-export interface Cart { cents: number; priced: number; paid: number; unpriced: number; seasonings: number; portions: number; perPortion: number | null; partial: boolean; reliable: boolean }
+export interface Cart { cents: number; paidCents: number; priced: number; paid: number; unpriced: number; seasonings: number; portions: number; perPortion: number | null; partial: boolean; reliable: boolean }
 export const RELIABLE = 0.8;
 
-const SEASONINGS = new Set(['sel', 'poivre', 'sel poivre', 'poivre noir', 'gros sel', 'fleur de sel', 'sel fin', 'epice', 'muscade', 'noix de muscade',
+const SEASONINGS = new Set(['eau', 'eau tiede', 'eau froide', 'eau chaude', 'eau bouillante', 'garni', 'poivre du moulin', 'poivre noir du moulin', 'poivre blanc', 'sel', 'poivre', 'sel poivre', 'poivre noir', 'gros sel', 'fleur de sel', 'sel fin', 'epice', 'muscade', 'noix de muscade',
   'cumin', 'curry', 'paprika', 'piment', 'piment d\'espelette', 'piment de cayenne', 'cannelle', 'curcuma', 'herbe de provence', 'thym', 'laurier',
   'feuille de laurier', 'romarin', 'origan', 'bouquet garni', 'clou de girofle', 'quatre-epice', 'ras el hanout', 'gingembre en poudre', 'sariette']
   .map(nameKey));
@@ -186,8 +186,8 @@ export interface RestockPart { todo: readonly RestockLine[]; byLine: ReadonlyMap
 
 // restock : produits du quotidien de la semaine (à part, ou portés par la ligne d'une recette : on achète alors le paquet).
 export function cartEstimate(s: State, list: ShoppingList, restock: RestockPart = { todo: [], byLine: new Map() }): Cart {
-  let cents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0, meal = 0, mealPriced = 0, mealUnpriced = 0;
-  const add = (c: { cents: number; how: string } | null): void => { if (c) { cents += c.cents; priced++; if (c.how === 'facture') paid++; } else unpriced++; };
+  let cents = 0, paidCents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0, meal = 0, mealPriced = 0, mealUnpriced = 0;
+  const add = (c: { cents: number; how: string } | null): void => { if (c) { cents += c.cents; priced++; if (c.how === 'facture') { paid++; paidCents += c.cents; } } else unpriced++; };
   for (const l of list.lines) {
     if (l.pantry?.active && l.pantry.qty === 'all') continue;
     if (l.toBuy && cmp(l.toBuy, ZERO) <= 0 && !l.unknown.length) continue;
@@ -204,13 +204,13 @@ export function cartEstimate(s: State, list: ShoppingList, restock: RestockPart 
   const portions = weekPreps(s, list.week).reduce((n, p) => n + toPrepare(s, p), 0);
   // Coût par portion : les recettes seules (le dentifrice ou le pack de lait entier ne se mangent pas ce soir).
   const reliable = mealPriced > 0 && mealPriced / (mealPriced + mealUnpriced) >= RELIABLE;
-  return { cents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(meal / portions) : null, partial: unpriced > 0, reliable };
+  return { cents, paidCents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(meal / portions) : null, partial: unpriced > 0, reliable };
 }
 
 // « ≈ 48 € » si tout est chiffré, « au moins 48 € » sinon ; vide si rien ne l'est encore.
 export const cartText = (c: Cart, eur: (cents: number) => string): string => (c.priced ? `${c.partial ? 'au moins ' : '≈ '}${eur(c.cents)}` : '');
 // « 9 articles chiffrés sur 33 » : ce que couvre le montant.
-export const coverText = (c: Cart): string => `${c.partial ? `${c.priced} article${c.priced > 1 ? 's' : ''} chiffré${c.priced > 1 ? 's' : ''} sur ${c.priced + c.unpriced}` : 'tous les articles chiffrés'}${c.seasonings ? ', hors sel et épices' : ''}`;
+export const coverText = (c: Cart): string => `${c.partial ? `${c.priced} article${c.priced > 1 ? 's' : ''} chiffré${c.priced > 1 ? 's' : ''} sur ${c.priced + c.unpriced}` : 'tous les articles chiffrés'}${c.seasonings ? ', hors eau, sel et épices' : ''}`;
 
 export interface WeekReport {
   week: LocalDate;
