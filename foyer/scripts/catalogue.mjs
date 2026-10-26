@@ -61,35 +61,54 @@ recipes.sort((a, b) => a.title.localeCompare(b.title, 'fr') || a.id.localeCompar
 const DIR = new URL('../img/plats/', import.meta.url);
 mkdirSync(DIR, { recursive: true });
 const lead = new Map(); // wb<pageid> → nom du fichier
+const fileName = f => { const t = f.replace(/_/g, ' ').replace(/\s+/g, ' ').trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
 for (let i = 0; i < recipes.length; i += 50) {
   const ids = recipes.slice(i, i + 50).map(r => r.id.slice(2));
   const j = await call({ action: 'query', prop: 'pageimages', piprop: 'name', pilicense: 'free', pageids: ids.join('|') });
-  for (const p of j.query?.pages ?? []) if (p.pageimage) lead.set(`wb${p.pageid}`, p.pageimage.replace(/_/g, ' '));
+  for (const p of j.query?.pages ?? []) if (p.pageimage) lead.set(`wb${p.pageid}`, fileName(p.pageimage));
   await sleep(300);
 }
-const infos = new Map(); // nom du fichier → réponse imageinfo
+// Sans image principale désignée : la première photo de la page (lien [[Fichier:…]] ou galerie) ; sa licence est vérifiée ensuite.
+const FIRST_IMG = /(?:\[\[|^|\n)\s*(?:Fichier|Image|File)\s*:\s*([^|\]\n{}]+?\.(?:jpe?g|png|webp))\s*(?:[|\]\n]|$)/i;
+let fromText = 0;
+for (const r of recipes) {
+  if (lead.has(r.id)) continue;
+  const m = FIRST_IMG.exec(pages.get(Number(r.id.slice(2)))?.content ?? '');
+  if (m) { lead.set(r.id, fileName(m[1])); fromText++; }
+}
+const infos = new Map(); // nom du fichier → réponse imageinfo (titre normalisé et redirection suivis, comme l'API les renvoie)
 const files = [...new Set(lead.values())];
 for (let i = 0; i < files.length; i += 50) {
+  const batch = files.slice(i, i + 50);
   const j = await call({ action: 'query', prop: 'imageinfo', iiprop: 'url|mime|size|extmetadata', iiurlwidth: '500', iiextmetadatafilter: 'Artist|Credit|LicenseShortName',
-    titles: files.slice(i, i + 50).map(f => `File:${f}`).join('|') });
-  for (const p of j.query?.pages ?? []) infos.set(String(p.title ?? '').replace(/^[^:]+:/, '').replace(/_/g, ' '), p);
+    redirects: '1', titles: batch.map(f => `File:${f}`).join('|') });
+  const norm = new Map((j.query?.normalized ?? []).map(n => [n.from, n.to])), redir = new Map((j.query?.redirects ?? []).map(n => [n.from, n.to]));
+  const byTitle = new Map((j.query?.pages ?? []).map(p => [p.title, p]));
+  for (const f of batch) { const t = norm.get(`File:${f}`) ?? `File:${f}`; infos.set(f, byTitle.get(redir.get(t) ?? t)); }
   await sleep(300);
 }
-const kept = new Set(), dropped = new Map();
+const kept = new Set(), dropped = new Map(), samples = [];
+const drop = (why, file) => {
+  dropped.set(why, (dropped.get(why) ?? 0) + 1);
+  // Diagnostic : ce que l'API a renvoyé pour les premiers écarts (format, taille, licence, auteur), pour régler le filtre sans deviner.
+  const i = infos.get(file)?.imageinfo?.[0], m = i?.extmetadata ?? {};
+  if (samples.length < 12) samples.push(`  ${why} ← ${file} · ${i ? `${i.mime} ${i.width}×${i.height} · vignette ${String(i.thumburl ?? '').slice(0, 40)} · licence « ${m.LicenseShortName?.value ?? ''} » · auteur « ${String(m.Artist?.value ?? m.Credit?.value ?? '').replace(/<[^>]*>/g, '').trim().slice(0, 40)} » · ${String(i.descriptionurl ?? '').slice(0, 60)}` : `réponse : ${JSON.stringify(infos.get(file) ?? null).slice(0, 160)}`}`);
+};
 for (const r of recipes) {
   const file = lead.get(r.id);
   if (!file) continue;
   const got = photoFrom(r.id, infos.get(file));
-  if (!got) { dropped.set('licence, format, taille ou auteur', (dropped.get('licence, format, taille ou auteur') ?? 0) + 1); continue; }
+  if (!got.ok) { drop(got.why, file); continue; }
   const res = await fetch(got.thumb, { headers: { 'User-Agent': UA } });
   const type = res.headers.get('content-type') ?? '', body = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-  if (!body || !type.startsWith('image/') || body.length > 400_000) { dropped.set('téléchargement', (dropped.get('téléchargement') ?? 0) + 1); continue; }
+  if (!body || !type.startsWith('image/') || body.length > 400_000) { drop(`téléchargement ${res.status} ${type}`, file); continue; }
   writeFileSync(new URL(got.photo.src.replace(/^img\/plats\//, ''), DIR), body);
   r.photo = got.photo; kept.add(got.photo.src.replace(/^img\/plats\//, ''));
   await sleep(150);
 }
 for (const f of readdirSync(DIR)) if (!kept.has(f)) unlinkSync(new URL(f, DIR)); // photos d'anciennes recettes : retirées
-console.log(`photos : ${kept.size} sur ${recipes.length} recettes (image principale trouvée : ${lead.size}) · écartées : ${JSON.stringify(Object.fromEntries(dropped))}`);
+console.log(`photos : ${kept.size} sur ${recipes.length} recettes (image trouvée : ${lead.size}, dont ${fromText} prise dans le texte ; fiches lues : ${[...infos.values()].filter(Boolean).length}) · écartées : ${JSON.stringify(Object.fromEntries(dropped))}`);
+for (const l of samples) console.log(l);
 writeFileSync(new URL('../catalogue.json', import.meta.url), `${JSON.stringify({
   source: 'Wikilivres, « Livre de cuisine »', sourceUrl: 'https://fr.wikibooks.org/wiki/Livre_de_cuisine',
   license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/deed.fr',
