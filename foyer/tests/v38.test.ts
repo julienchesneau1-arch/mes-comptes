@@ -27,6 +27,8 @@ test('photo : retenue si libre, assez grande, avec auteur ; crédit en texte seu
   assert.equal(why(photoFrom('wb123', info({}, { Artist: '', Credit: '' }))), 'auteur inconnu');
   const credit = photoFrom('wb123', info({}, { Artist: '', Credit: 'Travail personnel' }));
   assert.equal(credit.ok && credit.photo.author, 'Travail personnel');
+  assert.equal(why(photoFrom('wb123', info({ thumburl: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Axoa.jpg/500px-Axoa.jpg' }))), 'retenue');
+  assert.equal(why(photoFrom('wb123', info({ thumburl: 'https://ailleurs.example/x.jpg' }))), 'vignette');
   assert.equal(why(photoFrom('../x', info())), 'pas de réponse');
   assert.equal(why(photoFrom('wb123', { title: 'Fichier:X.jpg', missing: true })), 'pas de réponse');
   assert.equal(plainText('<span>Jean&#160;Dupont</span>'), 'Jean Dupont');
