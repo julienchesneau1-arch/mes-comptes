@@ -302,6 +302,24 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.12 (commande guidée en moins de gestes — choix de Julien du 26 octobre 2026)
+
+Question de Julien : « est-ce réellement impossible que la liste arrive directement sur le site du drive ? » Réponse vérifiée :
+remplir le panier Auchan à distance est réservé aux partenaires commerciaux (Jow, recettes Miam dans l'appli Auchan) ; les API
+Auchan publiques connues servent les vendeurs de la marketplace, pas le panier d'un client ; aucun import de liste trouvé sur
+auchan.fr `[DONNÉE_MANQUANTE]` ; un robot sur la session du client passerait par des fonctions internes non documentées, et les CGU
+d'Auchan n'ont pas pu être relues (site injoignable depuis l'environnement) `[DONNÉE_MANQUANTE]`. Choix de Julien : garder la
+commande guidée et en retirer des gestes.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| « ✓ Ajouté · ouvrir le suivant » | **livré** | Un toucher coche l'article et ouvre la page Auchan du suivant (même geste, sinon le navigateur bloque la fenêtre). Dans Foyer : 1 toucher par article au lieu de 2 (« Ouvrir » + « Ajouté »). E2E `parcours.mjs` : 32 articles, 32 touchers, 31 pages ouvertes d'office (Auchan simulé, aucune vraie page chargée) |
+| Bouton principal selon le moment | **livré** | Page pas encore ouverte : « Ouvrir chez Auchan » en tête ; déjà ouverte (retour d'Auchan) : « ✓ Ajouté » en tête, « Rouvrir » et le conseil qualité-prix dessous |
+| « 📋 Retenir le produit copié » | **livré** | Presse-papiers lu sur demande : 1 toucher (plus la confirmation « Coller » du navigateur) au lieu d'ouvrir le formulaire, coller, valider ; autre chose qu'une page produit ou collage refusé : le champ s'ouvre, rien n'est deviné. E2E `maison.mjs` |
+| Un seul onglet Auchan réutilisé | **non fait** | Sans `noopener`, la page Auchan garderait un accès à Foyer (`window.opener`) ; avec, réutilisation non vérifiée, iPhone compris `[DONNÉE_MANQUANTE]` |
+| Contenance lue dans l'adresse du produit | **non fait** | Format des adresses Auchan réelles inconnu : les exemples connus ne portent pas la contenance `[DONNÉE_MANQUANTE]` |
+| Panier rempli sans passer par Auchan | **non fait** | Réservé aux partenaires d'Auchan (voir ci-dessus) |
+
 ### V3.11 (desserts, fruits, boissons, goûter ; drive complet — demande de Julien du 26 octobre 2026)
 
 « Il nous manque les desserts ; que manque-t-il pour faire le tour des courses et des repas ? » Choix de Julien : desserts du
@@ -495,6 +513,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.12 | Commande guidée en moins de gestes : « ✓ Ajouté · ouvrir le suivant » (1 toucher par article au lieu de 2), bouton principal selon le moment, produit retenu d'un toucher depuis le presse-papiers | livré | Panier rempli à distance impossible hors partenariat Auchan ; onglet unique et confirmation « Coller » non vérifiés sur iPhone |
 | 2026-10-26 | V3.11 | Desserts du quotidien, fruits à croquer, boissons, goûter (21 produits, 75 au total) ; drive complet : produits du quotidien dans la commande guidée, leur prix dans le budget (facture, prix noté, prix Insee × contenance) | livré | Rien d'office ; estimations = hypothèses écrites ; prix Insee absent pour la plupart des desserts, boissons et goûters (comptés « sans prix » jusqu'à la première facture) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.10 | Petit-déjeuner et placard (25 produits : café, thé, sucre, lait, céréales, beurre, huile, sel…) suivis comme les produits de la maison, chacun dans son rayon ; une seule ligne quand une recette en demande aussi | livré | Rien d'office (habitudes propres à chaque foyer) ; estimations = hypothèses écrites ; non vérifié sur iPhone |
 | 2026-10-26 | V3.9 | Produits de la maison : 29 produits suivis au bon rythme (estimation par personne, puis rythme appris des achats notés et des factures), dans les courses seulement la semaine où ils manquent | livré | Estimations de départ = hypothèses écrites, corrigées par l'usage ; non vérifié sur iPhone ; prix non comptés dans le budget |

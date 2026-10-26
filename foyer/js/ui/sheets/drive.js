@@ -14,7 +14,7 @@ import { capitalize } from '../../core/text.js';
 import { S, clock, dispatch, thisWeek } from '../state.js';
 import { openSheet, sheetHead, esc, toast, refreshSheet } from '../dom.js';
 import { CLICK, SUBMIT } from '../registry.js';
-const skipped = new Set(), added = new Set(); // séance en cours seulement : « Passer », « Ajouté au panier »
+const skipped = new Set(), added = new Set(), opened = new Set(); // séance en cours seulement : « Passer », « Ajouté », page ouverte
 export function openDrive(week) { openSheet({ id: 'drive', render: () => driveHtml(week) }); }
 const packsLine = (it) => (it.product || it.paid) && it.packs && it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong></p>` : '';
 // Produits du quotidien de la semaine (core/restock.ts) : ceux qu'une ligne de recette porte déjà (une seule ligne), et les autres.
@@ -80,6 +80,10 @@ export function adviceHtml(name) {
     <p class="small muted">« Meilleur rapport » : chaque point de qualité justifie jusqu'à ${Math.round(VALUE_POINT * 100)} % de prix en plus que le moins cher. Points : Nutri-Score, transformation (NOVA), bio, Label Rouge, AOP/IGP. Sources : Open Food Facts et Open Prices (bases ouvertes, mises à jour chaque semaine) ; les prix sont des relevés de contributeurs, pas les prix du site Auchan.</p></details>`;
 }
 const openLink = (it, cls = 'btn block') => `<a class="${cls}" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(`${it.product ? 'Ouvrir le produit' : 'Chercher'} ${it.name} chez Auchan (nouvelle page)`)}">${it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}</a>`;
+// Un toucher pour retenir le produit : l'adresse copiée sur Auchan (Partager › Copier) est lue dans le presse-papiers.
+const pasteBtn = (productKey, name) => `<button class="btn ghost block" type="button" data-a="productPaste" data-key="${esc(productKey)}" data-name="${esc(name)}">📋 Retenir le produit copié</button>`;
+// Commande guidée : ouvrir la page de l'article (bouton principal tant qu'elle n'a pas été ouverte, puis « Rouvrir »).
+const driveOpen = (it, seen) => `<a class="btn ${seen ? 'ghost ' : ''}block" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" data-a="driveOpen" data-id="${esc(it.id)}" aria-label="${esc(`${seen ? 'Rouvrir' : it.product ? 'Ouvrir le produit' : 'Chercher'} ${it.name} chez Auchan (nouvelle page)`)}">${seen ? 'Rouvrir chez Auchan' : it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}</a>`;
 // Bloc « produit retenu » : partagé par la commande guidée et le détail d'une ligne de courses.
 export function productForm(productKey, name, product) {
     const size = product ? sizeText(product) : '';
@@ -87,20 +91,22 @@ export function productForm(productKey, name, product) {
     <label class="field">Lien du produit chez Auchan<input name="link" type="text" inputmode="url" autocomplete="off" placeholder="https://www.auchan.fr/…/pr-C…" value="${esc(product?.url ?? '')}" required></label>
     <label class="field">Contenance d'un paquet (facultatif)<input name="size" type="text" autocomplete="off" placeholder="300 g, 1 kg, 6 pièces, 4 x 125 g" value="${esc(size)}"></label>
     <button class="btn ghost">${product ? 'Mettre à jour' : 'Retenir ce produit'}</button></form>
-  <p class="small muted">Sur la page du produit chez Auchan, copiez l'adresse, puis collez-la ici. Foyer ne lit rien sur le site : il garde l'adresse et la contenance, pour calculer le nombre de paquets.</p>
+  <p class="small muted">Sur la page du produit chez Auchan, copiez l'adresse (Partager › Copier), puis « 📋 Retenir le produit copié », ou collez-la ici. Foyer ne lit rien sur le site : il garde l'adresse et la contenance, pour calculer le nombre de paquets.</p>
   ${product ? `<button class="btn quiet" data-a="productForget" data-key="${esc(productKey)}" data-name="${esc(name)}">Oublier ce produit</button>` : ''}`;
 }
 export function productSection(productKey, name, product) {
     return `<section class="card stack"><h3 class="section-title">Drive Auchan</h3>
     ${product ? `<p>Produit retenu : <strong>${esc(product.label)}</strong>${sizeText(product) ? ` · ${esc(sizeText(product))}` : ''}</p>` : '<p class="small muted">Aucun produit retenu : « Chercher chez Auchan » ouvre la recherche.</p>'}
     ${openLink({ url: product?.url ?? searchUrl(name), product, name }, 'btn ghost block')}
+    ${product ? '' : pasteBtn(productKey, name)}
     <details><summary>${product ? 'Changer de produit' : 'Retenir le produit choisi (une seule fois)'}</summary>${productForm(productKey, name, product)}</details></section>`;
 }
 function driveHtml(week) {
     const list = deriveShopping(S(), week), items = driveItems(S(), list, restockView(week, list));
     const todo = items.filter(i => !skipped.has(i.id));
     const head = sheetHead('Commander chez Auchan', 'Vous ajoutez au panier sur Auchan ; Foyer ouvre la bonne page et coche la liste.');
-    const cur = todo[0];
+    const cur = todo[0], next = todo[1], seen = !!cur && opened.has(cur.id); // page déjà ouverte : le geste attendu est « Ajouté », en tête
+    const openPart = cur ? `${driveOpen(cur, seen)}${cur.product ? '' : pasteBtn(cur.productKey, cur.name)}` : '';
     const addedNow = [...added].filter(id => !items.some(i => i.id === id)).length; // ajoutés et toujours cochés (une annulation les fait revenir)
     if (!cur) {
         return `${head}${items.length
@@ -118,18 +124,27 @@ function driveHtml(week) {
         : cur.paid ? `<p>Déjà acheté : <strong>${esc(cur.paid.label)}</strong></p>${packsLine(cur)}<p class="small muted">La recherche Auchan s'ouvre sur ce produit.</p>`
             : '<p class="small muted">Aucun produit retenu : la recherche Auchan s\'ouvre.</p>'}
     ${costLine(week, cur)}
-    ${adviceHtml(cur.name)}
-    ${openLink(cur)}
-    <div class="actions"><button class="btn soft" data-a="driveAdded" data-id="${esc(cur.id)}" data-week="${week}">Ajouté au panier</button><button class="btn ghost" data-a="driveSkip" data-id="${esc(cur.id)}">Passer</button></div>
+    ${seen ? '' : `${adviceHtml(cur.name)}${openPart}`}
+    <div class="actions">${next
+        ? `<button class="btn ${seen ? '' : 'soft'}" data-a="driveAdded" data-id="${esc(cur.id)}" data-week="${week}" data-next="${esc(next.url)}" data-next-id="${esc(next.id)}" aria-label="${esc(`Ajouté au panier, ouvrir ${next.name} chez Auchan (nouvelle page)`)}">✓ Ajouté · ouvrir le suivant</button>`
+        : `<button class="btn ${seen ? '' : 'soft'}" data-a="driveAdded" data-id="${esc(cur.id)}" data-week="${week}">✓ Ajouté au panier</button>`}<button class="btn ghost" data-a="driveSkip" data-id="${esc(cur.id)}">Passer</button></div>
+    ${next ? `<button class="btn quiet" data-a="driveAdded" data-id="${esc(cur.id)}" data-week="${week}">Ajouté, sans ouvrir la suite</button>` : ''}
+    ${seen ? `${openPart}${adviceHtml(cur.name)}` : ''}
   </section>
   <details class="card"><summary>${cur.product ? 'Changer de produit' : 'Retenir le produit choisi (une seule fois)'}</summary>${productForm(cur.productKey, cur.name, cur.product)}</details>
-  <p class="small muted">« Ajouté au panier » coche l'article dans Foyer, sur les deux téléphones. Si le menu change ensuite, Courses dit quoi ajouter ou retirer du panier.</p>`;
+  <p class="small muted">« Ajouté » coche l'article dans Foyer, sur les deux téléphones, et ouvre aussitôt la page du suivant chez Auchan : un seul toucher par article. Si le menu change ensuite, Courses dit quoi ajouter ou retirer du panier.</p>`;
 }
-CLICK['drive'] = d => { skipped.clear(); added.clear(); openDrive(d['week'] ?? ''); };
+CLICK['drive'] = d => { skipped.clear(); added.clear(); opened.clear(); openDrive(d['week'] ?? ''); };
+CLICK['driveOpen'] = (d, el) => { window.open(el.getAttribute('href') ?? DRIVE_HOME, '_blank', 'noopener'); opened.add(d['id'] ?? ''); refreshSheet(); };
 CLICK['driveSkip'] = d => { skipped.add(d['id'] ?? ''); refreshSheet(); };
 CLICK['driveAgain'] = () => { skipped.clear(); refreshSheet(); };
 CLICK['driveAdded'] = d => {
     const id = d['id'] ?? '', week = d['week'] ?? '';
+    // Dans le même toucher (sinon le navigateur bloque la fenêtre) : la page Auchan de l'article suivant.
+    if (d['next']) {
+        window.open(d['next'], '_blank', 'noopener');
+        opened.add(d['nextId'] ?? '');
+    }
     added.add(id);
     // Produit du quotidien : son achat est noté (le rythme s'en corrige) ; avec la ligne d'une recette, les deux.
     const rid = driveItems(S(), deriveShopping(S(), week), restockView(week, deriveShopping(S(), week))).find(x => x.id === id)?.restock;
@@ -163,6 +178,23 @@ SUBMIT['productSet'] = (data, form) => {
     }
     const prev = S().products[key];
     dispatch([{ t: 'product.set', p: { key, url: link.url, label: link.label, ...(size ? sizeDraft(size) : { size: null, unit: null }), price: prev?.url === link.url ? prev.price : null } }], { toast: `${prev ? 'Produit mis à jour' : 'Produit retenu'} pour ${name}` });
+};
+// Presse-papiers lu sur demande seulement (le navigateur peut demander « Coller ») ; refusé ou autre chose qu'un produit Auchan : le champ.
+CLICK['productPaste'] = async (d, el) => {
+    const key = d['key'] ?? '', name = d['name'] ?? '';
+    const text = await navigator.clipboard?.readText?.().catch(() => null) ?? null;
+    const link = text ? productLink(text) : null;
+    if (!link) {
+        const box = el.closest('dialog')?.querySelector('details:has(form[data-f="productSet"])');
+        if (box) {
+            box.open = true;
+            box.querySelector('input[name="link"]')?.focus();
+        }
+        toast(text === null ? 'Collage refusé : collez l\'adresse dans le champ' : 'Le presse-papiers ne contient pas de page produit Auchan (Partager › Copier sur la page du produit)');
+        return;
+    }
+    const prev = S().products[key], same = prev?.url === link.url;
+    dispatch([{ t: 'product.set', p: { key, url: link.url, label: link.label, size: same ? prev?.size ?? null : null, unit: same ? prev?.unit ?? null : null, price: same ? prev?.price ?? null : null } }], { toast: `Produit retenu pour ${name}${same && prev?.size ? '' : ' (contenance : « Changer de produit »)'}` });
 };
 CLICK['productForget'] = d => dispatch([{ t: 'product.set', p: { key: d['key'] ?? '', url: null, label: '', size: null, unit: null } }], { toast: `Produit oublié pour ${d['name'] ?? ''}` });
 /* ---------- Le panier suit le menu ---------- */

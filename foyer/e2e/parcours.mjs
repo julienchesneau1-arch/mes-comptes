@@ -34,6 +34,10 @@ await ctx.route('**/functions/v1/foyer-agenda', route => {
 // Catalogue de découvertes : extrait fixe (3 vraies pages Wikilivres) pour des résultats reproductibles.
 const CATALOGUE = readFileSync(new globalThis.URL('./catalogue-essai.json', import.meta.url), 'utf8');
 await ctx.route('**/catalogue.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: CATALOGUE }));
+// Auchan simulé : « Ajouté · ouvrir le suivant » ouvre la page de l'article suivant ; aucune vraie page Auchan n'est chargée.
+await ctx.route(/^https:\/\/www\.auchan\.fr\//, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Auchan (simulé)</title>' }));
+const auchanOpened = [];
+ctx.on('page', async p => { await p.waitForLoadState().catch(() => {}); if (p.url().startsWith('https://www.auchan.fr/')) { auchanOpened.push(p.url()); await p.close().catch(() => {}); } });
 const page = await ctx.newPage();
 page.setDefaultTimeout(6000);
 await page.clock.setFixedTime(NOW);
@@ -137,7 +141,7 @@ await step('ajout manuel + coche', async () => {
   if (left < 3) throw new Error(`une seule coche attendue, il reste ${left} lignes`);
   await shot('09-courses-coche');
 });
-await step('drive Auchan assisté (aucune page Auchan ouverte pendant le test)', async () => {
+await step('drive Auchan assisté (pages Auchan simulées) : un toucher par article, la page du suivant s\'ouvre', async () => {
   await page.getByRole('button', { name: /Commander au drive/ }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByText(/Article 1 sur/).waitFor();
@@ -155,17 +159,29 @@ await step('drive Auchan assisté (aucune page Auchan ouverte pendant le test)',
   if (href2 !== 'https://www.auchan.fr/le-gaulois-filet-de-poulet-blanc/pr-C1158275') throw new Error('lien produit attendu : ' + href2);
   console.log('   ', first, '→', (await dlg.locator('section').first().innerText()).replace(/\s+/g, ' ').slice(0, 160));
   await shot('09b-drive');
-  await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  const before = auchanOpened.length;
+  await dlg.getByRole('button', { name: /^Ajouté au panier, ouvrir .* chez Auchan/ }).click();
   await dlg.getByText(`Article 2 sur ${total}`).waitFor();
   if ((await dlg.locator('h3').first().innerText()).trim() === first) throw new Error('l\'article n\'a pas avancé');
+  const nextHref = await dlg.getByRole('link', { name: /chez Auchan/ }).first().getAttribute('href');
+  for (let i = 0; i < 40 && auchanOpened.length === before; i++) await page.waitForTimeout(50);
+  if (auchanOpened[before] !== nextHref) throw new Error(`page du suivant non ouverte : ${auchanOpened[before]} ≠ ${nextHref}`);
+  if (!/Rouvrir/.test(await dlg.getByRole('link', { name: /chez Auchan/ }).first().innerText())) throw new Error('page déjà ouverte : « Rouvrir » attendu');
+  await page.screenshot({ path: `${SHOTS}/09c-drive-suivant.png` });                   // retour d'Auchan : « Ajouté · ouvrir le suivant » en bouton principal
+  await axe('drive-suivant');
   if (await dlg.getByLabel(/Prix d'un paquet/).count()) throw new Error('aucun prix ne doit être demandé');
   await page.keyboard.press('Escape');
 });
 await step('le panier suit le menu : tout au panier, une portion de plus, mise à jour proposée', async () => {
   await page.getByRole('button', { name: /Commander au drive/ }).click();
   const dlg = page.locator('dialog[open]');
-  for (let i = 0; i < 80 && await dlg.getByRole('button', { name: 'Ajouté au panier' }).count(); i++) await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  let taps = 0;
+  const opened0 = auchanOpened.length;
+  for (let i = 0; i < 80 && await dlg.getByRole('button', { name: 'Ajouté au panier' }).count(); i++) { await dlg.getByRole('button', { name: 'Ajouté au panier' }).click(); taps++; }
   await dlg.getByText('Tout est au panier ou déjà traité.').waitFor();
+  for (let i = 0; i < 40 && auchanOpened.length - opened0 < taps - 1; i++) await page.waitForTimeout(50);
+  if (auchanOpened.length - opened0 !== taps - 1) throw new Error(`${taps} touchers, ${auchanOpened.length - opened0} pages Auchan ouvertes (attendu ${taps - 1})`);
+  console.log(`    ${taps} articles, ${taps} touchers dans Foyer, ${taps - 1} pages ouvertes d'office`);
   await page.keyboard.press('Escape');
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   await page.locator('button.slot.s-a-cuisiner').first().click();
