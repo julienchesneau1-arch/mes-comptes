@@ -97,6 +97,9 @@ export interface AgendaCal { id: string; member: MemberId | null; label: string;
 export interface AgendaMark { src: string; cal: string; title: string; presence: Presence; overridden: boolean }
 export interface AgendaState { cals: Record<string, AgendaCal>; rules: Record<string, 'auto' | 'jamais'>; marks: Record<string, AgendaMark> }
 export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/;
+// Produit de la maison suivi (dentifrice, papier toilette… : core/restock.ts) : suivi ou non, rythme choisi (null = estimé puis
+// appris des achats), début du suivi, jours d'achat notés (12 derniers), date forcée (« il en faut », « il en reste ») et jour du choix.
+export interface RestockItem { on: boolean; name?: string; days: number | null; since: LocalDate; bought: LocalDate[]; due: { day: LocalDate; set: LocalDate } | null }
 
 /* ---------- Événements ---------- */
 
@@ -140,6 +143,9 @@ export interface Payloads {
   'exc.snooze': { key: string; until: string };             // « plus tard » sur une exception, par personne, 24 h au plus
   'week.draft': { week: LocalDate; items: DraftItem[] };   // remplace le brouillon de la semaine (14 repas au plus)
   'week.discard': { week: LocalDate };                     // approuvé ou abandonné
+  'restock.set': { id: string; on: boolean; day: LocalDate; name?: string; days?: number | null }; // name : produit ajouté par le foyer
+  'restock.bought': { id: string; day: LocalDate; bought: boolean };                               // false : achat retiré (coche enlevée)
+  'restock.due': { id: string; due: LocalDate | null; day: LocalDate };                            // null : revenir au rythme calculé
   'undo': { event: string };
 }
 export type EventType = keyof Payloads;
@@ -156,7 +162,7 @@ export type AnyEv = { [K in EventType]: Ev<K> }[EventType];
 export const EVENT_TYPES = new Set<string>(['household.init', 'members.set', 'settings.set', 'recipe.save', 'recipe.archive', 'slot.presence',
   'slot.guests', 'slot.chef', 'slot.cook', 'slot.from', 'slot.outside', 'slot.clear', 'slot.move', 'slot.eaten', 'prep.recipe', 'prep.extra', 'prep.start',
   'prep.done', 'prep.correct', 'prep.discard', 'prep.batch', 'task.set', 'shop.check', 'shop.pantry', 'shop.item', 'shop.spent', 'staple.set', 'aisle.set', 'product.set', 'price.paid', 'agenda.set', 'agenda.rule', 'agenda.mark', 'watch.save',
-  'watch.close', 'conflict.ack', 'exc.snooze', 'week.draft', 'week.discard', 'undo'] satisfies EventType[]);
+  'watch.close', 'conflict.ack', 'exc.snooze', 'week.draft', 'week.discard', 'restock.set', 'restock.bought', 'restock.due', 'undo'] satisfies EventType[]);
 // Types d'événements que cette version sait lire : s'ils changent (mise à jour de l'app), le relais est relu depuis le début.
 export const SCHEMA = [...EVENT_TYPES].sort().join(' ');
 
@@ -294,6 +300,10 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'conflict.ack': p => isId(p['event']),
   'week.draft': p => isDate(p['week']) && Array.isArray(p['items']) && p['items'].length <= 14 && validDraftItems(p['week'] as string, p['items']),
   'week.discard': p => isDate(p['week']),
+  'restock.set': p => isId(p['id']) && bool(p['on']) && isDate(p['day']) && (p['name'] === undefined || str(p['name'], 60, 1))
+    && (p['days'] === undefined || p['days'] === null || int(p['days'], 3, 365)),
+  'restock.bought': p => isId(p['id']) && isDate(p['day']) && bool(p['bought']),
+  'restock.due': p => isId(p['id']) && (p['due'] === null || isDate(p['due'])) && isDate(p['day']),
   'exc.snooze': p => typeof p['key'] === 'string' && /^[a-z]{2,12}:[^\u0000-\u001f]{1,100}$/.test(p['key']) && str(p['until'], 40, 10) && !Number.isNaN(Date.parse(p['until'] as string)),
   'undo': p => isId(p['event']),
 };
@@ -329,6 +339,7 @@ export interface State {
   snooze: Record<string, string>;          // « personne|clé d'exception » → masquée jusqu'à (instant ISO)
   snoozed: Record<string, number>;         // code d'exception → nombre de « plus tard » (3 et plus : proposer une règle)
   drafts: Record<LocalDate, WeekDraft>;    // semaines générées en attente d'approbation
+  restock: Record<string, RestockItem>;    // produits de la maison suivis
 }
 
 export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Presence, weekendMidi: Presence = 'maison'): RhythmDay[] =>
@@ -339,7 +350,7 @@ export const defaultRhythm = (ids: readonly MemberId[], midi: Presence, soir: Pr
 
 export const emptyState = (): State => ({
   hid: null, members: [], settings: { weekStart: 0, rhythm: defaultRhythm([], 'maison', 'maison'), boxesFromDinner: true },
-  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {}, drafts: {},
+  recipes: {}, slots: {}, preps: {}, shop: {}, staples: {}, aisles: {}, products: {}, paid: {}, agenda: { cals: {}, rules: {}, marks: {} }, watch: {}, tasks: {}, acked: new Set(), snooze: {}, snoozed: {}, drafts: {}, restock: {},
 });
 
 export const current = (r: Recipe): RecipeContent => r.versions[r.versions.length - 1] as RecipeContent;

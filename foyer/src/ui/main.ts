@@ -25,6 +25,7 @@ import './sheets/plan.ts';
 import './sheets/shop.ts';
 import './sheets/drive.ts';
 import './sheets/invoice.ts';
+import './sheets/restock.ts';
 import './sheets/discover.ts';
 import { track } from './usage.ts';
 import { coinceButton, coinceStep } from './coince.ts';

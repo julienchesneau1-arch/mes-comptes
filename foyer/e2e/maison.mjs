@@ -1,0 +1,134 @@
+// V3.9, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : produits de la maison. Foyer neuf → proposition dans les courses,
+// choix des produits (cochés par défaut : les courants), rien à racheter cette semaine (départ supposé à moitié entamé) ;
+// « Il en faut maintenant » → ligne dans Maison & hygiène ; coche = achat noté, décoche = retiré ; semaine suivante : ce qui
+// manquera ; « Il en reste encore », rythme choisi, produit ajouté par le foyer ; facture collée → achats notés.
+// axe WCAG 2.2 AA. Lancer : voir e2e/README.md
+import { chromium } from 'playwright-core';
+import { mkdirSync } from 'node:fs';
+import AxeBuilder from '@axe-core/playwright';
+const SHOTS = process.env.SHOTS ?? 'captures';
+mkdirSync(SHOTS, { recursive: true });
+const URL = process.env.FOYER_URL ?? 'http://127.0.0.1:8765/';
+const MON = new Date('2026-10-05T10:00:00Z');
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium' });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new globalThis.URL(URL).origin });
+await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
+  const m = route.request().method();
+  return route.fulfill(m === 'OPTIONS' ? { status: 204, headers: cors } : m === 'POST' ? { status: 201, headers: cors } : { status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: '[]' });
+});
+await ctx.routeWebSocket(/^wss:\/\/[a-z0-9]+\.supabase\.co\//, ws => ws.onMessage(m => { const d = JSON.parse(String(m)); if (d.event === 'phx_join' || d.event === 'heartbeat') ws.send(JSON.stringify({ topic: d.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: d.ref })); })); // signal temps réel simulé (aucun réseau)
+const page = await ctx.newPage();
+page.setDefaultTimeout(8000);
+await page.clock.setFixedTime(MON);
+const errors = [];
+page.on('console', m => { if (m.type() === 'error') errors.push(`${m.type()}: ${m.text()}`); });
+page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+const step = async (label, fn) => { try { await fn(); console.log('✓', label); } catch (e) { console.log('✗', label, e.message.split('\n').slice(0, 3).join(' | ')); errors.push(`step ${label}: ${e.message.split('\n')[0]}`); await page.screenshot({ path: `${SHOTS}/fail-${label.slice(0, 24).replace(/\W/g, '_')}.png` }).catch(() => {}); } };
+const axe = async name => {
+  await page.waitForFunction(() => !document.getAnimations().some(a => a instanceof CSSTransition && a.playState === 'running'));
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  for (const v of r.violations) errors.push(`axe[${name}] ${v.id} (${v.impact}): ${v.help} → ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`);
+};
+const dlg = page.locator('dialog[open]');
+const text = async loc => (await loc.innerText()).replace(/\s+/g, ' ');
+const tab = name => page.getByRole('link', { name, exact: true }).click();
+const maison = page.locator('section', { has: page.getByRole('heading', { name: /Maison & hygiène/ }) });
+const tick = (scope, name) => scope.locator('label.check', { has: page.getByRole('checkbox', { name }) }).click(); // comme un doigt : la case dessinée, dans l'étiquette
+
+await page.goto(URL);
+await step('foyer neuf : proposition dans les courses ; produits courants cochés ; rien à racheter tout de suite', async () => {
+  await page.getByRole('button', { name: 'Créer notre foyer' }).click();
+  await page.getByLabel('Prénom de la personne 1').fill('Julien');
+  await page.getByLabel('Prénom de la personne 2 (facultatif)').fill('Lauriane');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByText('Tout le monde à la maison, midi et soir').click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await page.getByRole('button', { name: /Créer le foyer/ }).click();
+  await tab('Courses');
+  await page.getByText('Dentifrice, papier toilette, essuie-tout…').waitFor();
+  await page.getByRole('button', { name: 'Choisir', exact: true }).click();
+  await dlg.getByRole('heading', { name: /Produits de la maison/ }).waitFor();
+  if (!(await dlg.getByRole('checkbox', { name: /Dentifrice/ }).isChecked())) throw new Error('dentifrice non coché par défaut');
+  if (await dlg.getByRole('checkbox', { name: /Tablettes lave-vaisselle/ }).isChecked()) throw new Error('lave-vaisselle coché sans savoir s\'il y en a un');
+  const t = await text(dlg);
+  if (!/≈ tous les 25 jours pour 2 personnes · tube de 75 ml/.test(t)) throw new Error('estimation non expliquée : ' + t.slice(0, 300));
+  await page.screenshot({ path: `${SHOTS}/maison-choix.png`, fullPage: true });
+  await axe('maison-choix');
+  await dlg.getByRole('button', { name: 'Commencer le suivi' }).click();
+  await page.getByText(/produits suivis : ils reviendront dans les courses au bon moment/).first().waitFor();
+  await page.keyboard.press('Escape');
+  if (await maison.count()) throw new Error('rayon Maison & hygiène affiché alors que rien ne manque cette semaine');
+  if (await page.getByText('Dentifrice, papier toilette, essuie-tout…').count()) throw new Error('proposition encore affichée');
+});
+await step('« Il en faut maintenant » : dans Maison & hygiène ; coche = achat noté, décoche = retiré', async () => {
+  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await dlg.getByRole('button', { name: /^Dentifrice/ }).click();
+  await dlg.getByText(/Prochain achat : vers le dim\. 18 oct\. \(dans 13 jours\)/).waitFor();
+  await axe('maison-fiche');
+  await dlg.getByRole('button', { name: 'Il en faut maintenant' }).click();
+  await page.getByText('Dentifrice : dans les courses de cette semaine').first().waitFor();
+  await page.keyboard.press('Escape');
+  await maison.getByText('Dentifrice').waitFor();
+  const row = await text(maison);
+  if (!/devrait manquer vers le lun\. 5 oct\./.test(row) || !/1 tube/.test(row)) throw new Error('ligne : ' + row);
+  await page.screenshot({ path: `${SHOTS}/maison-courses.png`, fullPage: true });
+  await axe('maison-courses');
+  await tick(maison, 'Dentifrice : pris'); // la ligne part aussitôt dans « Déjà traités »
+  await page.getByText(/Dentifrice : acheté\. Prochain rappel ven\. 30 oct\./).first().waitFor();
+  if (await maison.count()) throw new Error('le rayon reste affiché après l\'achat');
+  await page.getByText(/Déjà traités \(1\)/).click();
+  await tick(page, 'Dentifrice : pris');
+  await page.getByText('Dentifrice : achat retiré').first().waitFor();
+  await maison.getByText('Dentifrice').waitFor();
+  await tick(maison, 'Dentifrice : pris');
+  await page.getByText(/Dentifrice : acheté/).first().waitFor();
+});
+await step('semaine suivante : ce qui manquera alors ; « Il en reste encore » reporte ; rythme choisi', async () => {
+  await page.getByRole('button', { name: 'Semaine suivante' }).click();
+  await maison.getByText('Gel douche').waitFor();
+  const t = await text(maison);
+  for (const n of ['Essuie-tout (Sopalin)', 'Papier toilette', 'Mouchoirs']) if (!t.includes(n)) throw new Error(`${n} absent la semaine du 12 : ${t}`);
+  if (t.includes('Dentifrice')) throw new Error('dentifrice acheté redemandé');
+  await maison.getByRole('button', { name: /^Gel douche/ }).click();
+  await dlg.getByRole('button', { name: 'Il en reste encore' }).click();
+  await page.getByText(/Gel douche : reporté au lun\. 19 oct\./).first().waitFor();
+  await dlg.getByLabel('Rythme').selectOption('30');
+  await page.getByText('Gel douche : tous les 30 jours').first().waitFor();
+  await page.keyboard.press('Escape');
+});
+await step('produit ajouté par le foyer ; facture collée : achats des produits suivis notés', async () => {
+  await page.getByRole('button', { name: 'Semaine précédente' }).click();
+  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await dlg.getByLabel('Nom').fill('croquettes du chat');
+  await dlg.getByLabel('Environ tous les').selectOption('21');
+  await dlg.getByRole('button', { name: 'Ajouter', exact: true }).click();
+  await page.getByText('Croquettes du chat : suivi, tous les 21 jours').first().waitFor();
+  await dlg.getByRole('heading', { name: 'Ajoutés par vous' }).waitFor();
+  await page.keyboard.press('Escape');
+  await tab('Maison');
+  await page.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await page.locator('section', { has: page.getByRole('heading', { name: 'Fonctions' }) }).getByRole('checkbox', { name: /Factures du drive/ }).check();
+  await tab('Courses');
+  await page.getByRole('button', { name: '🧾 Lire la facture du drive' }).click();
+  await dlg.getByText('Ou coller le texte de la facture').click();
+  await dlg.getByLabel('Texte copié depuis la facture').fill(['Facture du 03/10/2026', 'Papier WC doux x12 4,99', 'Lessive liquide 30 lavages 7,99', 'Total à payer 12,98'].join('\n'));
+  await dlg.getByRole('button', { name: 'Lire ce texte' }).click();
+  const house = dlg.getByRole('group', { name: 'Produits de la maison achetés' });
+  await house.waitFor();
+  const h = await text(house);
+  if (!/Papier toilette/.test(h) || !/Lessive/.test(h) || !/Achat noté au sam\. 3 oct\./.test(h)) throw new Error('facture : ' + h);
+  await axe('maison-facture');
+  await dlg.getByRole('button', { name: 'Retenir ces prix' }).click();
+  await page.getByText(/2 produits de la maison/).first().waitFor();
+  await page.getByRole('button', { name: '🧴 Produits de la maison' }).click();
+  await dlg.getByRole('button', { name: /^Lessive/ }).click();
+  await dlg.getByText('sam. 3 oct. 2026').waitFor();
+  await dlg.getByText(/Prochain achat : vers le mer\. 25 nov\./).waitFor();
+});
+
+await browser.close();
+console.log(`erreurs : ${errors.length ? `\n${errors.join('\n')}` : 'aucune'}`);
+process.exit(errors.length ? 1 : 0);

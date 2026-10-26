@@ -3,6 +3,7 @@ import { type SlotKey, parseSlot, fmtDayShort } from './dates.ts';
 import { type AnyEv, type State, current } from './model.ts';
 import type { Replay } from './reduce.ts';
 import { eur } from './money.ts';
+import { nameOf } from './restock.ts';
 
 const when = (k: SlotKey): string => { const p = parseSlot(k); return p ? `${fmtDayShort(p.date)} ${p.slot}` : k; };
 const recipe = (s: State, id: string): string => { const r = s.recipes[id]; return r ? current(r).name : 'un plat'; };
@@ -50,6 +51,9 @@ export function describeEvent(s: State, e: AnyEv): string {
     case 'exc.snooze': return 'remettre une question à plus tard';
     case 'week.draft': return `proposer le menu de la semaine (${e.p.items.length} repas)`;
     case 'week.discard': return 'clore le menu proposé';
+    case 'restock.set': return `${e.p.on ? 'suivre' : 'ne plus suivre'} ${nameOf(e.p.id, s.restock[e.p.id] ?? (e.p.name ? { on: e.p.on, name: e.p.name, days: null, since: e.p.day, bought: [], due: null } : undefined))}`;
+    case 'restock.bought': return `${e.p.bought ? 'noter l\'achat' : 'retirer l\'achat'} : ${nameOf(e.p.id, s.restock[e.p.id])}`;
+    case 'restock.due': return e.p.due ? `prévoir ${nameOf(e.p.id, s.restock[e.p.id])} vers le ${fmtDayShort(e.p.due)}` : `remettre ${nameOf(e.p.id, s.restock[e.p.id])} au rythme calculé`;
     case 'undo': return 'annuler une action';
   }
 }

@@ -159,12 +159,13 @@ export function explain(l) {
 // Signature à enregistrer quand on coche « pris » : ce qui restait à acheter à ce moment-là.
 export const checkSig = (l) => sig(l.toBuy, l.unknown.length);
 // Liste en texte, à partager par message ou à coller dans des notes.
-export function shoppingText(list, title, s) {
+// restock : produits de la maison à racheter cette semaine (core/restock.ts), rangés dans Maison & hygiène.
+export function shoppingText(list, title, s, restock = []) {
     const out = [title];
     for (const a of s ? orderedAisles(s) : AISLES) {
         const ls = list.lines.filter(l => l.aisle === a.id && !l.done);
-        const ms = list.manual.filter(m => m.aisle === a.id && !m.checked);
-        if (!ls.length && !ms.length)
+        const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = a.id === 'maison' ? restock : [];
+        if (!ls.length && !ms.length && !rs.length)
             continue;
         out.push('', `${a.icon} ${a.label}`);
         for (const l of ls) {
@@ -174,6 +175,8 @@ export function shoppingText(list, title, s) {
         }
         for (const m of ms)
             out.push(`☐ ${m.name}${m.qty ? ` · ${m.qty}` : ''}`);
+        for (const r of rs)
+            out.push(`☐ ${r.name}${r.qty ? ` · ${r.qty}` : ''}`);
     }
     if (list.incomplete.length)
         out.push('', `⚠️ Liste partielle : ${list.incomplete.map(x => x.name).join(', ')} (${list.incomplete.length > 1 ? 'ingrédients à compléter' : 'ingrédients à compléter'})`);

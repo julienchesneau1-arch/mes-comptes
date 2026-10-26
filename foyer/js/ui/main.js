@@ -25,6 +25,7 @@ import './sheets/plan.js';
 import './sheets/shop.js';
 import './sheets/drive.js';
 import './sheets/invoice.js';
+import './sheets/restock.js';
 import './sheets/discover.js';
 import { track } from './usage.js';
 import { coinceButton, coinceStep } from './coince.js';
