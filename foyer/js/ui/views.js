@@ -288,7 +288,7 @@ export function shopView() {
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(row).join('')}</ul></details>` : ''}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(row).join('')}${mDone.map(manualRow).join('')}${rDone.map(restockRow).join('')}</ul></details>` : ''}
     ${restockPromo}
-    ${A.ui.store ? '' : `<div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button>${on('factures') ? '<button class="btn ghost" data-a="invoice">🧾 Lire la facture du drive</button>' : ''}<button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>`}
+    ${A.ui.store ? '' : `<div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button>${on('factures') ? '<button class="btn ghost" data-a="invoice">🧾 Lire la facture du drive</button>' : ''}<button class="btn ghost" data-a="watchNew">📷 Scanner une date limite</button></div>`}
     ${A.ui.store || !on('budget') ? '' : budgetCard(week, list, restockView(week, list))}</main>`;
 }
 // Après le drive : un geste coche tout ce qui reste (chaque ligne garde son besoin du moment, comme une coche à la main).

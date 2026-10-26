@@ -363,4 +363,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Mesurer avant d'affirmer | Mots, éléments touchables, position du contenu principal : mesurés avant et après chaque version de lisibilité |
 | Rien de caché | Ni barre fixe ni message ne recouvrent un élément amené à l'écran |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.13 incluses).
+## 30. V3.14 — une date lue sert tout de suite (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Lire, pas recopier | La date se scanne (iPhone) ou se tape telle qu'imprimée ; Foyer en déduit le type et la précision, et dit ce qu'il a lu |
+| Rien d'inventé | Une date illisible n'est pas devinée ; seule l'année absente d'une DLC est déduite, et signalée |
+| Utile au bon moment | DLC proche : avancer le plat prévu trop tard, ou prévoir un plat qui l'utilise, d'un toucher, annulable |
+| La date imprimée seulement | Pas de durée de conservation calculée ; produit ouvert : la date ne s'applique plus (DGCCRF) |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.14 incluses).

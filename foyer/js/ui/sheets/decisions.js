@@ -9,7 +9,7 @@ import { esc, openSheet, sheetHead, toast } from '../dom.js';
 import { CLICK, CHANGE } from '../registry.js';
 import { on } from '../modules.js';
 const CHIP = {
-    conflit: ['conflit', 'À résoudre'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
+    conflit: ['conflit', 'À résoudre'], dlc: ['attention', 'Date limite'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
     surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'], avis: ['info', 'Votre avis'],
 };
 const OPEN = {

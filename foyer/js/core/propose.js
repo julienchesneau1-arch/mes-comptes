@@ -4,6 +4,7 @@
 import { slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.js';
 import { current } from './model.js';
 import { eaters, servings, portions, presence as presenceOf } from './plan.js';
+import { matchesProduct } from './printed.js';
 import { nameKey } from './text.js';
 import { aisleOf } from './ingredients.js';
 import { newId } from './reduce.js';
@@ -76,15 +77,15 @@ function around(s, day, extra) {
 }
 // Produits surveillés fermés dont la DLC tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en avant.
 function expiring(s, day) {
-    const m = new Map();
+    const out = [];
     for (const w of Object.values(s.watch)) {
         if (w.closed || !w.date || w.date.kind !== 'DLC' || w.state !== 'ferme')
             continue;
         const delta = daysBetween(day, w.date.value);
         if (delta >= 0 && delta <= 3)
-            m.set(nameKey(w.name), { name: w.name, date: w.date.value });
+            out.push({ key: nameKey(w.name), name: w.name, date: w.date.value });
     }
-    return m;
+    return out;
 }
 export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opts = {}) {
     const p = parseSlot(slot);
@@ -119,7 +120,7 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
         const since = seen ? daysBetween(seen, today) : null;
         let score = since === null ? 40 : Math.min(Math.max(since, 0), 45);
         const why = [];
-        const used = c.ingredients.map(l => exp.get(nameKey(l.name))).find(Boolean);
+        const used = c.ingredients.map(l => exp.find(x => matchesProduct(nameKey(l.name), x.key))).find(Boolean); // « Poulet » ↔ « blanc de poulet »
         if (used) {
             score += 30;
             why.push(`utilise ${used.name.toLowerCase()} (DLC ${fmtDayShort(used.date)})`);

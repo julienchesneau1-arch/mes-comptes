@@ -1,7 +1,7 @@
 // File d'exceptions : on ne montre jamais une tâche, seulement ce qu'aucune règle n'a pu trancher, avec une action d'un toucher.
 // Fonction pure de l'état (et de l'heure) : rien n'est enregistré ; une exception disparaît dès que l'état devient cohérent.
 // Les règles par défaut sont des réglages (événements rejoués, synchronisés, annulables) ; « plus tard » vaut 24 h au plus, par personne.
-import { type LocalDate, type SlotKey, addDays, fmtSlot, parseSlot, slotKey, SLOTS, daysBetween, weekOf } from './dates.ts';
+import { type LocalDate, type SlotKey, addDays, fmtSlot, fmtDayShort, parseSlot, slotKey, SLOTS, daysBetween, weekOf } from './dates.ts';
 import { type MemberId, type State, current } from './model.ts';
 import type { Draft, Replay } from './reduce.ts';
 import { dependents, portions, servings } from './plan.ts';
@@ -13,8 +13,10 @@ import { placardKey, surpluses } from './placard.ts';
 import { lineQty } from './shopping.ts';
 import { qStr } from './rational.ts';
 import { showQty } from './units.ts';
+import { dlcAdvice } from './dlc.ts';
+import { setDish } from './commands.ts';
 
-export type ExcCode = 'conflit' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine' | 'avis';
+export type ExcCode = 'conflit' | 'dlc' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine' | 'avis';
 export type ExcAction =
   | { label: string; drafts: Draft[] }                                                        // un toucher = ces événements
   | { label: string; open: 'slot' | 'watch' | 'ack' | 'propose'; arg: string };                // un toucher = l'écran qui règle
@@ -28,7 +30,7 @@ export interface Exception {
 }
 export const MAX_SHOWN = 5;   // au-delà : « + N autres », repliées ; une file de 12 cartes est une corvée
 export const RULE_AFTER = 3;
-const BASE: Record<ExcCode, number> = { conflit: 800, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300, avis: 250 };
+const BASE: Record<ExcCode, number> = { conflit: 800, dlc: 650, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300, avis: 250 };
 // « Sans avis » sur un plat : la question ne revient plus pour lui (clé de `task.set`).
 export const avisKey = (recipe: string): string => `avis:${recipe}`;
 const HAS_RULE: ReadonlySet<ExcCode> = new Set(['restes']);
@@ -52,8 +54,28 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
   const s = r.state, { date: today, hour } = t, out: Exception[] = [];
   const add = (x: Omit<Exception, 'rule'>): void => { out.push({ ...x, rule: HAS_RULE.has(x.code) && (s.snoozed[x.code] ?? 0) >= RULE_AFTER }); };
 
+  // Date limite proche et menu qui ne l'utilise pas à temps : avancer le plat, ou en prévoir un (core/dlc.ts).
+  const advice = dlcAdvice(s, today, hour), advised = new Set(advice.map(a => a.watch.id));
+  for (const a of advice) {
+    const w = a.watch, when = `à consommer avant le ${fmtDayShort(a.date)}`, used = { label: 'Déjà utilisé', drafts: [{ t: 'watch.close', p: { id: w.id, outcome: 'utilise' } }] as Draft[] };
+    const late = a.late, prio = BASE.dlc + (daysBetween(today, a.date) <= 1 ? 200 : 0);
+    if (late) {
+      const name = s.recipes[late.recipe] ? current(s.recipes[late.recipe]!).name : 'le plat';
+      add({ key: `dlc:${w.id}`, code: 'dlc', prio, title: `${w.name} : ${when}, mais ${name} est prévu ${fmtSlot(late.slot, today)}`,
+        sub: a.targets.length ? 'L\'avancer avant la date limite (échange avec le repas prévu).' : 'Aucun repas libre d\'ici là : changez le menu ou notez-le utilisé.',
+        actions: [...a.targets.map(x => ({ label: `Avancer ${fmtSlot(x, today)}`, drafts: [{ t: 'slot.move', p: { from: late.slot, to: x, swap: !!s.slots[x]?.dish } }] as Draft[] })),
+          { label: 'Ouvrir', open: 'watch', arg: w.id }, used] });
+      continue;
+    }
+    const first = a.recipes[0], at = a.targets[0], names = a.recipes.map(id => current(s.recipes[id]!).name);
+    add({ key: `dlc:${w.id}`, code: 'dlc', prio, title: `${w.name} : ${when}`,
+      sub: names.length ? `Aucun plat prévu ne l'utilise. Vos plats qui en ont : ${names.join(', ')}.` : 'Aucun plat prévu ne l\'utilise, et aucun de vos plats n\'en contient.',
+      actions: [...(first && at ? [{ label: `${names[0]} ${fmtSlot(at, today)}`, drafts: setDish(s, at, first) }] : at ? [{ label: 'Choisir un plat', open: 'slot' as const, arg: at }] : []), used] });
+  }
+
   // Blocages et alertes déjà détectés (conflits de synchro, portions qui manquent, DLC) : mêmes cartes, une action chacune.
   for (const p of t.checks) {
+    if (p.watch && advised.has(p.watch) && p.level !== 'conflit') continue; // carte DLC ci-dessus, plus utile
     const act: ExcAction = p.event ? { label: 'Vu', open: 'ack', arg: p.event } : p.watch ? { label: 'Ouvrir', open: 'watch', arg: p.watch } : { label: 'Régler', open: 'slot', arg: p.slot ?? '' };
     const code: ExcCode = p.level === 'conflit' ? 'conflit' : 'surveille';
     add({ key: `${code}:${p.key.slice(0, 100)}`, code, prio: BASE[code] + soon(p.slot, today), title: p.text, sub: '', actions: p.slot || p.event || p.watch ? [act] : [] });
