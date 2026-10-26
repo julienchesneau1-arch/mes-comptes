@@ -158,7 +158,7 @@ Demande : « nous n'avons pas encore de recettes ; sois fort de proposition, scr
 | Jamais d'office | Une recette sans nombre de personnes (les quantités ne se calculeraient pas) ; un plat déjà dans « Nos plats » |
 | Accord | Accepter une découverte l'ajoute à « Nos plats » avec sa source et sa licence ; « Découvrir des recettes » passe par la relecture habituelle |
 
-Limites assumées : catalogue modeste et inégal (contributions bénévoles, certaines recettes exotiques ou approximatives) ; pas de photos ; durée connue pour peu de recettes.
+Limites assumées : catalogue modeste et inégal (contributions bénévoles, certaines recettes exotiques ou approximatives) ; pas de photos (levée en V3.8, §24) ; durée connue pour peu de recettes.
 
 ## 11. V2.5 — rappels en notification sur le téléphone (4 octobre 2026)
 
@@ -201,7 +201,7 @@ Demande : « couleurs vives, DA moderne et attractive comme les meilleurs ; des 
 | Ludique sans piège | Confettis à la validation, tampons « MIAM / AUTRE », cases qui « claquent » ; rien n'est enregistré sans « Valider » ; tout est annulable |
 | Accessible | Contraste AA vérifié en clair et en sombre ; gestes doublés de boutons ; mouvements coupés sur demande de l'appareil |
 
-Limite assumée : visuels par emoji, pas de photos de plats.
+Limite assumée : visuels par emoji, pas de photos de plats (levée en V3.8 pour les recettes prêtes illustrées, §24).
 
 ## 14. V2.8 — batch cooking le dimanche, courses le samedi, économies visibles (8 octobre 2026)
 
