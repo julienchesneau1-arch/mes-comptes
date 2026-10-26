@@ -11,7 +11,7 @@ import { CLICK, CHANGE } from '../registry.ts';
 import { on } from '../modules.ts';
 
 const CHIP: Record<Exception['code'], [string, string]> = {
-  conflit: ['conflit', 'À résoudre'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
+  conflit: ['conflit', 'À résoudre'], dlc: ['attention', 'Date limite'], personne: ['attention', 'Repas'], cuisson: ['attention', 'En cuisine'],
   surveille: ['attention', 'Bientôt'], restes: ['info', 'Restes'], placard: ['info', 'Placard'], menu: ['info', 'Menu'], semaine: ['manque', 'À décider'], avis: ['info', 'Votre avis'],
 };
 const OPEN: Record<'slot' | 'watch' | 'ack' | 'propose', (arg: string) => string> = {

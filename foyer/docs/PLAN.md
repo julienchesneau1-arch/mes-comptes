@@ -302,6 +302,23 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.14 (dates limites lues et utiles — demande de Julien du 26 octobre 2026)
+
+« Les dates de consommation ne servent pas à grand-chose : il faut un OCR qui les reconnaisse, et que l'app suggère de mettre tel
+plat avant si la date est proche. » Avant : un formulaire à remplir (type, précision, date), et une date proche ne servait qu'au
+moment de proposer un menu.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Lecture de la date imprimée | **livré** | `core/printed.ts` : « à consommer jusqu'au » → DLC, « de préférence avant » → DDM, jour, mois ou année ; 28/10/2026, 07.10.26, 28 OCT 2026, 03/2027, « fin 2027 » ; confusions O/0 et l/1 de l'OCR ; dates d'emballage, de ponte, de fabrication écartées ; DLC sans année : année déduite et signalée ; poids, volumes, pourcentages et années absurdes jamais lus comme une date (`tests/v314.test.ts`) |
+| Scanner avec l'appareil photo | **livré** | Sur iPhone, « Scanner le texte » (Live Text, iOS 15+, puce A12+) dans le champ « Date imprimée » insère le texte reconnu, relu aussitôt ; aucune bibliothèque d'OCR embarquée, rien n'est envoyé. Fonctionnement vérifié en navigateur avec le texte inséré ; **pas sur iPhone** |
+| Saisie en quelques gestes | **livré** | Produits frais de la liste (viande, poisson, traiteur, crèmerie) proposés en un toucher ; saisie à la main repliée ; « Enregistrer et scanner un autre » pour le retour des courses. E2E `dates.mjs` |
+| Avancer un plat avant la DLC | **livré** | `core/dlc.ts` : DLC dans 3 jours au plus, produit fermé, plat prévu qui l'utilise cuisiné après la DLC (jour du batch compris) → carte « Date limite » dans À régler : « Avancer mercredi soir » (échange de créneaux, annulable) |
+| Prévoir un plat qui l'utilise | **livré** | Aucun plat prévu ne l'utilise → un de vos plats qui en contient, sur un repas libre d'ici la DLC, un toucher ; « Déjà utilisé » ferme le suivi. Rapprochement par mots (« Poulet » ↔ « blanc de poulet »), aussi dans les propositions de menu |
+| OCR sur photo hors iPhone | **non fait** | Pas de bibliothèque embarquée (plusieurs Mo, lecture médiocre des dates imprimées en points) ; ailleurs, la date se tape dans le même champ |
+| Durées de conservation calculées | **non fait** | Volontairement : seule la date imprimée compte (DGCCRF) ; produit ouvert = date non applicable |
+| Prix Auchan aspirés chaque mois | **refusé** | CGU d'auchan.fr (version du 12/06/2026) : robots d'extraction interdits sans licence écrite ; droit du producteur d'une base de données (CPI, art. L342-1). Les prix viennent des factures, d'Open Prices et de l'Insee (53 références) |
+
 ### V3.13 (lisibilité — choix de Julien du 26 octobre 2026)
 
 Question de Julien : « l'app est-elle assez simple et lisible pour être au niveau des meilleures ? » Mesure des écrans
@@ -526,6 +543,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.14 | Dates limites lues (texte scanné par l'iPhone ou tapé : DLC, DDM, précision, année déduite) et utiles : avancer d'un toucher le plat prévu après la DLC, ou prévoir un plat qui l'utilise | livré | « Scanner le texte » non vérifié sur iPhone ; rapprochement par mots (« lait » pourrait désigner « lait de coco ») |
 | 2026-10-26 | V3.13 | Lisibilité mesurée : Courses avec la liste d'abord (premier rayon à 0,61 écran au lieu de 0,84), feuille du quotidien allégée (1 103 → 182 mots), dernier élément jamais caché par un message ; benchmark mis à jour (4,3 → 4,5, notes de l'auteur) | livré | Mesure en navigateur, pas sur iPhone ; aucune mesure équivalente des concurrents |
 | 2026-10-26 | V3.12 | Commande guidée en moins de gestes : « ✓ Ajouté · ouvrir le suivant » (1 toucher par article au lieu de 2), bouton principal selon le moment, produit retenu d'un toucher depuis le presse-papiers | livré | Panier rempli à distance impossible hors partenariat Auchan ; onglet unique et confirmation « Coller » non vérifiés sur iPhone |
 | 2026-10-26 | V3.11 | Desserts du quotidien, fruits à croquer, boissons, goûter (21 produits, 75 au total) ; drive complet : produits du quotidien dans la commande guidée, leur prix dans le budget (facture, prix noté, prix Insee × contenance) | livré | Rien d'office ; estimations = hypothèses écrites ; prix Insee absent pour la plupart des desserts, boissons et goûters (comptés « sans prix » jusqu'à la première facture) ; non vérifié sur iPhone |

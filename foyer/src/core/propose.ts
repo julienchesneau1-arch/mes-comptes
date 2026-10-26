@@ -4,6 +4,7 @@
 import { type LocalDate, type SlotKey, slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.ts';
 import { type State, type Presence, current } from './model.ts';
 import { eaters, servings, portions, presence as presenceOf } from './plan.ts';
+import { matchesProduct } from './printed.ts';
 import { nameKey } from './text.ts';
 import { aisleOf } from './ingredients.ts';
 import { type Draft, newId } from './reduce.ts';
@@ -89,14 +90,14 @@ function around(s: State, day: LocalDate, extra: Around): Around {
 }
 
 // Produits surveillés fermés dont la DLC tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en avant.
-function expiring(s: State, day: LocalDate): Map<string, { name: string; date: LocalDate }> {
-  const m = new Map<string, { name: string; date: LocalDate }>();
+function expiring(s: State, day: LocalDate): { key: string; name: string; date: LocalDate }[] {
+  const out: { key: string; name: string; date: LocalDate }[] = [];
   for (const w of Object.values(s.watch)) {
     if (w.closed || !w.date || w.date.kind !== 'DLC' || w.state !== 'ferme') continue;
     const delta = daysBetween(day, w.date.value);
-    if (delta >= 0 && delta <= 3) m.set(nameKey(w.name), { name: w.name, date: w.date.value });
+    if (delta >= 0 && delta <= 3) out.push({ key: nameKey(w.name), name: w.name, date: w.date.value });
   }
-  return m;
+  return out;
 }
 
 export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: ReadonlySet<string> = new Set(), extra: Around = new Map(), opts: RankOpts = {}): Ranked[] {
@@ -125,7 +126,7 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
     const since = seen ? daysBetween(seen, today) : null;
     let score = since === null ? 40 : Math.min(Math.max(since, 0), 45);
     const why: string[] = [];
-    const used = c.ingredients.map(l => exp.get(nameKey(l.name))).find(Boolean);
+    const used = c.ingredients.map(l => exp.find(x => matchesProduct(nameKey(l.name), x.key))).find(Boolean); // « Poulet » ↔ « blanc de poulet »
     if (used) { score += 30; why.push(`utilise ${used.name.toLowerCase()} (DLC ${fmtDayShort(used.date)})`); }
     // Durées déclarées (préparation + cuisson) : mêmes règles que pour les découvertes du catalogue.
     const minutes = c.prepMin != null || c.cookMin != null ? (c.prepMin ?? 0) + (c.cookMin ?? 0) : null;
