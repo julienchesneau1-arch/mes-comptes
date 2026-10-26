@@ -201,6 +201,18 @@ Gestes pour ouvrir une recette (d'après le code, avant → après) :
 | N'importe quelle recette | 3 (Maison › plat › déplier) ; formulaire | 2 (Maison › plat) ; fiche en lecture |
 | Un outil souvent servi (drive, facture, découvrir…) | 2 (onglet › bouton) | 1 (raccourci) |
 
+### V3.8 (combler les écarts avec les meilleurs — demande de Julien du 26 octobre 2026)
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Photos des plats | **livré** (photos téléchargées par la CI) | Image principale libre de chaque recette prête (Commons), 500 px, servie par Foyer ; auteur, licence et source sur la fiche et dans « Crédits des photos ». Affichées dans les idées, les cartes du menu, la carte du repas, Nos plats, la semaine. Rendu vérifié en navigateur avec des photos d'essai ; nombre réel de photos : celui que la CI compte |
+| Synchro quasi instantanée | **livré** | Signal vide Supabase Realtime après chaque dépôt ; navigateur (serveur simulé) : changement reçu en ≈ 1,4 s au lieu de 20 s au plus ; vrai relais : contrôle CI `realtime` |
+| Rappel « Ce soir » | **livré** | 17 h 30 par défaut (16 h 30 à 18 h 30, ou coupé) : le plat prévu ou « rien de prévu » ; rien si personne ne mange |
+| Pastille sur l'icône | **livré** (non vérifié sur iPhone) | Nombre de cartes À régler ; iOS 16.4+, app installée, notifications acceptées |
+| Commande au drive en un clic | **non fait** | Impossible sans partenariat avec Auchan (CGU, aucune API publique) |
+| Widget, Apple Watch | **non fait** | Impossible pour une app web |
+| Correction Supabase (pg_net) | **en attente** | La confirmation du serveur Supabase n'arrive pas jusqu'au téléphone : correction à faire dans l'éditeur SQL (une ligne, voir § 4) |
+
 ### V3.7 (apprendre de l'usage réel — choix de Julien du 25 octobre 2026)
 
 | Fonction | Statut | Preuve |
@@ -283,7 +295,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 
 ## 4. Limites connues (assumées, documentées)
 
-- Synchro automatique toutes les 20 s (5 s en mode magasin), pas instantanée. Sans réseau, relais en pause ou synchro auto désactivée : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle).
+- Synchro : signal temps réel après chaque dépôt (≈ 1 à 2 s), relève toutes les 20 s (5 s en mode magasin) en secours ; le signal ne passe qu'app ouverte (iOS coupe les connexions en arrière-plan). Sans réseau, relais en pause ou synchro auto désactivée : synchro **manuelle** par lien (le compteur « N changements pas encore envoyés » le rappelle).
 - Projet Supabase gratuit : mis en pause après une semaine sans aucune activité ; Foyer continue alors en local et par lien.
 - Le lien contient tout le journal (≈ 1 Ko au départ, quelques dizaines de Ko après des mois) ; compactage non fait.
 - Un seul navigateur testé (Chromium). Safari iOS et VoiceOver restent à vérifier sur les téléphones.
@@ -355,6 +367,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.8 | Photos libres des plats (CI, auto-hébergées, crédits), synchro quasi instantanée (signal Realtime), rappel « Ce soir », pastille sur l'icône | livré | Photos limitées aux pages Wikilivres illustrées sous licence libre ; signal temps réel et pastille non vérifiés sur iPhone |
 | 2026-10-25 | V3.7 | Avis 👍/👎 après le repas, « Ça coince ? » (gênes notées sur le téléphone), mode essentiel (fonctions avancées affichées à l'usage ou à la demande) | livré | Seuils et choix par défaut posés, pas encore mesurés ; à juger pendant l'essai de deux semaines |
 | 2026-10-25 | Factures | Lecteur calé sur trois factures Auchan réelles (masquées avant lecture, jamais versées) : colonnes vérifiées par deux calculs (remise, TVA), nom du produit sur deux lignes et deux pages, date de commande, paiements (cagnotte, carte cadeau) écartés, produit rapproché par son nom de tête, abréviations (« PLT », « PDT »…) | livré | Une seule enseigne calée ; format susceptible de changer côté Auchan (lecture générique en secours, « Aucune ligne reconnue » sinon) |
 | 2026-10-23 | Vérification | « Déjà au placard ? » éprouvé en navigateur sur deux semaines (`placard.mjs`, 4 étapes, axe 0 défaut) | livré | Non vérifié sur iPhone |

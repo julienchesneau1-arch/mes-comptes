@@ -1,8 +1,10 @@
 // Rappels sur le téléphone : les mêmes que l'agenda (.ics) — tâches de la veille ou du matin, boîtes à préparer —
-// plus « la semaine prochaine est vide » le dimanche à 18 h. Heures de Paris converties en instants exacts.
+// plus « la semaine prochaine est vide » le dimanche à 18 h, et chaque jour « Ce soir : … » (17 h 30 par défaut, réglable,
+// coupable) pour qui mange à la maison. Heures de Paris converties en instants exacts.
 import { addDays, paris, parisToUtc, weekOf, slotKey, SLOTS } from './dates.js';
 import { weekItems } from './ics.js';
-import { servings } from './plan.js';
+import { servings, portions } from './plan.js';
+import { prepTitle, capital } from './status.js';
 import { batchView, nextWeekday } from './batch.js';
 import { deriveShopping } from './shopping.js';
 // Identifiant stable : un rappel inchangé garde le sien (pas de doublon) ; modifié, il en change.
@@ -36,6 +38,19 @@ export function remindersFor(s, now, days = 8) {
         if (ds.every(d => SLOTS.every(sl => !s.slots[slotKey(d, sl)]?.dish)) && ds.some(d => SLOTS.some(sl => servings(s, slotKey(d, sl)) > 0)))
             raw.push({ uid: `semaine-${start}`, at: parisToUtc(addDays(start, -1), '1800').toISOString(), title: '🗓️ La semaine prochaine est vide', body: 'Proposer les repas en un geste dans Foyer' });
     }
+    // « Ce soir » : le plat prévu (ou ses restes), sinon « rien de prévu » ; rien si personne ne mange, repas dehors ou déjà mangé.
+    const at = s.settings.evening === undefined ? '1730' : s.settings.evening;
+    if (at)
+        for (let i = 0; i <= days; i++) {
+            const day = addDays(paris(now).date, i), k = slotKey(day, 'soir'), slot = s.slots[k], n = servings(s, k), d = slot?.dish;
+            if (!n || slot?.eaten || d?.kind === 'outside')
+                continue;
+            const p = d ? s.preps[d.prep] : undefined;
+            raw.push(!d || !p
+                ? { uid: `soir-${day}`, at: parisToUtc(day, at).toISOString(), title: '🍽️ Ce soir : rien de prévu', body: 'Des idées prêtes dans Foyer, en un toucher' }
+                : { uid: `soir-${day}`, at: parisToUtc(day, at).toISOString(), title: `🍽️ Ce soir : ${capital(prepTitle(s, p))}`,
+                    body: d.kind === 'from' ? 'Des restes : rien à cuisiner' : p.done ? 'Déjà préparé : à réchauffer' : `${portions(s, p).planned} portion${portions(s, p).planned > 1 ? 's' : ''} à préparer · la recette est dans Foyer` });
+        }
     const from = now.getTime(), to = from + days * 864e5;
     return raw.filter(r => Date.parse(r.at) > from && Date.parse(r.at) <= to)
         .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.uid < b.uid ? -1 : 1))

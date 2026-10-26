@@ -311,4 +311,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Ça coince | Une gêne se note au moment où elle arrive, sur le téléphone seulement ; la liste se copie pour être envoyée |
 | Essentiel d'abord | Les fonctions avancées n'apparaissent qu'à l'usage ou à la demande ; les masquer n'efface rien |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.7 incluses).
+## 24. V3.8 — au niveau des meilleurs là où c'est possible (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Des plats qui donnent envie | Photo libre du plat quand la page source en a une ; auteur et licence toujours cités ; jamais d'image inventée |
+| À deux, tout de suite | Un changement apparaît chez l'autre en une ou deux secondes, app ouverte ; sinon, à la relève suivante |
+| Le soir sans y penser | « Ce soir : … » à l'heure choisie ; « rien de prévu » quand c'est le cas |
+| Ce qui attend, sur l'icône | Le nombre de choses à régler, comme une app native |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.8 incluses).

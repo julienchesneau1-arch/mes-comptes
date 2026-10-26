@@ -1,6 +1,7 @@
 // Catalogue de recettes tiré du « Livre de cuisine » de Wikilivres (CC BY-SA 4.0) : lecture déterministe du wikitexte, sans IA.
 // Une recette n'entre au catalogue que si elle est exploitable telle quelle : nombre de personnes, au moins 3 ingrédients
 // dont la moitié chiffrés, des étapes, et un plat de repas (ni dessert, ni boisson, ni cuisine historique).
+import type { Photo } from './photos.ts';
 import { parseIngredient } from './ingredients.ts';
 import { UNIT, matchUnit, toBase } from './units.ts';
 import { qFrom } from './rational.ts';
@@ -17,6 +18,7 @@ export interface CatalogRecipe {
   tags: string[];           // rapide, végétarien, soupe, salade, pâtes, pizza, tarte
   main: 'volaille' | 'viande' | 'poisson' | 'œufs' | null;
   url: string; rev: number;
+  photo?: Photo;           // image principale libre de la page (Commons), servie par Foyer ; absente sinon
 }
 export type ParseResult = { ok: true; recipe: CatalogRecipe } | { ok: false; why: string };
 

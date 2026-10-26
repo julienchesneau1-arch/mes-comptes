@@ -28,6 +28,8 @@ import './sheets/invoice.ts';
 import './sheets/discover.ts';
 import { track } from './usage.ts';
 import { coinceButton, coinceStep } from './coince.ts';
+import { updateBadge } from './badge.ts';
+import { startLive } from './live.ts';
 
 const TABS: Tab[] = ['aujourdhui', 'semaine', 'courses', 'maison'];
 
@@ -63,6 +65,7 @@ function render(): void {
     if (a.getAttribute('href') === `#${tab}`) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   }
   if (keep) $<HTMLElement>(keep)?.focus({ preventScroll: true });
+  updateBadge();
 }
 
 function route(): void {
@@ -86,6 +89,7 @@ function boot(): void {
   wireDrag(document);
   route();
   startAutoSync();
+  startLive();
   loadRefPrices();
   void loadCatalog().then(c => { if (c) render(); }); // recettes prêtes : choix d'un plat et idées d'Aujourd'hui
   startReminders();

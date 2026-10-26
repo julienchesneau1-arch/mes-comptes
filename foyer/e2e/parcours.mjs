@@ -14,6 +14,7 @@ await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
   const m = route.request().method();
   return route.fulfill(m === 'OPTIONS' ? { status: 204, headers: cors } : m === 'POST' ? { status: 201, headers: cors } : { status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: '[]' });
 });
+await ctx.routeWebSocket(/^wss:\/\/[a-z0-9]+\.supabase\.co\//, ws => ws.onMessage(m => { const d = JSON.parse(String(m)); if (d.event === 'phx_join' || d.event === 'heartbeat') ws.send(JSON.stringify({ topic: d.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: d.ref })); })); // signal temps réel simulé (aucun réseau)
 // Agenda : la fonction foyer-agenda est simulée (événements de demain et après-demain, heures de Paris) ; on vérifie ce que l'app envoie.
 const { paris, parisToUtc, addDays } = await import('../js/core/dates.js');
 // Horloge figée (vendredi 9 octobre 2026, 10 h à Paris) : l'agenda lit 31 jours, un jour férié entrant dans la fenêtre changerait le résultat.

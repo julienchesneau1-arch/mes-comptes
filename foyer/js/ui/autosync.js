@@ -31,6 +31,9 @@ let running = null;
 let again = false;
 let timer = 0;
 const f = ((u, i) => fetch(u, i));
+// Après chaque dépôt réussi (ui/live.ts : signal à l'autre téléphone).
+let afterPush = () => undefined;
+export const setAfterPush = (fn) => { afterPush = fn; };
 export const available = () => !!RELAY;
 export const enabled = () => !!RELAY && !!A.device.code && A.device.auto && !A.demo && !!S().hid;
 async function keysFor(code) {
@@ -83,6 +86,7 @@ export async function syncNow() {
                 for (const e of fresh)
                     known.add(e.id);
                 setDevice({ lastSentLc: A.r.maxLc, lastSentAt: A.now().toISOString() });
+                afterPush();
             }
             save({ cursor: got.cursor, known: [...known], schema: SCHEMA });
             sync.status = 'ok';

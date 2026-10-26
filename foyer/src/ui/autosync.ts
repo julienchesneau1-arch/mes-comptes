@@ -27,6 +27,10 @@ let again = false;
 let timer = 0;
 const f = ((u: string, i?: RequestInit) => fetch(u, i)) as unknown as Fetch;
 
+// Après chaque dépôt réussi (ui/live.ts : signal à l'autre téléphone).
+let afterPush = (): void => undefined;
+export const setAfterPush = (fn: () => void): void => { afterPush = fn; };
+
 export const available = (): boolean => !!RELAY;
 export const enabled = (): boolean => !!RELAY && !!A.device.code && A.device.auto && !A.demo && !!S().hid;
 
@@ -64,7 +68,7 @@ export async function syncNow(): Promise<void> {
         }
       }
       const fresh = A.log.filter(e => !known.has(e.id));
-      if (fresh.length) { await push(conf, k, A.device.dev, fresh, f); for (const e of fresh) known.add(e.id); setDevice({ lastSentLc: A.r.maxLc, lastSentAt: A.now().toISOString() }); }
+      if (fresh.length) { await push(conf, k, A.device.dev, fresh, f); for (const e of fresh) known.add(e.id); setDevice({ lastSentLc: A.r.maxLc, lastSentAt: A.now().toISOString() }); afterPush(); }
       save({ cursor: got.cursor, known: [...known], schema: SCHEMA });
       sync.status = 'ok'; sync.at = A.now().toISOString(); sync.error = '';
     } catch (e) {

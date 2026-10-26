@@ -11,7 +11,7 @@ import { capital } from '../../core/status.js';
 import { S, clock, dispatch } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, toast, refreshSheet } from '../dom.js';
 import { CLICK, INPUT } from '../registry.js';
-import { loadCatalog } from '../catalog.js';
+import { loadCatalog, photoImg, photoHero } from '../catalog.js';
 import { showParsed, allergenHtml } from './recipe.js';
 const LABEL = { 'tout': 'Tout', 'rapide': 'Rapide', 'volaille': 'Volaille', 'viande': 'Viande', 'poisson': 'Poisson', 'végétarien': 'Végétarien', 'soupe': 'Soupe', 'pâtes': 'Pâtes' };
 let q = '', f = 'tout', shown = 30;
@@ -30,7 +30,7 @@ async function openList() {
     <p class="small muted">${all.length} plat${all.length > 1 ? 's' : ''}${all.length > shown ? ` · ${shown} affichés` : ''}. Déjà dans vos plats : masqués.</p>
     <ul class="list">${all.slice(0, shown).map(r => `<li><button class="item-btn" data-a="discoverOpen" data-id="${r.id}">${readyTile(r)}<span class="grow"><span class="title">${esc(r.title)}</span><br><span class="sub">${esc(meta(r))}</span></span></button></li>`).join('')}</ul>
     ${all.length > shown ? '<button class="btn ghost block" data-a="discoverMore">Voir plus</button>' : ''}
-    <p class="small muted">Recettes écrites par les contributeurs de Wikilivres, reprises sans modification de fond ; Foyer met seulement les ingrédients en forme. <a href="${esc(cat.licenseUrl)}" target="_blank" rel="noopener noreferrer">Licence</a> · <a href="${esc(cat.sourceUrl)}" target="_blank" rel="noopener noreferrer">Livre de cuisine</a></p>`;
+    <p class="small muted">Recettes écrites par les contributeurs de Wikilivres, reprises sans modification de fond ; Foyer met seulement les ingrédients en forme. <a href="${esc(cat.licenseUrl)}" target="_blank" rel="noopener noreferrer">Licence</a> · <a href="${esc(cat.sourceUrl)}" target="_blank" rel="noopener noreferrer">Livre de cuisine</a>${cat.recipes.some(r => r.photo) ? ' · <button class="btn quiet small-btn" data-a="photoCredits">Crédits des photos</button>' : ''}</p>`;
         } });
 }
 // Prochains repas libres où quelqu'un mange (7 jours) : là où une recette prête peut être prévue d'un toucher.
@@ -44,7 +44,7 @@ export function freeMeals(n = 6) {
         }
     return out;
 }
-export const readyTile = (r) => { const l = dishLook(r.title, r.ingredients.map(x => parseIngredient(x).line.name)); return `<span class="look t-${l.theme}" aria-hidden="true">${l.emoji}</span>`; };
+export const readyTile = (r) => { const l = { ...dishLook(r.title, r.ingredients.map(x => parseIngredient(x).line.name)), ...(r.photo ? { photo: r.photo.src } : {}) }; return `<span class="look t-${l.theme}" aria-hidden="true">${l.emoji}${photoImg(l)}</span>`; };
 const chosen = new Map(); // nombre de personnes dit par le foyer pour une page qui ne le dit pas
 // `from` : le repas d'où la fiche est ouverte (« Choisir un plat »), proposé en premier s'il est encore libre.
 async function openOne(id, from = '') {
@@ -61,6 +61,7 @@ async function openOne(id, from = '') {
       <p class="small muted">La page ne le dit pas : sans ce nombre, les courses ne peuvent pas être calculées.</p>
       <div class="chips" role="group" aria-label="Nombre de personnes">${[1, 2, 3, 4, 5, 6, 8].map(n => `<button class="tag" data-a="readyYield" data-id="${r.id}" data-n="${n}" aria-pressed="${y === n}">${n}</button>`).join('')}</div></section>`;
             return `${sheetHead(esc(r.title), esc(meta(r)))}
+    ${photoHero(r.photo)}
     ${no ? `<p class="banner partial">⚠️ ${esc(capital(no.why))} (${esc(no.name.toLowerCase())}) : exclu chez vous.</p>` : ''}
     ${ask}
     ${y ? `<section class="card stack"><h3 class="section-title">${owned ? 'Déjà dans vos plats · prévoir' : 'Prévoir'}</h3>
@@ -109,4 +110,13 @@ CLICK['catalogAdd'] = async (d) => {
     }
     dispatch(drafts, { toast: `${r.title} ajouté à vos plats` });
     refreshSheet();
+};
+// Crédits de toutes les photos du catalogue (licences libres : auteur et licence pour chacune).
+CLICK['photoCredits'] = async () => {
+    const cat = await loadCatalog();
+    if (!cat)
+        return;
+    const list = cat.recipes.filter(r => r.photo);
+    openSheet({ id: 'photoCredits', render: () => `${sheetHead('Crédits des photos', `${list.length} photos de Wikimedia Commons, sous licence libre, réduites pour l'app.`)}
+    <ul class="list">${list.map(r => `<li class="small"><strong>${esc(r.title)}</strong> : ${esc(r.photo?.author ?? '')} · ${esc(r.photo?.license ?? '')} · <a href="${esc(r.photo?.page ?? '')}" target="_blank" rel="noopener noreferrer">source</a></li>`).join('')}</ul>` });
 };

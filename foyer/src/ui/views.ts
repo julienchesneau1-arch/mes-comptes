@@ -35,7 +35,7 @@ import { on, settingsOn, modulesSection } from './modules.ts';
 import { packsFor } from '../core/drive.ts';
 import { ingredientKey } from '../core/ingredients.ts';
 import { dishLook, type Look } from '../core/visual.ts';
-import { catalogNow } from './catalog.ts';
+import { catalogNow, withPhoto, photoImg } from './catalog.ts';
 import { discoveriesFor } from '../core/propose.ts';
 
 const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n > 1 ? many : one}`;
@@ -46,18 +46,19 @@ export function slotLook(v: SlotView): Look {
   if (v.status === 'personne') return { emoji: '🌙', theme: 'none' };
   if (v.status === 'exterieur') return { emoji: '🍽️', theme: 'grape' };
   const r = v.recipe ? S().recipes[v.recipe] : undefined;
-  return dishLook(r ? current(r).name : v.title, r ? current(r).ingredients.map(l => l.name) : []);
+  const name = r ? current(r).name : v.title;
+  return withPhoto(dishLook(name, r ? current(r).ingredients.map(l => l.name) : []), name);
 }
 // Un plat du batch n'est pas « à cuisiner » le jour du repas : une seule pastille, qui dit quand il est cuisiné.
 const statusText = (v: SlotView): string => (v.batch ? `👩‍🍳 Cuisiné au batch ${dayShort(v.batch)}` : STATUS_LABEL[v.status]);
-const lookTile = (l: Look, cls = 'look'): string => `<span class="${cls} t-${l.theme}" aria-hidden="true">${l.emoji}</span>`;
+const lookTile = (l: Look, cls = 'look'): string => `<span class="${cls} t-${l.theme}" aria-hidden="true">${l.emoji}${photoImg(l)}</span>`;
 
 /* ---------- Aujourd'hui ---------- */
 // Recettes prêtes parmi les idées du repas (comme chez Jow) : un toucher les prévoit.
 function readyIdeas(k: SlotKey | undefined): string {
   const cat = catalogNow();
   if (!k || !cat || A.demo) return '';
-  return discoveriesFor(S(), cat, k, 3).map(d => { const l = dishLook(d.recipe.title, d.recipe.ingredients); return `<button class="idea" data-a="pickCatalog" data-k="${k}" data-id="${d.recipe.id}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(d.recipe.title)}</span><span class="sub">✨ recette prête · ${esc(d.recipe.yield ? `pour ${d.recipe.yield}` : '')}</span></span></button>`; }).join('');
+  return discoveriesFor(S(), cat, k, 3).map(d => { const l = withPhoto(dishLook(d.recipe.title, d.recipe.ingredients), d.recipe.title); return `<button class="idea" data-a="pickCatalog" data-k="${k}" data-id="${d.recipe.id}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span>${photoImg(l)}</span><span class="txt"><span class="title">${esc(d.recipe.title)}</span><span class="sub">✨ recette prête · ${esc(d.recipe.yield ? `pour ${d.recipe.yield}` : '')}</span></span></button>`; }).join('');
 }
 function cardActions(v: SlotView, primary = true): string {
   const k = v.key;
@@ -91,7 +92,7 @@ export function todayView(): string {
     const v = c.view, look = slotLook(v), id = `m-${v.key.replace('|', '-')}`;
     const title = v.title || (v.status === 'personne' ? 'Personne à la maison' : i === 0 ? 'On mange quoi\u00a0?' : 'Aucun repas prévu');
     const head = i === 0
-      ? `<div class="hero-art t-${look.theme}"><span class="art-emoji" aria-hidden="true">${look.emoji}</span><span class="chip s-${v.status}">${esc(statusText(v))}</span></div><div class="hero-body">
+      ? `<div class="hero-art t-${look.theme}"><span class="art-emoji" aria-hidden="true">${look.emoji}</span>${photoImg(look)}<span class="chip s-${v.status}">${esc(statusText(v))}</span></div><div class="hero-body">
         <span class="when">${esc(c.label)}</span>`
       : `<div class="row">${lookTile(look)}<span class="when grow">${esc(c.label)}</span><span class="chip s-${v.status}">${esc(statusText(v))}</span></div>`;
     return `<article class="card meal${i === 0 ? ' hero' : ''}" aria-labelledby="${id}">${head}
@@ -103,11 +104,11 @@ export function todayView(): string {
       ${bothEmpty ? `<p class="small muted detail">${esc(t.cards[1]?.label ?? '')} aussi : rien de prévu.</p>` : ''}
       <div class="actions">${cardActions(v, i === 0 && !ritualHtml)}</div>${i === 0 ? '</div>' : ''}</article>`;
   }).join('');
-  const ideaLook = (id: string): Look => { const r = s.recipes[id]; return r ? dishLook(current(r).name, current(r).ingredients.map(l => l.name)) : { emoji: '🍲', theme: 'grape' }; };
+  const ideaLook = (id: string): Look => { const r = s.recipes[id]; return r ? withPhoto(dishLook(current(r).name, current(r).ingredients.map(l => l.name)), current(r).name) : { emoji: '🍲', theme: 'grape' }; };
   const ready = t.ideas ? readyIdeas(t.cards[0]?.view.key) : '';
   const ideas = t.ideas && (t.ideas.leftovers.length || t.ideas.recipes.length || ready) && t.cards[0] ? `<section aria-labelledby="ideas-h"><h2 id="ideas-h" class="section-title">Idées pour ${esc(t.cards[0].label.toLowerCase())}</h2><div class="carousel">
-      ${t.ideas.leftovers.map(x => { const l = ideaLook(s.preps[x.prep]?.recipe ?? ''); return `<button class="idea" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">Restes : ${esc(x.name)}</span><span class="sub">♻️ ${plural(x.free, 'portion libre', 'portions libres')} · rien à cuisiner</span></span></button>`; }).join('')}
-      ${t.ideas.recipes.map(x => { const l = ideaLook(x.recipe); return `<button class="idea" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span></span><span class="txt"><span class="title">${esc(x.name)}</span><span class="sub">${esc(x.reason)}</span></span></button>`; }).join('')}
+      ${t.ideas.leftovers.map(x => { const l = ideaLook(s.preps[x.prep]?.recipe ?? ''); return `<button class="idea" data-a="pickLeft" data-k="${t.cards[0]?.view.key}" data-id="${x.prep}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span>${photoImg(l)}</span><span class="txt"><span class="title">Restes : ${esc(x.name)}</span><span class="sub">♻️ ${plural(x.free, 'portion libre', 'portions libres')} · rien à cuisiner</span></span></button>`; }).join('')}
+      ${t.ideas.recipes.map(x => { const l = ideaLook(x.recipe); return `<button class="idea" data-a="pickRecipe" data-k="${t.cards[0]?.view.key}" data-id="${x.recipe}"><span class="art t-${l.theme}" aria-hidden="true"><span class="emo">${l.emoji}</span>${photoImg(l)}</span><span class="txt"><span class="title">${esc(x.name)}</span><span class="sub">${esc(x.reason)}</span></span></button>`; }).join('')}
       ${ready}
     </div></section>` : '';
   const tasks = t.tasks.length ? `<section class="card" aria-labelledby="todo-h"><h2 id="todo-h">À faire</h2><ul class="list">${t.tasks.map(x => `<li class="${x.done ? 'done-line' : ''}"><div class="item">
@@ -300,7 +301,7 @@ function platsList(): string {
   const row = (x: typeof all[number]) => {
     const info = [x.c.yield ? `pour ${x.c.yield}` : '', x.c.ingredients.length ? plural(x.c.ingredients.length, 'ingrédient') : '', x.c.tags.join(', ')].filter(Boolean).join(' · ');
     const missing = !x.c.ingredients.length ? 'ingrédients à compléter' : x.c.ingredients.some(l => l.qty) && !x.c.yield ? 'rendement à compléter' : '';
-    return `<li><button class="item-btn" data-a="recipe" data-id="${x.r.id}">${lookTile(dishLook(x.c.name, x.c.ingredients.map(l => l.name)))}<span class="grow"><span class="title">${esc(x.c.name)}</span><br><span class="sub">${esc(info || 'nom seul')}</span></span>${missing ? `<span class="chip manque">${missing}</span>` : ''}</button></li>`;
+    return `<li><button class="item-btn" data-a="recipe" data-id="${x.r.id}">${lookTile(withPhoto(dishLook(x.c.name, x.c.ingredients.map(l => l.name)), x.c.name))}<span class="grow"><span class="title">${esc(x.c.name)}</span><br><span class="sub">${esc(info || 'nom seul')}</span></span>${missing ? `<span class="chip manque">${missing}</span>` : ''}</button></li>`;
   };
   const active = all.filter(x => !x.r.archived), archived = all.filter(x => x.r.archived);
   return `${active.length ? `<ul class="list">${active.map(row).join('')}</ul>` : `<p class="empty"><strong>${q ? 'Aucun plat trouvé' : 'Aucun plat pour l\'instant'}</strong>${q ? '' : 'Commencez par vos classiques : un nom suffit, les ingrédients peuvent venir plus tard.'}</p>`}
@@ -346,6 +347,7 @@ function settingsView(): string {
       <label class="btn ghost">Importer une sauvegarde<input type="file" accept="application/json,.json" data-c="importBackup" class="sr-only"></label><button class="btn ghost" data-a="snapshots">Copies de secours</button></div></section>
     ${RELAY ? `<section class="card stack"><h2>Rappels sur ce téléphone</h2>
       <p>${pushOn() ? '<strong>Activés.</strong> ' : ''}La veille à 19 h « sortir le poulet », la boîte à préparer, et ${S().settings.ritual ? 'le rituel : la liste à commander le jour des courses, la séance du batch à son heure' : 'le dimanche à 18 h si la semaine suivante est vide'}.</p>
+      <label class="field">Rappel « Ce soir » (le plat prévu, ou « rien de prévu »)<select data-c="eveningSet">${[['1630', '16 h 30'], ['1700', '17 h'], ['1730', '17 h 30'], ['1800', '18 h'], ['1830', '18 h 30'], ['off', 'Pas de rappel']].map(([v, l]) => `<option value="${v}" ${(s.settings.evening === undefined ? '1730' : s.settings.evening ?? 'off') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <p class="small muted">Le serveur ne voit que l'heure et un bloc chiffré ; le texte est déchiffré sur le téléphone. Sur iPhone : Foyer installé sur l'écran d'accueil, iOS 16.4 ou plus.</p>
       <div class="actions">${pushOn() ? '<button class="btn ghost" data-a="pushTest">Envoyer un rappel d\'essai</button><button class="btn quiet" data-a="pushOff">Désactiver</button>' : '<button class="btn" data-a="pushOn">Activer les rappels</button>'}</div></section>` : ''}
     <section class="card stack"><h2>Propositions de repas</h2>
@@ -379,6 +381,10 @@ function settingsView(): string {
 
 const VARIETY_TEXT: Record<Variety, string> = { max: 'Maximum de nouveautés', equilibre: 'Équilibré', 'mes-plats': 'Surtout nos plats' };
 CHANGE['varietySet'] = (_d, el) => { const v = (el as HTMLInputElement).value as Variety; dispatch([{ t: 'settings.set', p: { variety: v } }], { toast: `Propositions : ${VARIETY_TEXT[v].toLowerCase()}` }); };
+CHANGE['eveningSet'] = (_d, el) => {
+  const v = (el as HTMLSelectElement).value, at = /^\d{4}$/.test(v) ? v : null;
+  dispatch([{ t: 'settings.set', p: { evening: at } }], { toast: at ? `Rappel « Ce soir » à ${at.slice(0, 2)} h ${at.slice(2) === '00' ? '' : at.slice(2)}`.trim() : 'Rappel « Ce soir » coupé' });
+};
 CLICK['ack'] = d => { dispatch([{ t: 'conflict.ack', p: { event: d['id'] ?? '' } }]); };
 CLICK['line'] = d => openLine(d['week'] ?? '', d['key'] ?? '');
 CLICK['shareList'] = async d => {

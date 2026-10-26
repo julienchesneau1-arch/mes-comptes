@@ -28,9 +28,14 @@ function card(x: Exception): string {
 }
 
 // Section « À régler » : 5 cartes au plus, triées (échéance proche, blocage, repas) ; le reste replié.
-export function reglerSection(t: Today): string {
+const visible = (t: Today): { shown: Exception[]; hidden: Exception[] } => {
   const all = exceptions(A.r, t, me(), A.now()), keep = (x: Exception): boolean => x.code !== 'placard' || on('placard');
-  const shown = all.shown.filter(keep), hidden = all.hidden.filter(keep);
+  return { shown: all.shown.filter(keep), hidden: all.hidden.filter(keep) };
+};
+// Nombre de cartes « À régler » : la pastille sur l'icône de l'app (ui/badge.ts).
+export const reglerCount = (t: Today): number => { const v = visible(t); return v.shown.length + v.hidden.length; };
+export function reglerSection(t: Today): string {
+  const { shown, hidden } = visible(t);
   if (!shown.length) return '';
   return `<section class="card stack" aria-labelledby="exc-h"><h2 id="exc-h">À régler</h2><ul class="exc-list">${shown.map(card).join('')}</ul>
     ${hidden.length ? `<details><summary>+ ${hidden.length} autre${hidden.length > 1 ? 's' : ''}</summary><ul class="exc-list">${hidden.map(card).join('')}</ul></details>` : ''}</section>`;

@@ -50,7 +50,7 @@ test('page : aucune connexion sortante hors relais configuré, aucun script en l
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const { RELAY } = await import('../src/ui/config.ts');
   const connect = /connect-src ([^;]+);/.exec(html)?.[1]?.trim();
-  assert.equal(connect, RELAY ? `'self' ${new URL(RELAY.url).origin}` : "'self'");
+  assert.equal(connect, RELAY ? `'self' ${new URL(RELAY.url).origin} ${new URL(RELAY.url).origin.replace(/^https:/, 'wss:')}` : "'self'"); // relais + son signal temps réel
   assert.match(html, /script-src 'self';/);
   assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/);
   assert.doesNotMatch(html, /style="/);

@@ -22,6 +22,7 @@ export interface Settings {
   variety?: Variety;             // part de recettes nouvelles dans les propositions (absent = « max »)
   leftovers?: LeftoverRule;      // règle par défaut des restes (absent = « auto »)
   exclude?: Exclusions;          // allergies et refus du foyer : jamais proposés (absent = rien d'exclu)
+  evening?: string | null;       // rappel « Ce soir » à cette heure « HHMM » (absent = 1730, null = coupé)
 }
 // Restes libres : « auto » = le prochain déjeuner libre est proposé d'office (un toucher pour confirmer, posé tout seul dans une
 // semaine générée) ; « suggest » = des créneaux proposés ; « manual » = rien n'est signalé.
@@ -102,7 +103,7 @@ export const AGENDA_URL_RE = /^https:\/\/[a-z0-9.-]{3,100}\/[^\s"<>\\]{1,1900}$/
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule; exclude?: Exclusions };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule; exclude?: Exclusions; evening?: string | null };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -205,7 +206,7 @@ const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.len
 function validSettings(v: unknown): v is Settings {
   return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
     && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
-    && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']);
+    && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']) && (v['evening'] === undefined || v['evening'] === null || isHHMM(v['evening']));
 }
 export function validIngredient(v: unknown): v is IngredientLine {
   if (!isObj(v) || !str(v['name'], 80, 1) || !str(v['note'], 120)) return false;
@@ -249,7 +250,8 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
     && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
     && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
-    && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude']),
+    && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude'])
+    && (p['evening'] === undefined || p['evening'] === null || isHHMM(p['evening'])),
   'recipe.save': p => isId(p['recipe']) && validContent(p['content']),
   'recipe.archive': p => isId(p['recipe']) && bool(p['archived']),
   'slot.presence': p => isSlotKey(p['slot']) && isId(p['member']) && (p['presence'] === null || isPresence(p['presence'])),

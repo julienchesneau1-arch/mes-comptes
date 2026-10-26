@@ -3,7 +3,7 @@
 import { norm } from './text.ts';
 
 export type Theme = 'tomato' | 'sun' | 'basil' | 'ocean' | 'berry' | 'grape' | 'choco' | 'cream' | 'none';
-export interface Look { emoji: string; theme: Theme }
+export interface Look { emoji: string; theme: Theme; photo?: string } // photo : chemin d'une photo libre du catalogue (ui/catalog.ts)
 
 // L'ordre compte : « gratin de pâtes » est un gratin, « curry de poulet » un curry, « pâtes au thon » des pâtes.
 const RULES: readonly [RegExp, string, Theme][] = [
