@@ -11,7 +11,7 @@ var __rewriteRelativeImportExtension = (this && this.__rewriteRelativeImportExte
 // Seuls nom imprimé, contenance et prix des produits sont enregistrés (et synchronisés, chiffrés) : rien qui identifie le foyer.
 import { weekOf, fmtDayShort, addDays } from '../../core/dates.js';
 import { MAX_CENTS } from '../../core/model.js';
-import { candidates, matchKey, parseInvoice, pdfItems, toLines } from '../../core/invoice.js';
+import { candidates, matchKey, parseInvoice, pdfItems, productName, toLines } from '../../core/invoice.js';
 import { eur } from '../../core/money.js';
 import { capitalize, nameKey, norm } from '../../core/text.js';
 import { S, clock, dispatch } from '../state.js';
@@ -47,7 +47,7 @@ function show(lines) {
     }
     const s = S(), day = inv.day ?? clock().date, week = shopWeekFor(s, day, weekOf(day, s.settings.weekStart));
     const cands = candidates(s, [week, addDays(week, 7), addDays(week, -7)]).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    reading = { inv, week, cands, picks: inv.lines.map(l => capitalize(matchKey(l.label, cands)?.name ?? '')), restock: restockFromInvoice(s, inv.lines.map(l => l.label)) };
+    reading = { inv, week, cands, picks: inv.lines.map(l => capitalize(matchKey(l.label, cands)?.name ?? '')), restock: restockFromInvoice(s, inv.lines.map(l => productName(l.label))) };
 }
 const lineText = (l) => l.loose && l.weight !== null
     ? `${String(l.weight).replace('.', ',')} kg à ${eur(l.unitCents)} le kg = ${eur(l.cents)}`
@@ -67,8 +67,8 @@ function invoiceHtml() {
     }
     const { inv, week, cands, picks, restock } = reading, spent = S().shop[week]?.spent ?? null;
     const day = inv.day ?? clock().date;
-    // Produits de la maison suivis, reconnus sur la facture : leur achat est noté au jour de la facture (le rythme s'en corrige).
-    const house = restock.length ? `<fieldset><legend>Produits de la maison achetés</legend>${restock.map(id => `<label class="item"><input type="checkbox" name="r_${esc(id)}" checked><span>${esc(nameOf(id, S().restock[id]))}</span></label>`).join('')}
+    // Produits du quotidien suivis, reconnus sur la facture : leur achat est noté au jour de la facture (le rythme s'en corrige).
+    const house = restock.length ? `<fieldset><legend>Produits du quotidien achetés</legend>${restock.map(id => `<label class="item"><input type="checkbox" name="r_${esc(id)}" checked><span>${esc(nameOf(id, S().restock[id]))}</span></label>`).join('')}
     <p class="small muted">Achat noté au ${esc(fmtDayShort(day))} : Foyer recalcule quand il en faudra de nouveau.</p></fieldset>` : '';
     const check = inv.total === null ? '<p class="small muted">Total de la facture non trouvé : vérifiez les lignes.</p>'
         : inv.total === inv.sum ? '<p class="banner ok">Lecture complète : les lignes lues font exactement le total de la facture.</p>'
@@ -149,6 +149,6 @@ SUBMIT['invoiceSave'] = data => {
     }
     reading = null;
     closeSheet();
-    dispatch(drafts, { toast: `${seen.size} prix payé${seen.size > 1 ? 's' : ''} retenu${seen.size > 1 ? 's' : ''}${paid && inv.total !== null ? ` · ${eur(inv.total)} notés` : ''}${house.length ? ` · ${house.length} produit${house.length > 1 ? 's' : ''} de la maison` : ''}` });
+    dispatch(drafts, { toast: `${seen.size} prix payé${seen.size > 1 ? 's' : ''} retenu${seen.size > 1 ? 's' : ''}${paid && inv.total !== null ? ` · ${eur(inv.total)} notés` : ''}${house.length ? ` · ${house.length} produit${house.length > 1 ? 's' : ''} du quotidien` : ''}` });
 };
 CLICK['invoice'] = () => openInvoice();

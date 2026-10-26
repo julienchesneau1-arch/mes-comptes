@@ -1,20 +1,23 @@
-// Produits de la maison (dentifrice, papier toilette, essuie-tout…) : ils ne suivent pas les repas mais le temps qui passe.
+// Produits du quotidien (dentifrice, papier toilette, café, sucre, huile…) : ils ne suivent pas les repas mais le temps qui passe.
 // Foyer estime quand chacun devrait manquer et ne l'ajoute aux courses qu'à ce moment-là : la catégorie apparaît de temps en
 // temps, jamais toutes les semaines. Estimation de départ : une hypothèse écrite (contenance et usage courants), rapportée au
 // nombre de personnes du foyer. Elle se corrige d'elle-même : dès qu'un achat est noté (coche dans la liste, facture lue),
 // l'écart réel entre deux achats prend le relais. Déterministe, sans réseau : mêmes événements, mêmes dates sur les deux téléphones.
 import { type LocalDate, addDays, daysBetween } from './dates.ts';
 import type { RestockItem, State } from './model.ts';
-import { norm } from './text.ts';
+import { nameKey, norm } from './text.ts';
+import { aisleOf } from './ingredients.ts';
 
 // partage : un achat sert à tout le foyer, days = sa durée pour UNE personne (2 personnes : deux fois plus vite).
 // chacun : un exemplaire par personne, renouvelé tous les days jours. foyer : days jours quelle que soit la taille du foyer.
 export type Share = 'partage' | 'chacun' | 'foyer';
-export type RestockGroup = 'hygiene' | 'entretien';
+export type RestockGroup = 'hygiene' | 'entretien' | 'petitdej' | 'placard';
 export interface RestockDef {
   id: string; name: string; group: RestockGroup; pack: string; share: Share; days: number; on: boolean;
   why: string;                  // l'hypothèse de départ, affichée telle quelle
-  match: RegExp; not?: RegExp;  // reconnaissance du produit sur une facture (libellé sans accents, en minuscules)
+  match: RegExp; not?: RegExp;  // reconnaissance sur une facture : nom du produit sans la marque, sans accents, en minuscules
+  aisle?: string;               // rayon des courses (absent : Maison & hygiène)
+  keys?: readonly string[];     // ingrédients de recette qui sont ce produit : une seule ligne quand une recette en demande aussi
 }
 
 export const RESTOCK: readonly RestockDef[] = [
@@ -76,9 +79,65 @@ export const RESTOCK: readonly RestockDef[] = [
     why: 'une boîte ≈ 3 mois', match: /congelation|sacs? zip/ },
   { id: 'filtrescafe', name: 'Filtres à café', group: 'entretien', pack: '1 boîte', share: 'foyer', days: 60, on: false,
     why: 'boîte de 80 : ≈ 1 à 2 par jour', match: /filtres? (?:a )?cafe/ },
+  // Petit-déjeuner et placard : rien d'office (café ou thé, tartines ou céréales : chaque foyer coche les siens). Hors quantités
+  // des recettes : ce que le foyer consomme en plus (petit-déjeuner, assaisonnement, cuisine du quotidien).
+  { id: 'cafe', name: 'Café', group: 'petitdej', pack: '1 paquet', share: 'partage', days: 18, on: false, aisle: 'sucre', keys: ['cafe', 'cafe moulu'],
+    why: 'paquet de 250 g : ≈ 7 g par tasse, 2 tasses par jour', match: /^(?:cafe|capsules?|dosettes?)\b/, not: /filtre/ },
+  { id: 'the', name: 'Thé', group: 'petitdej', pack: '1 boîte', share: 'partage', days: 12, on: false, aisle: 'sucre', keys: ['the'],
+    why: 'boîte de 25 sachets : 2 tasses par jour', match: /^the\b/ },
+  { id: 'tisane', name: 'Tisane', group: 'petitdej', pack: '1 boîte', share: 'partage', days: 20, on: false, aisle: 'sucre', keys: ['tisane'],
+    why: 'boîte de 20 sachets : 1 tasse par jour', match: /^(?:tisane|infusion)/ },
+  { id: 'chocolat', name: 'Chocolat en poudre', group: 'petitdej', pack: '1 boîte', share: 'partage', days: 20, on: false, aisle: 'sucre', keys: ['chocolat en poudre', 'cacao'],
+    why: 'boîte d\'≈ 400 g : ≈ 20 g par bol, un bol par jour', match: /^(?:chocolat en poudre|poudre chocolat|cacao)/ },
+  { id: 'sucre', name: 'Sucre', group: 'petitdej', pack: '1 kg', share: 'partage', days: 100, on: false, aisle: 'sucre', keys: ['sucre', 'sucre en poudre', 'sucre semoule'],
+    why: '≈ 10 g par jour (deux morceaux ou cuillères)', match: /^sucre\b/, not: /^sucre (?:glace|vanill)/ },
+  { id: 'lait', name: 'Lait', group: 'petitdej', pack: '6 briques d\'1 L', share: 'partage', days: 24, on: false, aisle: 'cremerie', keys: ['lait', 'lait demi-ecreme', 'lait entier', 'lait ecreme'],
+    why: '≈ 25 cl par jour (café au lait, céréales)', match: /^lait\b/, not: /^lait (?:de coco|d'amande|d'avoine|de soja|vegetal|concentre|de croissance)/ },
+  { id: 'cereales', name: 'Céréales', group: 'petitdej', pack: '1 paquet', share: 'partage', days: 12, on: false, aisle: 'sucre', keys: ['cereale', 'muesli', 'granola'],
+    why: 'paquet de 500 g : ≈ 40 g par bol', match: /^(?:cereales?|muesli|granola|corn flakes|petales)/ },
+  { id: 'avoine', name: 'Flocons d\'avoine', group: 'petitdej', pack: '1 paquet', share: 'partage', days: 12, on: false, aisle: 'sucre', keys: ['flocon d\'avoine'],
+    why: 'paquet de 500 g : ≈ 40 g par bol', match: /^flocons? d'avoine/ },
+  { id: 'confiture', name: 'Confiture', group: 'petitdej', pack: '1 pot', share: 'partage', days: 25, on: false, aisle: 'sucre', keys: ['confiture'],
+    why: 'pot d\'≈ 370 g : ≈ 15 g par jour', match: /^confiture/ },
+  { id: 'miel', name: 'Miel', group: 'petitdej', pack: '1 pot', share: 'partage', days: 50, on: false, aisle: 'sucre', keys: ['miel'],
+    why: 'pot de 500 g : ≈ 10 g par jour', match: /^miel\b/ },
+  { id: 'tartiner', name: 'Pâte à tartiner', group: 'petitdej', pack: '1 pot', share: 'partage', days: 27, on: false, aisle: 'sucre', keys: ['pate a tartiner'],
+    why: 'pot d\'≈ 400 g : ≈ 15 g par jour', match: /^pate a tartiner/ },
+  { id: 'beurre', name: 'Beurre', group: 'petitdej', pack: '1 plaquette de 250 g', share: 'partage', days: 25, on: false, aisle: 'cremerie', keys: ['beurre', 'beurre doux', 'beurre demi-sel'],
+    why: '≈ 10 g par jour sur les tartines', match: /^beurre\b/, not: /^beurre de cacahuete/ },
+  { id: 'paindemie', name: 'Pain de mie', group: 'petitdej', pack: '1 paquet', share: 'partage', days: 10, on: false, aisle: 'boulangerie', keys: ['pain de mie'],
+    why: 'paquet d\'≈ 20 tranches : 2 par jour', match: /^pain de mie/ },
+  { id: 'biscottes', name: 'Biscottes', group: 'petitdej', pack: '1 paquet', share: 'partage', days: 10, on: false, aisle: 'epicerie', keys: ['biscotte'],
+    why: 'paquet d\'≈ 30 : 3 par jour', match: /^biscottes?/ },
+  { id: 'jusorange', name: 'Jus d\'orange', group: 'petitdej', pack: '1 L', share: 'partage', days: 5, on: false, aisle: 'boissons', keys: ['jus d\'orange'],
+    why: 'un verre de 20 cl par jour', match: /^(?:pur )?jus d'orange/ },
+  { id: 'yaourts', name: 'Yaourts', group: 'petitdej', pack: '1 pack de 8', share: 'partage', days: 8, on: false, aisle: 'cremerie', keys: ['yaourt', 'yaourt nature'],
+    why: 'un par jour', match: /^yaourts?\b/ },
+  { id: 'oeufs', name: 'Œufs', group: 'petitdej', pack: '1 boîte de 6', share: 'partage', days: 12, on: false, aisle: 'cremerie', keys: ['oeuf'],
+    why: 'un œuf tous les 2 jours, hors recettes', match: /^oeufs?\b/ },
+  { id: 'huile', name: 'Huile', group: 'placard', pack: '1 bouteille d\'1 L', share: 'partage', days: 66, on: false, aisle: 'epicerie',
+    keys: ['huile', 'huile d\'olive', 'huile de tournesol', 'huile de colza', 'huile vegetale'],
+    why: '≈ une cuillère à soupe (15 ml) par jour pour la cuisine', match: /^huile\b/ },
+  { id: 'vinaigre', name: 'Vinaigre', group: 'placard', pack: '1 bouteille', share: 'partage', days: 100, on: false, aisle: 'epicerie', keys: ['vinaigre', 'vinaigre balsamique', 'vinaigre de vin'],
+    why: 'bouteille de 50 cl : ≈ 5 ml par jour', match: /^vinaigre/ },
+  { id: 'sel', name: 'Sel', group: 'placard', pack: '1 paquet', share: 'partage', days: 160, on: false, aisle: 'epicerie', keys: ['sel', 'sel fin', 'gros sel', 'fleur de sel'],
+    why: 'paquet de 500 g : ≈ 3 g par jour pour la cuisine', match: /^(?:sel|gros sel|fleur de sel)\b/, not: /lave.?vaisselle|regenerant/ },
+  { id: 'poivre', name: 'Poivre', group: 'placard', pack: '1 boîte', share: 'partage', days: 100, on: false, aisle: 'epicerie', keys: ['poivre', 'poivre noir', 'poivre moulu'],
+    why: 'boîte d\'≈ 50 g : ≈ 0,5 g par jour', match: /^poivre\b/ },
+  { id: 'moutarde', name: 'Moutarde', group: 'placard', pack: '1 pot', share: 'partage', days: 40, on: false, aisle: 'epicerie', keys: ['moutarde'],
+    why: 'pot d\'≈ 200 g : ≈ 5 g par jour', match: /^moutarde/ },
+  { id: 'mayonnaise', name: 'Mayonnaise', group: 'placard', pack: '1 pot', share: 'partage', days: 45, on: false, aisle: 'epicerie', keys: ['mayonnaise'],
+    why: 'pot d\'≈ 235 g : ≈ 5 g par jour', match: /^mayonnaise/ },
+  { id: 'ketchup', name: 'Ketchup', group: 'placard', pack: '1 flacon', share: 'partage', days: 100, on: false, aisle: 'epicerie', keys: ['ketchup'],
+    why: 'flacon d\'≈ 500 g : ≈ 5 g par jour', match: /^ketchup/ },
+  { id: 'farine', name: 'Farine', group: 'placard', pack: '1 kg', share: 'partage', days: 100, on: false, aisle: 'sucre', keys: ['farine', 'farine de ble'],
+    why: '≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie)', match: /^farine\b/ },
 ];
 export const RESTOCK_DEF: Readonly<Record<string, RestockDef>> = Object.fromEntries(RESTOCK.map(d => [d.id, d]));
-export const GROUP_LABEL: Record<RestockGroup, string> = { hygiene: 'Hygiène', entretien: 'Cuisine et entretien' };
+export const GROUP_LABEL: Record<RestockGroup, string> = { hygiene: 'Hygiène', entretien: 'Cuisine et entretien', petitdej: 'Petit-déjeuner', placard: 'Placard' };
+export const GROUPS: readonly RestockGroup[] = ['petitdej', 'placard', 'hygiene', 'entretien'];
+// Rayon des courses : celui du produit ; produit ajouté par le foyer : deviné d'après son nom (comme un article ajouté à la main).
+export const aisleFor = (s: State, id: string): string => RESTOCK_DEF[id]?.aisle ?? (RESTOCK_DEF[id] ? 'maison' : aisleOf(s.restock[id]?.name ?? '', null, s.aisles));
 
 export const MIN_DAYS = 3, MAX_DAYS = 365;
 const clamp = (n: number): number => Math.min(MAX_DAYS, Math.max(MIN_DAYS, Math.round(n)));
@@ -133,7 +192,7 @@ export function nextDue(s: State, id: string): LocalDate | null {
 // « Il en reste » : reporté d'un quart du rythme, une semaine au moins.
 export const later = (days: number): number => Math.max(7, Math.round(days / 4));
 
-export interface RestockLine { id: string; name: string; qty: string; due: LocalDate; last: LocalDate | null; rhythm: Rhythm; done: boolean; late: boolean }
+export interface RestockLine { id: string; name: string; qty: string; aisle: string; due: LocalDate; last: LocalDate | null; rhythm: Rhythm; done: boolean; late: boolean }
 // Lignes d'une semaine de courses. Semaine en cours (celle des prochaines courses) : tout ce qui manque d'ici sa fin, retard compris,
 // et ce qui a été acheté pour elle (du samedi d'avant à sa fin) ; semaine à venir : ce qui manquera seulement là ; passée : rien.
 export function restockFor(s: State, week: LocalDate, current: LocalDate, today: LocalDate): RestockLine[] {
@@ -144,12 +203,25 @@ export function restockFor(s: State, week: LocalDate, current: LocalDate, today:
     if (!due || !r) continue;
     const last = lastBought(it), done = week === current && !!last && last >= addDays(week, -2) && last <= end;
     const show = done || (week === current ? due <= end : due >= week && due <= end);
-    if (show) out.push({ id, name: nameOf(id, it), qty: packOf(id, n), due, last, rhythm: r, done, late: !done && due < today });
+    if (show) out.push({ id, name: nameOf(id, it), qty: packOf(id, n), aisle: aisleFor(s, id), due, last, rhythm: r, done, late: !done && due < today });
   }
   return out.sort((a, b) => Number(a.done) - Number(b.done) || a.due.localeCompare(b.due) || a.name.localeCompare(b.name, 'fr'));
 }
 
-// Produits suivis reconnus sur une facture du drive (« AUCHAN Dentifrice 75ml », « PAPIER TOILETTE x12 ») : achat noté au jour de la facture.
+// Une seule ligne quand une recette de la semaine demande aussi le produit (sucre, lait, beurre…) : le produit dû va avec la
+// ligne de la recette encore à acheter, le produit acheté avec la ligne cochée (pour pouvoir l'annuler ensemble). Clé = ligne.
+export function pairWithRecipes(rs: readonly RestockLine[], lines: readonly { key: string; name: string; done: boolean }[]): Map<string, string> {
+  const out = new Map<string, string>(), used = new Set<string>();
+  for (const r of rs) {
+    const keys = new Set((RESTOCK_DEF[r.id]?.keys ?? []).map(k => nameKey(k)));
+    const l = keys.size ? lines.find(x => x.done === r.done && !used.has(x.key) && keys.has(nameKey(x.name))) : undefined;
+    if (l) { out.set(r.id, l.key); used.add(l.key); }
+  }
+  return out;
+}
+
+// Produits suivis reconnus sur une facture du drive (« Dentifrice 75ml », « PAPIER TOILETTE x12 », « Lait demi-écrémé ») : achat
+// noté au jour de la facture. Libellés passés sans la marque (core/invoice.ts productName) : les aliments se lisent en tête du nom.
 export function restockFromInvoice(s: State, labels: readonly string[]): string[] {
   const out: string[] = [];
   for (const [id, it] of Object.entries(s.restock)) {

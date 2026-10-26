@@ -178,12 +178,12 @@ export function explain(l: ShopLine): string[] {
 export const checkSig = (l: ShopLine): string => sig(l.toBuy, l.unknown.length);
 
 // Liste en texte, à partager par message ou à coller dans des notes.
-// restock : produits de la maison à racheter cette semaine (core/restock.ts), rangés dans Maison & hygiène.
-export function shoppingText(list: ShoppingList, title: string, s?: State, restock: readonly { name: string; qty: string }[] = []): string {
+// restock : produits du quotidien à racheter cette semaine (core/restock.ts), chacun dans son rayon.
+export function shoppingText(list: ShoppingList, title: string, s?: State, restock: readonly { name: string; qty: string; aisle: string }[] = []): string {
   const out = [title];
   for (const a of s ? orderedAisles(s) : AISLES) {
     const ls = list.lines.filter(l => l.aisle === a.id && !l.done);
-    const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = a.id === 'maison' ? restock : [];
+    const ms = list.manual.filter(m => m.aisle === a.id && !m.checked), rs = restock.filter(r => r.aisle === a.id);
     if (!ls.length && !ms.length && !rs.length) continue;
     out.push('', `${a.icon} ${a.label}`);
     for (const l of ls) {

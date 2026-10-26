@@ -261,6 +261,47 @@ produits ajoutés par le foyer ; chacun revient dans les courses, rayon Maison &
 | Sacs congélation | Cuisine et entretien | non | 90 j pour le foyer | 90 j | une boîte ≈ 3 mois |
 | Filtres à café | Cuisine et entretien | non | 60 j pour le foyer | 60 j | boîte de 80 : ≈ 1 à 2 par jour |
 
+### V3.10 (petit-déjeuner et placard — demande de Julien du 26 octobre 2026)
+
+« Comment gérer aussi l'alimentaire du petit-déjeuner, thé, sucre… ? » Choix de Julien : comme les produits de la maison
+(rythme estimé puis appris, dans la liste seulement quand ça manque) et une seule ligne quand une recette en demande aussi.
+La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, hygiène, entretien.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| 25 produits petit-déjeuner et placard | **livré** | Aucun coché d'office (café ou thé, tartines ou céréales) ; hypothèse écrite par produit (tableau ci-dessous) ; chacun dans son rayon (sucre : Épicerie sucrée, lait : Crèmerie, jus : Boissons) ; produit ajouté par le foyer : rayon deviné d'après son nom |
+| Une seule ligne avec les recettes | **livré** | Sucre dû et crêpes au menu : une ligne « Sucre », le paquet de la réserve à droite, la part des crêpes dessous ; la cocher note aussi l'achat de la réserve ; la décocher l'enlève. E2E `maison.mjs` (sucre et lait) |
+| Facture du drive | **livré** | Les aliments se lisent en tête du nom du produit (marque retirée) : lait ≠ lait de coco ni chocolat au lait, café ≠ filtres à café, sel ≠ sel lave-vaisselle, sucre ≠ sucre glace (4 tests, `tests/v310.test.ts`) |
+| Commande guidée au drive avec la réserve | **non fait** | La commande guidée suit les lignes des recettes ; la réserve du quotidien s'achète à part |
+
+| Produit | Groupe | Rayon | Achat | Pour 2 personnes | Hypothèse de départ |
+|---|---|---|---|---|---|
+| Café | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 paquet | 9 j | paquet de 250 g : ≈ 7 g par tasse, 2 tasses par jour |
+| Thé | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 boîte | 6 j | boîte de 25 sachets : 2 tasses par jour |
+| Tisane | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 boîte | 10 j | boîte de 20 sachets : 1 tasse par jour |
+| Chocolat en poudre | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 boîte | 10 j | boîte d'≈ 400 g : ≈ 20 g par bol, un bol par jour |
+| Sucre | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour (deux morceaux ou cuillères) |
+| Lait | Petit-déjeuner | Crèmerie & œufs | 6 briques d'1 L | 12 j | ≈ 25 cl par jour (café au lait, céréales) |
+| Céréales | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 paquet | 6 j | paquet de 500 g : ≈ 40 g par bol |
+| Flocons d'avoine | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 paquet | 6 j | paquet de 500 g : ≈ 40 g par bol |
+| Confiture | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 pot | 13 j | pot d'≈ 370 g : ≈ 15 g par jour |
+| Miel | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 pot | 25 j | pot de 500 g : ≈ 10 g par jour |
+| Pâte à tartiner | Petit-déjeuner | Épicerie sucrée & petit-déj | 1 pot | 14 j | pot d'≈ 400 g : ≈ 15 g par jour |
+| Beurre | Petit-déjeuner | Crèmerie & œufs | 1 plaquette de 250 g | 13 j | ≈ 10 g par jour sur les tartines |
+| Pain de mie | Petit-déjeuner | Pain | 1 paquet | 5 j | paquet d'≈ 20 tranches : 2 par jour |
+| Biscottes | Petit-déjeuner | Épicerie salée | 1 paquet | 5 j | paquet d'≈ 30 : 3 par jour |
+| Jus d'orange | Petit-déjeuner | Boissons | 1 L | 3 j | un verre de 20 cl par jour |
+| Yaourts | Petit-déjeuner | Crèmerie & œufs | 1 pack de 8 | 4 j | un par jour |
+| Œufs | Petit-déjeuner | Crèmerie & œufs | 1 boîte de 6 | 6 j | un œuf tous les 2 jours, hors recettes |
+| Huile | Placard | Épicerie salée | 1 bouteille d'1 L | 33 j | ≈ une cuillère à soupe (15 ml) par jour pour la cuisine |
+| Vinaigre | Placard | Épicerie salée | 1 bouteille | 50 j | bouteille de 50 cl : ≈ 5 ml par jour |
+| Sel | Placard | Épicerie salée | 1 paquet | 80 j | paquet de 500 g : ≈ 3 g par jour pour la cuisine |
+| Poivre | Placard | Épicerie salée | 1 boîte | 50 j | boîte d'≈ 50 g : ≈ 0,5 g par jour |
+| Moutarde | Placard | Épicerie salée | 1 pot | 20 j | pot d'≈ 200 g : ≈ 5 g par jour |
+| Mayonnaise | Placard | Épicerie salée | 1 pot | 23 j | pot d'≈ 235 g : ≈ 5 g par jour |
+| Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
+| Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
+
 ### V3.7 (apprendre de l'usage réel — choix de Julien du 25 octobre 2026)
 
 | Fonction | Statut | Preuve |
@@ -415,6 +456,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.10 | Petit-déjeuner et placard (25 produits : café, thé, sucre, lait, céréales, beurre, huile, sel…) suivis comme les produits de la maison, chacun dans son rayon ; une seule ligne quand une recette en demande aussi | livré | Rien d'office (habitudes propres à chaque foyer) ; estimations = hypothèses écrites ; non vérifié sur iPhone |
 | 2026-10-26 | V3.9 | Produits de la maison : 29 produits suivis au bon rythme (estimation par personne, puis rythme appris des achats notés et des factures), dans les courses seulement la semaine où ils manquent | livré | Estimations de départ = hypothèses écrites, corrigées par l'usage ; non vérifié sur iPhone ; prix non comptés dans le budget |
 | 2026-10-26 | V3.8 | Photos libres des plats (CI, auto-hébergées, crédits), synchro quasi instantanée (signal Realtime), rappel « Ce soir », pastille sur l'icône | livré | 110 photos sur 424 recettes (pages Wikilivres illustrées sous licence libre) ; signal mesuré à 7 ms sur le vrai relais par la CI ; signal temps réel et pastille non vérifiés sur iPhone |
 | 2026-10-25 | V3.7 | Avis 👍/👎 après le repas, « Ça coince ? » (gênes notées sur le téléphone), mode essentiel (fonctions avancées affichées à l'usage ou à la demande) | livré | Seuils et choix par défaut posés, pas encore mesurés ; à juger pendant l'essai de deux semaines |

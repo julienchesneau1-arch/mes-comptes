@@ -329,4 +329,12 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Rien à saisir chaque semaine | Cocher dans la liste ou lire la facture suffit à noter l'achat |
 | Le foyer garde la main | « Il en faut », « il en reste », rythme fixe, produit à soi, suivi arrêté sans rien perdre |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.9 incluses).
+## 26. V3.10 — le petit-déjeuner et le placard aussi (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Les habitudes du foyer | Rien d'office : café ou thé, tartines ou céréales, le foyer coche les siens |
+| Au bon rayon | Sucre en épicerie sucrée, lait en crèmerie : là où on les cherche en magasin |
+| Jamais deux lignes | Si une recette de la semaine en demande aussi, une seule ligne : le paquet, et la part de la recette dessous |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.10 incluses).
