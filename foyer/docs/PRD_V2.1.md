@@ -372,4 +372,14 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Utile au bon moment | DLC proche : avancer le plat prévu trop tard, ou prévoir un plat qui l'utilise, d'un toucher, annulable |
 | La date imprimée seulement | Pas de durée de conservation calculée ; produit ouvert : la date ne s'applique plus (DGCCRF) |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.14 incluses).
+## 31. V3.15 — un prix sûr, ou dit comme estimé (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Rien d'aspiré | Prix des factures et tickets du foyer, des relevés Open Prices (contributions libres) et des prix moyens Insee ; jamais lus sur le site d'Auchan (CGU) |
+| Ce qu'on achète | Un ingrédient préparé (« oignon haché ») se chiffre comme le produit acheté ; un nom différent (« oignon de Roscoff ») n'est pas rapproché |
+| Dire ce qui est sûr | Le budget sépare les euros payés (factures, tickets), les estimations et les articles sans prix |
+| Le gratuit ne compte pas | Eau du robinet, sel, poivre, épices : ni dans le montant, ni « sans prix » |
+| Mesurer | La couverture se mesure sans réseau (`scripts/couverture.mjs`) avant et après chaque changement de source |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.15 incluses).

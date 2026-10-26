@@ -134,6 +134,17 @@ await step('fichier illisible : message clair ; texte collé : lu aussi', async 
   await dlg.getByText('1 produit lu').waitFor();
   await page.keyboard.press('Escape');
 });
+await step('ticket de caisse « scanné » (texte fictif, format générique) : lignes lues, total vérifié', async () => {
+  await page.getByRole('button', { name: '🧾 Lire la facture du drive', exact: true }).click();
+  await dlg.getByText('ou scanner un ticket de caisse').click();
+  const field = dlg.getByLabel('Texte copié depuis la facture');
+  if (!/Scanner le texte/.test(await field.evaluate(el => document.getElementById(el.getAttribute('aria-describedby') ?? '')?.textContent ?? ''))) throw new Error('aide « Scanner le texte » non reliée au champ');
+  await field.fill('MAGASIN EXEMPLE\n12/10/2026 18:42\nLAIT 1/2 ECREME 1L        1,05\nBEURRE DOUX 250G          2,39\n2 X 1,49\nYAOURT NATURE X8          2,98\nPOULET FILET 400G         6,49\nTOTAL                    12,91\nCB                       12,91');
+  await dlg.getByRole('button', { name: 'Lire ce texte' }).click();
+  await dlg.getByText('4 produits lus').waitFor();
+  await dlg.getByText('Lecture complète : les lignes lues font exactement le total de la facture.').waitFor();
+  await page.keyboard.press('Escape');
+});
 
 await browser.close();
 if (outside.length) errors.push(`appels hors de l'app : ${[...new Set(outside)].join(', ')}`);

@@ -44,7 +44,7 @@ test('gratuit ou négligeable : eau du robinet, bouquet garni, poivre du moulin 
 });
 
 test('produits du quotidien : contenance reprise de l\'hypothèse écrite, lisible', () => {
-  for (const [id, size] of [['confiture', '370 g'], ['miel', '500 g'], ['tartiner', '400 g'], ['cereales', '500 g'], ['vinaigre', '50 cl'], ['sirop', '75 cl'], ['sodas', '6 x 33 cl'], ['biscuits', '200 g']] as const) {
+  for (const [id, size] of [['confiture', '370 g'], ['miel', '500 g'], ['tartiner', '400 g'], ['cereales', '500 g'], ['vinaigre', '50 cl'], ['sirop', '75 cl'], ['sodas', '6 x 33 cl'], ['biscuits', '200 g'], ['moutarde', '200 g']] as const) {
     assert.equal(RESTOCK_DEF[id]?.size, size, id);
     assert.ok(parseSize(size), size);
   }

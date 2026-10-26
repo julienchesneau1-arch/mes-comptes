@@ -110,7 +110,7 @@ export const RESTOCK = [
         why: 'paquet de 500 g : ≈ 3 g par jour pour la cuisine', match: /^(?:sel|gros sel|fleur de sel)\b/, not: /lave.?vaisselle|regenerant/ },
     { id: 'poivre', name: 'Poivre', group: 'placard', pack: '1 boîte', share: 'partage', days: 100, on: false, aisle: 'epicerie', keys: ['poivre', 'poivre noir', 'poivre moulu'],
         why: 'boîte d\'≈ 50 g : ≈ 0,5 g par jour', match: /^poivre\b/ },
-    { id: 'moutarde', name: 'Moutarde', group: 'placard', pack: '1 pot', share: 'partage', days: 40, on: false, aisle: 'epicerie', keys: ['moutarde'],
+    { id: 'moutarde', name: 'Moutarde', group: 'placard', pack: '1 pot', share: 'partage', days: 40, on: false, aisle: 'epicerie', keys: ['moutarde'], size: '200 g',
         why: 'pot d\'≈ 200 g : ≈ 5 g par jour', match: /^moutarde/ },
     { id: 'mayonnaise', size: '235 g', name: 'Mayonnaise', group: 'placard', pack: '1 pot', share: 'partage', days: 45, on: false, aisle: 'epicerie', keys: ['mayonnaise'],
         why: 'pot d\'≈ 235 g : ≈ 5 g par jour', match: /^mayonnaise/ },
