@@ -4,7 +4,8 @@ import { type LocalDate, addDays, paris, slotKey, SLOTS } from './dates.ts';
 import type { Paid, RecipeContent, State } from './model.ts';
 import type { Replay } from './reduce.ts';
 import { type ShopLine, type ShoppingList, deriveShopping, weekPreps } from './shopping.ts';
-import { packsFor, paidFor } from './drive.ts';
+import { packsFor, paidFor, parseSize } from './drive.ts';
+import { type RestockLine, RESTOCK_DEF, nameOf } from './restock.ts';
 import { ingredientKey } from './ingredients.ts';
 import { toPrepare, servings } from './plan.ts';
 import { type Q, cmp, mul, q, qFrom, ZERO } from './rational.ts';
@@ -145,19 +146,65 @@ export function dishCost(s: State, c: Pick<RecipeContent, 'yield' | 'ingredients
     reliable: priced > 0 && priced / (priced + unpriced) >= RELIABLE };
 }
 
-export function cartEstimate(s: State, list: ShoppingList): Cart {
-  let cents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0;
+/* ---------- Produits du quotidien (core/restock.ts) : un achat = un paquet ---------- */
+
+export interface RestockCost { cents: number; how: 'facture' | 'noté' | 'relevé' | 'référence'; paid: Paid | null; ref: Ref | null }
+// Prix d'un achat : payé sur la dernière facture (sous le nom du produit ou d'un de ses ingrédients), sinon noté sur le produit retenu,
+// sinon relevé (Open Prices) ou prix moyen Insee rapportés à la contenance du produit. Contenance inconnue : prix d'un article tel quel
+// pour une facture ou un prix noté, rien sinon (on ne devine pas une quantité). Un par personne : multiplié par le nombre de personnes.
+export function restockCost(s: State, id: string): RestockCost | null {
+  const def = RESTOCK_DEF[id], names = [nameOf(id, s.restock[id]), ...(def?.keys ?? [])];
+  const n = def?.share === 'chacun' ? Math.max(1, s.members.length) : 1;
+  const size = def?.size ? parseSize(def.size) : null, dim = size?.unit.dim ?? null, base = size ? toBase(size.size, size.unit) : null;
+  // Article de contenance connue, rapporté à la contenance de l'achat : paquets entiers.
+  const scaled = (cents: number, sz: string | null, unit: string | null): number => {
+    const u = unit ? UNIT[unit] : undefined, x = sz ? qFrom(sz) : null;
+    if (!base || !u || !x || u.dim !== dim || x.n <= 0) return cents;
+    const per = toBase(x, u);
+    return cents * Math.max(1, Math.ceil((base.n / base.d) / (per.n / per.d) - 1e-9));
+  };
+  for (const nm of names) {
+    const pd = s.paid[nameKey(nm)];
+    if (!pd) continue;
+    const c = pd.loose ? refCost({ per: pd.unit === 'l' ? 'l' : 'kg', cents: pd.cents }, dim, base) : scaled(pd.cents, pd.size, pd.unit);
+    if (c !== null) return { cents: c * n, how: 'facture', paid: pd, ref: null };
+  }
+  for (const nm of names) {
+    const p = s.products[nameKey(nm)];
+    if (p?.price) return { cents: scaled(p.price, p.size, p.unit) * n, how: 'noté', paid: null, ref: null };
+  }
+  for (const nm of names) {
+    const g = groupFor(nm), adv = g ? productOf(g, g.value ?? g.cheap) : null;
+    const seen = g && adv?.price ? refCost({ per: g.per, cents: adv.price.perCents }, dim, base) : null;
+    if (seen !== null) return { cents: seen * n, how: 'relevé', paid: null, ref: null };
+    const ref = refFor(nm), cents = ref ? refCost(ref, dim, base) : null;
+    if (ref && cents !== null) return { cents: calibrated(s, cents) * n, how: 'référence', paid: null, ref };
+  }
+  return null;
+}
+export interface RestockPart { todo: readonly RestockLine[]; byLine: ReadonlyMap<string, RestockLine> }
+
+// restock : produits du quotidien de la semaine (à part, ou portés par la ligne d'une recette : on achète alors le paquet).
+export function cartEstimate(s: State, list: ShoppingList, restock: RestockPart = { todo: [], byLine: new Map() }): Cart {
+  let cents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0, meal = 0, mealPriced = 0, mealUnpriced = 0;
+  const add = (c: { cents: number; how: string } | null): void => { if (c) { cents += c.cents; priced++; if (c.how === 'facture') paid++; } else unpriced++; };
   for (const l of list.lines) {
     if (l.pantry?.active && l.pantry.qty === 'all') continue;
     if (l.toBuy && cmp(l.toBuy, ZERO) <= 0 && !l.unknown.length) continue;
-    if (isSeasoning(l.name)) { seasonings++; continue; }
-    const c = lineCost(s, l);
-    if (c) { cents += c.cents; priced++; if (c.how === 'facture') paid++; } else unpriced++;
+    const r = restock.byLine.get(l.key), rc = r && !r.done && !l.done ? restockCost(s, r.id) : null;
+    const own = isSeasoning(l.name) ? undefined : lineCost(s, l); // part des recettes seule : base du coût par portion
+    if (own) { meal += own.cents; mealPriced++; } else if (own === null) mealUnpriced++;
+    if (rc) { add(rc); continue; }
+    if (own === undefined) { seasonings++; continue; }
+    add(own);
   }
-  unpriced += list.manual.filter(m => !isSeasoning(m.name)).length;
+  for (const r of restock.todo) { if (isSeasoning(r.name)) seasonings++; else add(restockCost(s, r.id)); }
+  const manual = list.manual.filter(m => !isSeasoning(m.name)).length;
+  unpriced += manual; mealUnpriced += manual;
   const portions = weekPreps(s, list.week).reduce((n, p) => n + toPrepare(s, p), 0);
-  const reliable = priced > 0 && priced / (priced + unpriced) >= RELIABLE;
-  return { cents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(cents / portions) : null, partial: unpriced > 0, reliable };
+  // Coût par portion : les recettes seules (le dentifrice ou le pack de lait entier ne se mangent pas ce soir).
+  const reliable = mealPriced > 0 && mealPriced / (mealPriced + mealUnpriced) >= RELIABLE;
+  return { cents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(meal / portions) : null, partial: unpriced > 0, reliable };
 }
 
 // « ≈ 48 € » si tout est chiffré, « au moins 48 € » sinon ; vide si rien ne l'est encore.

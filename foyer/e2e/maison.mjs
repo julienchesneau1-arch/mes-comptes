@@ -1,7 +1,8 @@
-// V3.9-3.10, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : produits du quotidien. Foyer neuf → proposition dans les courses,
+// V3.9-3.11, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : produits du quotidien. Foyer neuf → proposition dans les courses,
 // choix des produits (cochés par défaut : les courants), rien à racheter cette semaine (départ supposé à moitié entamé) ;
 // « Il en faut maintenant » → ligne dans Maison & hygiène ; coche = achat noté, décoche = retiré ; semaine suivante : ce qui
-// manquera ; « Il en reste encore », rythme choisi, produit ajouté par le foyer ; facture collée → achats notés.
+// manquera ; « Il en reste encore », rythme choisi, produit ajouté par le foyer ; facture collée → achats notés ;
+// desserts, fruits, boissons, goûter ; produit dû dans le budget et la commande guidée au drive.
 // axe WCAG 2.2 AA. Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
@@ -170,6 +171,48 @@ await step('petit-déjeuner : sucre et lait suivis, crêpes ce soir → une seul
   await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   await dlg.getByRole('button', { name: /^Sucre/ }).click();
   await dlg.getByText('lun. 5 oct. 2026').waitFor();                                      // achat de la réserve noté avec la coche
+});
+
+await step('desserts, fruits, boissons, goûter au choix ; pommes dues → budget les compte, drive : article à part, « Ajouté au panier » note l\'achat', async () => {
+  await page.keyboard.press('Escape');
+  await tab('Maison');
+  await page.getByRole('button', { name: 'Réglages', exact: true }).click();
+  await page.locator('section', { has: page.getByRole('heading', { name: 'Fonctions' }) }).getByRole('checkbox', { name: /Budget et bilan/ }).check();
+  await tab('Courses');
+  const budget = page.locator('section', { has: page.getByRole('heading', { name: /Budget de la semaine/ }) });
+  const cents = async () => {
+    const t = await text(budget), m = t.match(/(\d+(?: \d{3})*,\d{2}) € panier estimé/);
+    if (!m) throw new Error('panier estimé illisible : ' + t.slice(0, 200));
+    return Math.round(Number(m[1].replace(/ /g, '').replace(',', '.')) * 100);
+  };
+  const before = await cents();
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
+  for (const h of ['Desserts', 'Fruits à croquer', 'Boissons', 'Goûter et en-cas']) await dlg.getByRole('heading', { name: h }).waitFor();
+  if (await dlg.getByRole('checkbox', { name: 'Suivre Compotes' }).isChecked()) throw new Error('compotes cochées d\'office : au foyer de choisir');
+  await dlg.getByRole('checkbox', { name: 'Suivre Pommes' }).check();
+  await dlg.getByRole('button', { name: /^Pommes/ }).click();
+  const price = (await text(dlg)).match(/Prix : ≈ (\d+,\d{2}) € · prix moyen Insee pommes/);
+  if (!price) throw new Error('prix des pommes : ' + (await text(dlg)).slice(0, 400));
+  await dlg.getByRole('button', { name: 'Il en faut maintenant' }).click();
+  await page.getByText('Pommes : dans les courses de cette semaine').first().waitFor();
+  await page.keyboard.press('Escape');
+  const fruits = page.locator('section', { has: page.getByRole('heading', { name: /Fruits & légumes/ }) });
+  await fruits.getByText('Pommes').waitFor();
+  const after = await cents(), pomme = Math.round(Number(price[1].replace(',', '.')) * 100);
+  if (after !== before + pomme) throw new Error(`budget : ${before} + ${pomme} attendus, ${after} affichés`);
+  await page.getByRole('button', { name: '🛒 Commander au drive' }).click();
+  for (let i = 0; i < 20 && !(await dlg.getByRole('heading', { name: 'Pommes', exact: true }).count()); i++) await dlg.getByRole('button', { name: 'Passer' }).click();
+  const card = await text(dlg);
+  if (!/Besoin : 1 kg \(≈ 6\)/.test(card) || !/prix moyen Insee pommes/.test(card)) throw new Error('article pommes : ' + card.slice(0, 400));
+  await page.screenshot({ path: `${SHOTS}/quotidien-drive.png`, fullPage: true });
+  await axe('quotidien-drive');
+  await dlg.getByRole('button', { name: 'Ajouté au panier' }).click();
+  await page.getByText('Pommes : au panier').first().waitFor();
+  await page.keyboard.press('Escape');
+  if (await fruits.getByText('Pommes').count()) throw new Error('pommes encore à acheter après le drive');
+  await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
+  await dlg.getByRole('button', { name: /^Pommes/ }).click();
+  await dlg.getByText('lun. 5 oct. 2026').waitFor();                                      // achat noté depuis la commande guidée
 });
 
 await browser.close();

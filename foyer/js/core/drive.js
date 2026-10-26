@@ -59,22 +59,29 @@ export function packsFor(l, p) {
 }
 // Dernier prix payé pour un ingrédient : sous sa clé exacte (avec la forme : surgelé, en conserve…), sinon sous son seul nom.
 export const paidFor = (s, name, form) => s.paid[ingredientKey(name, form)] ?? s.paid[nameKey(name)] ?? null;
-// Ce qui reste à commander, dans l'ordre de la liste (rayons du magasin).
-export function driveItems(s, list) {
+// Ce qui reste à commander, dans l'ordre de la liste (rayons du magasin), puis les produits du quotidien à part.
+// Ligne d'une recette qui porte aussi la réserve du quotidien (sucre des crêpes et du placard) : on commande le paquet.
+export function driveItems(s, list, restock = { todo: [], byLine: new Map() }) {
     const out = [];
     for (const l of list.lines) {
         if (l.done)
             continue;
         const productKey = ingredientKey(l.name, l.form), product = s.products[productKey] ?? null, paid = paidFor(s, l.name, l.form);
-        const qty = lineQty(l), unk = l.unknown.length ? (qty ? ' + quantité à voir' : 'quantité à voir') : '';
-        out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: `${qty}${unk}`, productKey, product, paid,
-            url: product?.url ?? searchUrl(paid?.label ?? l.name), packs: product ? packsFor(l, product) : paid && !paid.loose ? packsFor(l, paid) : null });
+        const qty = lineQty(l), unk = l.unknown.length ? (qty ? ' + quantité à voir' : 'quantité à voir') : '', r = restock.byLine.get(l.key);
+        const reserve = r && !r.done ? r : null;
+        out.push({ id: `l:${l.key}`, week: list.week, name: `${l.name}${l.form ? ` (${l.form})` : ''}`, qty: reserve ? `${reserve.qty} (réserve du quotidien, dont ${qty}${unk} pour les recettes)` : `${qty}${unk}`,
+            productKey, product, paid, url: product?.url ?? searchUrl(paid?.label ?? l.name),
+            packs: reserve ? null : product ? packsFor(l, product) : paid && !paid.loose ? packsFor(l, paid) : null, ...(reserve ? { restock: reserve.id } : {}) });
     }
     for (const m of list.manual) {
         if (m.checked)
             continue;
         const productKey = nameKey(m.name), product = s.products[productKey] ?? null, paid = s.paid[productKey] ?? null;
         out.push({ id: `m:${m.id}`, week: list.week, name: m.name, qty: m.qty, productKey, product, paid, url: product?.url ?? searchUrl(paid?.label ?? m.name), packs: null });
+    }
+    for (const r of restock.todo) {
+        const productKey = nameKey(r.name), product = s.products[productKey] ?? null, paid = s.paid[productKey] ?? null;
+        out.push({ id: `r:${r.id}`, week: list.week, name: r.name, qty: r.qty, productKey, product, paid, url: product?.url ?? searchUrl(paid?.label ?? r.name), packs: null, restock: r.id });
     }
     return out;
 }

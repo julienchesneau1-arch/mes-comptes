@@ -19,7 +19,7 @@ import { A, S, clock, dispatch, thisWeek } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.js';
 import { CLICK, CHANGE } from '../registry.js';
 import { seenSet, markSeen } from '../seen.js';
-import { openCartReady } from './drive.js';
+import { openCartReady, restockView } from './drive.js';
 const VARIETY_LABEL = { max: 'maximum de nouveautés', equilibre: 'équilibré', 'mes-plats': 'surtout nos plats' };
 let D = null;
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -128,8 +128,9 @@ function summaryHtml() {
     try {
         const ev = stamp({ dev: 'apercu00', by: null, lc: A.r.maxLc, now: A.now() }, acceptDrafts(s, kept));
         const st = replay([...A.log, ...ev]).state, sl = deriveShopping(st, d.week);
-        shop = sl.lines.filter(l => !l.done).length;
-        cart = cartEstimate(st, sl);
+        const rv = restockView(d.week, sl, st);
+        shop = sl.lines.filter(l => !l.done).length + rv.todo.length;
+        cart = cartEstimate(st, sl, rv); // produits du quotidien compris
     }
     catch {
         shop = 0;

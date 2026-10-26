@@ -302,6 +302,45 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.11 (desserts, fruits, boissons, goûter ; drive complet — demande de Julien du 26 octobre 2026)
+
+« Il nous manque les desserts ; que manque-t-il pour faire le tour des courses et des repas ? » Choix de Julien : desserts du
+quotidien seulement (yaourts, compotes, glaces : suivis comme le reste, sans recette de dessert ni changement des repas), fruits à
+croquer, boissons, goûter, et le drive complet : les produits du quotidien dans la commande guidée et leur prix dans le budget.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| 21 produits desserts, fruits, boissons, goûter | **livré** | Aucun coché d'office ; hypothèse écrite par produit (tableau ci-dessous) ; chacun dans son rayon (glaces : Surgelés, fruits : Fruits & légumes) ; les yaourts passent du petit-déjeuner aux desserts. 75 produits au total |
+| Facture du drive | **livré** | Pommes ≠ pommes de terre, eau ≠ eau de Javel ni eau gazeuse, tablette ≠ chocolat en poudre, chips ≠ biscuits, raisins secs ≠ raisin frais, marque en capitales retirée (`tests/v311.test.ts`) |
+| Commande guidée au drive avec la réserve | **livré** | Un produit du quotidien dû est un article de la commande (« Besoin : 1 kg (≈ 6) », recherche Auchan sur son nom ou sur le dernier libellé payé) ; avec une ligne de recette : un seul article, le paquet de la réserve ; « Ajouté au panier » note l'achat. E2E `maison.mjs` (pommes) |
+| Prix du quotidien dans le budget | **livré** | Prix payé (facture) rapporté à la contenance du paquet, au kilo pour le vrac, un par personne pour « chacun » ; sinon prix noté du produit retenu ; sinon prix moyen Insee × contenance ; sinon « sans prix de référence », jamais deviné. Le coût par portion reste celui des recettes seules. Panier prêt et aperçu du menu comptent aussi la réserve |
+| Recettes de desserts | **non fait** | Choix de Julien : seulement le quotidien |
+
+| Produit | Groupe | Rayon | Achat | Pour 2 personnes | Hypothèse de départ |
+|---|---|---|---|---|---|
+| Yaourts | Desserts | Crèmerie & œufs | 1 pack de 8 | 4 j | un par jour |
+| Compotes | Desserts | Épicerie sucrée & petit-déj | 1 pack de 8 | 8 j | ≈ une tous les 2 jours |
+| Crèmes dessert | Desserts | Crèmerie & œufs | 1 pack de 4 | 7 j | ≈ 2 par semaine |
+| Fromage blanc ou petits-suisses | Desserts | Crèmerie & œufs | 1 pack | 7 j | pack de 6 : ≈ 3 par semaine |
+| Glaces | Desserts | Surgelés | 1 bac ou 1 boîte | 11 j | ≈ 2 portions par semaine |
+| Pommes | Fruits à croquer | Fruits & légumes | 1 kg (≈ 6) | 7 j | ≈ 3 par semaine |
+| Bananes | Fruits à croquer | Fruits & légumes | 1 kg (≈ 5) | 6 j | ≈ 3 par semaine |
+| Oranges ou clémentines | Fruits à croquer | Fruits & légumes | 1 kg | 6 j | ≈ 4 par semaine |
+| Poires | Fruits à croquer | Fruits & légumes | 1 kg (≈ 6) | 7 j | ≈ 3 par semaine |
+| Fruits de saison | Fruits à croquer | Fruits & légumes | 1 barquette ou 1 kg | 4 j | fraises, pêches, raisin, kiwis… selon la saison : ≈ 4 fruits par semaine |
+| Biscuits | Goûter et en-cas | Épicerie sucrée & petit-déj | 1 paquet | 5 j | paquet d'≈ 200 g : ≈ 20 g par jour |
+| Madeleines et gâteaux | Goûter et en-cas | Épicerie sucrée & petit-déj | 1 paquet | 5 j | paquet d'≈ 300 g : ≈ 30 g par jour |
+| Barres de céréales | Goûter et en-cas | Épicerie sucrée & petit-déj | 1 boîte | 6 j | boîte de 6 : une tous les 2 jours |
+| Chocolat (tablettes) | Goûter et en-cas | Épicerie sucrée & petit-déj | 1 tablette | 5 j | tablette de 100 g : ≈ 2 carrés (10 g) par jour |
+| Fruits secs et oléagineux | Goûter et en-cas | Épicerie sucrée & petit-déj | 1 sachet | 7 j | sachet de 200 g : ≈ 15 g par jour |
+| Chips et biscuits apéritif | Goûter et en-cas | Épicerie salée | 1 paquet | 7 j | ≈ 2 fois par semaine |
+| Eau en bouteille | Boissons | Boissons | 1 pack de 6 × 1,5 L | 3 j | si on ne boit que de l'eau en bouteille : ≈ 1,5 L par jour |
+| Eau gazeuse | Boissons | Boissons | 1 pack de 6 × 1 L | 6 j | ≈ 50 cl par jour |
+| Sodas | Boissons | Boissons | 1 pack de 6 canettes | 6 j | ≈ une canette tous les 2 jours |
+| Sirop | Boissons | Boissons | 1 bouteille | 10 j | bouteille de 75 cl : ≈ 4 cl par jour |
+| Vin | Boissons | Boissons | 1 bouteille | 11 j | ≈ 2 verres par semaine |
+| Bière | Boissons | Boissons | 1 pack de 6 | 11 j | ≈ 2 par semaine |
+
 ### V3.7 (apprendre de l'usage réel — choix de Julien du 25 octobre 2026)
 
 | Fonction | Statut | Preuve |
@@ -456,6 +495,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.11 | Desserts du quotidien, fruits à croquer, boissons, goûter (21 produits, 75 au total) ; drive complet : produits du quotidien dans la commande guidée, leur prix dans le budget (facture, prix noté, prix Insee × contenance) | livré | Rien d'office ; estimations = hypothèses écrites ; prix Insee absent pour la plupart des desserts, boissons et goûters (comptés « sans prix » jusqu'à la première facture) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.10 | Petit-déjeuner et placard (25 produits : café, thé, sucre, lait, céréales, beurre, huile, sel…) suivis comme les produits de la maison, chacun dans son rayon ; une seule ligne quand une recette en demande aussi | livré | Rien d'office (habitudes propres à chaque foyer) ; estimations = hypothèses écrites ; non vérifié sur iPhone |
 | 2026-10-26 | V3.9 | Produits de la maison : 29 produits suivis au bon rythme (estimation par personne, puis rythme appris des achats notés et des factures), dans les courses seulement la semaine où ils manquent | livré | Estimations de départ = hypothèses écrites, corrigées par l'usage ; non vérifié sur iPhone ; prix non comptés dans le budget |
 | 2026-10-26 | V3.8 | Photos libres des plats (CI, auto-hébergées, crédits), synchro quasi instantanée (signal Realtime), rappel « Ce soir », pastille sur l'icône | livré | 110 photos sur 424 recettes (pages Wikilivres illustrées sous licence libre) ; signal mesuré à 7 ms sur le vrai relais par la CI ; signal temps réel et pastille non vérifiés sur iPhone |

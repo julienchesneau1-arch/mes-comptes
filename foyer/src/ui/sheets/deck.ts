@@ -21,7 +21,7 @@ import { A, S, clock, dispatch, thisWeek } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc, toast, confetti } from '../dom.ts';
 import { CLICK, CHANGE } from '../registry.ts';
 import { seenSet, markSeen } from '../seen.ts';
-import { openCartReady } from './drive.ts';
+import { openCartReady, restockView } from './drive.ts';
 import type { Variety } from '../../core/model.ts';
 
 const VARIETY_LABEL: Record<Variety, string> = { max: 'maximum de nouveautés', equilibre: 'équilibré', 'mes-plats': 'surtout nos plats' };
@@ -134,7 +134,7 @@ function summaryHtml(): string {
   try {
     const ev = stamp({ dev: 'apercu00', by: null, lc: A.r.maxLc, now: A.now() }, acceptDrafts(s, kept));
     const st = replay([...A.log, ...ev]).state, sl = deriveShopping(st, d.week);
-    shop = sl.lines.filter(l => !l.done).length; cart = cartEstimate(st, sl);
+    const rv = restockView(d.week, sl, st); shop = sl.lines.filter(l => !l.done).length + rv.todo.length; cart = cartEstimate(st, sl, rv); // produits du quotidien compris
   } catch { shop = 0; }
   const cookN = kept.filter(cooks).length, budget = s.settings.budget ?? null;
   const bd = d.batchDay, canBatch = (p: Proposal) => !!bd && cooks(p) && inWindow(bd, parseSlot(p.slot)?.date ?? '');
