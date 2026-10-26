@@ -151,7 +151,27 @@ export function setRefPrices(rp) {
     loaded = rp ? { data: rp, byKey: new Map(rp.refs.flatMap(r => r.keys.map(k => [nameKey(k), r]))) } : null;
 }
 export const refPrices = () => loaded?.data ?? null;
-export const refFor = (name) => loaded?.byKey.get(nameKey(name)) ?? null;
+export const refFor = (name) => { for (const k of buyKeys(name)) {
+    const r = loaded?.byKey.get(k);
+    if (r)
+        return r;
+} return null; };
+// Ce qu'on achète pour un ingrédient de recette : « oignon haché », « comté râpé », « ail écrasé », « vin blanc sec » s'achètent
+// comme oignon, comté, ail, vin blanc ; un jaune ou un blanc d'œuf, comme un œuf. Le nom exact reste essayé d'abord.
+const PREP = /\s(?:finement |grossierement |tres |bien )?(?:hachee?|emincee?|ecrasee?|rapee?|coupee?|pelee?|epluchee?|concassee?|pressee?|fondue?|ramollie?|cuite?|frais|fraiche|sec|seche|moulue?|dure?|tiede|entiere?|en (?:des?|rondelles?|lamelles?|morceaux?|cubes?|tranches?|poudre|grains?|branches?|julienne)|du moulin)$/;
+export function buyKeys(name) {
+    const out = [nameKey(name)];
+    for (let k = out[0] ?? '', i = 0; i < 3; i++) {
+        const n = k.replace(PREP, '');
+        if (n === k || !n)
+            break;
+        out.push(n);
+        k = n;
+    }
+    if (/^(?:jaune|blanc) d'oeuf$/.test(out[out.length - 1] ?? ''))
+        out.push('oeuf');
+    return out;
+}
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 export const monthText = (period) => { const [y, m] = period.split('-'); return `${MONTHS[Number(m) - 1] ?? ''} ${y ?? ''}`.trim(); };
 // Coût de référence d'une quantité (unité de base : g, ml ou pièce). null si l'unité ne se convertit pas sans deviner.

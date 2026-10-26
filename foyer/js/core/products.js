@@ -3,7 +3,7 @@
 // - prix : relevés datés de la base ouverte Open Prices (tickets et étiquettes photographiés par des contributeurs),
 //   ceux d'un magasin Auchan d'abord. Ce ne sont pas les prix du site Auchan (ses CGU interdisent de les extraire).
 // Le fichier produits.json est régénéré chaque semaine par la CI (scripts/produits.mjs) ; l'app le lit tel quel, hors ligne.
-import {} from './refprice.js';
+import { buyKeys } from './refprice.js';
 import { parseSize } from './drive.js';
 import { toBase } from './units.js';
 import { nameKey, norm } from './text.js';
@@ -38,7 +38,28 @@ export const GROUP_DEFS = [
     { id: 'steak-hache', label: 'Steaks hachés', keys: ['steak haché', 'bœuf haché', 'viande hachée', 'haché de bœuf'], tags: ['en:ground-beef-steaks'], per: 'kg', name: /hache/, not: /vegetal|soja/ },
     { id: 'pate-feuilletee', label: 'Pâte feuilletée', keys: ['pâte feuilletée'], tags: ['en:puff-pastry-sheets'], per: 'kg', name: /feuillet/ },
     { id: 'pate-brisee', label: 'Pâte brisée', keys: ['pâte brisée'], tags: ['en:shortcrust-pastry'], per: 'kg', name: /brisee/ },
-    { id: 'chocolat', label: 'Chocolat noir', keys: ['chocolat noir', 'chocolat noir pâtissier', 'chocolat pâtissier'], tags: ['en:dark-chocolates'], per: 'kg', name: /chocolat/, not: /au lait|blanc|orange|amande|noisette|caramel|menthe|fourre|praline|biscuit|barre|cookie/ },
+    { id: 'cafe', label: 'Café moulu', keys: ['café', 'café moulu'], tags: ['en:ground-coffees', 'en:coffees'], per: 'kg', name: /cafe/, not: /capsule|dosette|grain|soluble|instant|decafeine/ },
+    { id: 'confiture', label: 'Confiture', keys: ['confiture'], tags: ['en:jams'], per: 'kg', name: /confiture/ },
+    { id: 'miel', label: 'Miel', keys: ['miel'], tags: ['en:honeys'], per: 'kg', name: /miel/, not: /pain d.epice|bonbon/ },
+    { id: 'pate-tartiner', label: 'Pâte à tartiner', keys: ['pâte à tartiner'], tags: ['en:cocoa-and-hazelnuts-spreads', 'en:hazelnut-spreads'], per: 'kg', name: /tartiner|nutella|noisette/ },
+    { id: 'cereales', label: 'Céréales du petit-déjeuner', keys: ['céréales', 'muesli', 'granola'], tags: ['en:breakfast-cereals'], per: 'kg', name: /cereale|muesli|granola|corn flakes|petales/ },
+    { id: 'jus-orange', label: 'Jus d\'orange', keys: ['jus d\'orange', 'pur jus d\'orange'], tags: ['en:orange-juices'], per: 'l', name: /orange/, not: /nectar|cocktail|multifruit/ },
+    { id: 'mayonnaise', label: 'Mayonnaise', keys: ['mayonnaise'], tags: ['en:mayonnaises'], per: 'kg', name: /mayonnaise/, not: /allege|light/ },
+    { id: 'ketchup', label: 'Ketchup', keys: ['ketchup'], tags: ['en:ketchup'], per: 'kg', name: /ketchup/ },
+    { id: 'vinaigre', label: 'Vinaigre', keys: ['vinaigre', 'vinaigre de vin', 'vinaigre de vin rouge', 'vinaigre balsamique', 'vinaigre de cidre'], tags: ['en:vinegars', 'en:wine-vinegars'], per: 'l', name: /vinaigre/, not: /vinaigrette/ },
+    { id: 'eau', label: 'Eau en bouteille', keys: ['eau en bouteille', 'eau minérale', 'eau de source'], tags: ['en:mineral-waters', 'en:spring-waters'], per: 'l', name: /eau|source|minerale/, not: /gazeuse|petillante|aromatisee|sirop/ },
+    { id: 'sodas', label: 'Sodas', keys: ['sodas', 'soda', 'cola'], tags: ['en:sodas', 'en:colas'], per: 'l', name: /cola|soda|limonade|orange|citron|the glace|ice tea/ },
+    { id: 'sirop', label: 'Sirop', keys: ['sirop'], tags: ['en:syrups'], per: 'l', name: /sirop/, not: /erable|agave|toux/ },
+    { id: 'vin', label: 'Vin', keys: ['vin', 'vin blanc', 'vin rouge', 'vin rosé'], tags: ['en:wines'], per: 'l', name: /vin|bordeaux|bourgogne|cotes|chardonnay|merlot|sauvignon/, not: /vinaigre|sans alcool/ },
+    { id: 'biere', label: 'Bière', keys: ['bière'], tags: ['en:beers'], per: 'l', name: /biere|blonde|ambree|ipa|lager/, not: /sans alcool/ },
+    { id: 'biscuits', label: 'Biscuits', keys: ['biscuits', 'petits beurre', 'sablés'], tags: ['en:biscuits'], per: 'kg', name: /biscuit|petit beurre|sable|cookie|galette/, not: /aperitif|sale/ },
+    { id: 'fruits-secs', label: 'Fruits secs et oléagineux', keys: ['fruits secs et oléagineux', 'fruits secs', 'noix', 'amandes', 'noisettes', 'noix de cajou'], tags: ['en:nuts'], per: 'kg', name: /amande|noisette|noix|cajou|pistache|melange/ },
+    { id: 'chips', label: 'Chips', keys: ['chips', 'chips et biscuits apéritif'], tags: ['en:crisps', 'en:potato-crisps'], per: 'kg', name: /chips/ },
+    { id: 'comte', label: 'Comté', keys: ['comté', 'comté râpé'], tags: ['en:comte'], per: 'kg', name: /comte/ },
+    { id: 'sauce-soja', label: 'Sauce soja', keys: ['sauce soja', 'sauce de soja'], tags: ['en:soy-sauces'], per: 'l', name: /soja/, not: /lait|dessert|yaourt/ },
+    { id: 'huile-arachide', label: 'Huile d\'arachide', keys: ['huile d\'arachide'], tags: ['en:peanut-oils'], per: 'l', name: /arachide/ },
+    { id: 'olives-noires', label: 'Olives noires', keys: ['olive noire', 'olives noires'], tags: ['en:black-olives'], per: 'kg', name: /olive/, not: /verte|huile|tapenade/ },
+    { id: 'chocolat', label: 'Chocolat noir', keys: ['chocolat noir', 'chocolat noir pâtissier', 'chocolat pâtissier', 'chocolat (tablettes)'], tags: ['en:dark-chocolates'], per: 'kg', name: /chocolat/, not: /au lait|blanc|orange|amande|noisette|caramel|menthe|fourre|praline|biscuit|barre|cookie/ },
 ];
 /* ---------- Qualité : règles fixes, affichées telles quelles ---------- */
 const NS = { a: 2, b: 1, c: 0, d: -1, e: -2 };
@@ -152,8 +173,13 @@ export function readProducts(v) {
 }
 let loaded = null;
 export function setProducts(d) {
-    loaded = d ? { data: d, byKey: new Map(d.groups.flatMap(g => g.keys.map(k => [nameKey(k), g]))) } : null;
+    const defs = new Map(GROUP_DEFS.map(g => [g.id, g.keys]));
+    loaded = d ? { data: d, byKey: new Map(d.groups.flatMap(g => [...g.keys, ...(defs.get(g.id) ?? [])].map(k => [nameKey(k), g]))) } : null;
 }
 export const productsData = () => loaded?.data ?? null;
-export const groupFor = (name) => loaded?.byKey.get(nameKey(name)) ?? null;
+export const groupFor = (name) => { for (const k of buyKeys(name)) {
+    const g = loaded?.byKey.get(k);
+    if (g)
+        return g;
+} return null; };
 export const productOf = (g, code) => (code ? g.products.find(p => p.code === code) ?? null : null);

@@ -64,8 +64,10 @@ function invoiceHtml() {
       <label class="btn big block">${busy ? 'Lecture…' : 'Choisir la facture (PDF)'}<input type="file" accept="application/pdf,.pdf" data-c="invoiceFile" class="sr-only"${busy ? ' disabled' : ''}></label>
       <p aria-live="polite" class="small">${busy ? 'Lecture de la facture…' : ''}</p>
       ${error ? `<p class="banner partial" role="alert">${esc(error)}</p>` : ''}
-      <details><summary>Ou coller le texte de la facture</summary><form data-f="invoiceText" class="stack">
-        <label class="field">Texte copié depuis la facture<textarea name="text" rows="6" maxlength="60000"></textarea></label><button class="btn ghost">Lire ce texte</button></form></details>
+      <details><summary>Ou coller le texte de la facture, ou scanner un ticket de caisse</summary><form data-f="invoiceText" class="stack">
+        <label class="field">Texte copié depuis la facture<textarea name="text" rows="6" maxlength="60000" aria-describedby="inv-scan"></textarea></label>
+        <p id="inv-scan" class="small muted">Ticket papier : sur iPhone, touchez le champ puis « Scanner le texte » et visez le ticket (en plusieurs fois s'il est long). Chaque ligne est vérifiée par le total.</p>
+        <button class="btn ghost">Lire ce texte</button></form></details>
     </section>${privacy}`;
     }
     const { inv, week, cands, picks, restock } = reading, spent = S().shop[week]?.spent ?? null;

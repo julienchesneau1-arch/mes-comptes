@@ -12,7 +12,7 @@ import { refFor, refCost, refPrices } from './refprice.js';
 import { groupFor, productOf } from './products.js';
 import { nameKey } from './text.js';
 export const RELIABLE = 0.8;
-const SEASONINGS = new Set(['sel', 'poivre', 'sel poivre', 'poivre noir', 'gros sel', 'fleur de sel', 'sel fin', 'epice', 'muscade', 'noix de muscade',
+const SEASONINGS = new Set(['eau', 'eau tiede', 'eau froide', 'eau chaude', 'eau bouillante', 'garni', 'poivre du moulin', 'poivre noir du moulin', 'poivre blanc', 'sel', 'poivre', 'sel poivre', 'poivre noir', 'gros sel', 'fleur de sel', 'sel fin', 'epice', 'muscade', 'noix de muscade',
     'cumin', 'curry', 'paprika', 'piment', 'piment d\'espelette', 'piment de cayenne', 'cannelle', 'curcuma', 'herbe de provence', 'thym', 'laurier',
     'feuille de laurier', 'romarin', 'origan', 'bouquet garni', 'clou de girofle', 'quatre-epice', 'ras el hanout', 'gingembre en poudre', 'sariette']
     .map(nameKey));
@@ -189,12 +189,14 @@ export function restockCost(s, id) {
 }
 // restock : produits du quotidien de la semaine (à part, ou portés par la ligne d'une recette : on achète alors le paquet).
 export function cartEstimate(s, list, restock = { todo: [], byLine: new Map() }) {
-    let cents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0, meal = 0, mealPriced = 0, mealUnpriced = 0;
+    let cents = 0, paidCents = 0, priced = 0, paid = 0, unpriced = 0, seasonings = 0, meal = 0, mealPriced = 0, mealUnpriced = 0;
     const add = (c) => { if (c) {
         cents += c.cents;
         priced++;
-        if (c.how === 'facture')
+        if (c.how === 'facture') {
             paid++;
+            paidCents += c.cents;
+        }
     }
     else
         unpriced++; };
@@ -233,12 +235,12 @@ export function cartEstimate(s, list, restock = { todo: [], byLine: new Map() })
     const portions = weekPreps(s, list.week).reduce((n, p) => n + toPrepare(s, p), 0);
     // Coût par portion : les recettes seules (le dentifrice ou le pack de lait entier ne se mangent pas ce soir).
     const reliable = mealPriced > 0 && mealPriced / (mealPriced + mealUnpriced) >= RELIABLE;
-    return { cents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(meal / portions) : null, partial: unpriced > 0, reliable };
+    return { cents, paidCents, priced, paid, unpriced, seasonings, portions, perPortion: reliable && portions ? Math.round(meal / portions) : null, partial: unpriced > 0, reliable };
 }
 // « ≈ 48 € » si tout est chiffré, « au moins 48 € » sinon ; vide si rien ne l'est encore.
 export const cartText = (c, eur) => (c.priced ? `${c.partial ? 'au moins ' : '≈ '}${eur(c.cents)}` : '');
 // « 9 articles chiffrés sur 33 » : ce que couvre le montant.
-export const coverText = (c) => `${c.partial ? `${c.priced} article${c.priced > 1 ? 's' : ''} chiffré${c.priced > 1 ? 's' : ''} sur ${c.priced + c.unpriced}` : 'tous les articles chiffrés'}${c.seasonings ? ', hors sel et épices' : ''}`;
+export const coverText = (c) => `${c.partial ? `${c.priced} article${c.priced > 1 ? 's' : ''} chiffré${c.priced > 1 ? 's' : ''} sur ${c.priced + c.unpriced}` : 'tous les articles chiffrés'}${c.seasonings ? ', hors eau, sel et épices' : ''}`;
 export function weekReport(r, week) {
     const s = r.state, days = Array.from({ length: 7 }, (_, i) => addDays(week, i)), last = days[6];
     let home = 0, outside = 0;
