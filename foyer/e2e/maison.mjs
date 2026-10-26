@@ -53,6 +53,7 @@ await step('foyer neuf : proposition dans les courses ; produits courants coché
   await page.getByRole('button', { name: 'Choisir', exact: true }).click();
   await dlg.getByRole('heading', { name: /Produits du quotidien/ }).waitFor();
   if (!(await dlg.getByRole('checkbox', { name: /Dentifrice/ }).isChecked())) throw new Error('dentifrice non coché par défaut');
+  await dlg.locator('summary', { hasText: 'Petit-déjeuner' }).click();                      // aliments : repliés, rien d'office
   if (await dlg.getByRole('checkbox', { name: /^Café/ }).isChecked()) throw new Error('café coché d\'office : au foyer de choisir');
   if (await dlg.getByRole('checkbox', { name: /Tablettes lave-vaisselle/ }).isChecked()) throw new Error('lave-vaisselle coché sans savoir s\'il y en a un');
   const t = await text(dlg);
@@ -104,11 +105,12 @@ await step('semaine suivante : ce qui manquera alors ; « Il en reste encore » 
 await step('produit ajouté par le foyer ; facture collée : achats des produits suivis notés', async () => {
   await page.getByRole('button', { name: 'Semaine précédente' }).click();
   await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
+  await dlg.locator('summary', { hasText: 'Un produit à vous' }).click();                   // formulaire replié
   await dlg.getByLabel('Nom').fill('croquettes du chat');
   await dlg.getByLabel('Environ tous les').selectOption('21');
   await dlg.getByRole('button', { name: 'Ajouter', exact: true }).click();
   await page.getByText('Croquettes du chat : suivi, tous les 21 jours').first().waitFor();
-  await dlg.getByRole('heading', { name: 'Ajoutés par vous' }).waitFor();
+  if (!/Suivis \(\d+\)[\s\S]*Croquettes du chat/.test(await dlg.innerText())) throw new Error('produit ajouté absent des suivis');
   await page.keyboard.press('Escape');
   await tab('Maison');
   await page.getByRole('button', { name: 'Réglages', exact: true }).click();
@@ -135,7 +137,8 @@ await step('petit-déjeuner : sucre et lait suivis, crêpes ce soir → une seul
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   await dlg.getByRole('heading', { name: 'Petit-déjeuner' }).waitFor();
-  await dlg.getByRole('checkbox', { name: 'Suivre Sucre' }).check();
+  await dlg.locator('summary', { hasText: 'Petit-déjeuner' }).click();                      // catalogue replié par groupe
+  await dlg.getByRole('checkbox', { name: 'Suivre Sucre' }).check();                       // le groupe reste ouvert après la coche
   await dlg.getByRole('checkbox', { name: 'Suivre Lait' }).check();
   await dlg.getByRole('button', { name: /^Sucre/ }).click();
   await dlg.getByRole('button', { name: 'Il en faut maintenant' }).click();
@@ -188,7 +191,9 @@ await step('desserts, fruits, boissons, goûter au choix ; pommes dues → budge
   const before = await cents();
   await page.getByRole('button', { name: '🔁 Produits du quotidien' }).click();
   for (const h of ['Desserts', 'Fruits à croquer', 'Boissons', 'Goûter et en-cas']) await dlg.getByRole('heading', { name: h }).waitFor();
+  await dlg.locator('summary', { hasText: 'Desserts' }).click();
   if (await dlg.getByRole('checkbox', { name: 'Suivre Compotes' }).isChecked()) throw new Error('compotes cochées d\'office : au foyer de choisir');
+  await dlg.locator('summary', { hasText: 'Fruits à croquer' }).click();
   await dlg.getByRole('checkbox', { name: 'Suivre Pommes' }).check();
   await dlg.getByRole('button', { name: /^Pommes/ }).click();
   const price = (await text(dlg)).match(/Prix : ≈ (\d+,\d{2}) € · prix moyen Insee pommes/);

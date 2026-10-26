@@ -242,9 +242,10 @@ export function shopView(): string {
   const s = S(), c = clock();
   const week = A.ui.shopWeek ?? shopWeekFor(s, c.date, thisWeek());
   const list = deriveShopping(s, week), { todo: rTodo, done: rDone, byLine } = restockView(week, list), row = (l: ShopLine) => lineRow(l, week, byLine.get(l.key));
-  const banner = !list.meals ? '' : list.incomplete.length
-    ? `<div class="banner partial"><p class="grow"><strong>${plural(list.incomplete.length, 'plat', 'plats')} sans quantités</strong> (${esc(list.incomplete.map(x => x.name).join(', '))}) : à acheter de mémoire, ou compléter la recette.</p><button class="btn small-btn ghost" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
-    : '<p class="banner ok">Complète pour les repas renseignés de la semaine.</p>';
+  // Liste d'abord : avant elle, seulement ce qui change la liste (plat sans quantités, panier à mettre à jour), le drive et la saisie.
+  const banner = list.meals && list.incomplete.length
+    ? `<div class="banner partial"><p class="grow"><strong>${esc(list.incomplete.map(x => x.name).join(', '))}</strong> : sans quantités</p><button class="btn small-btn ghost" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
+    : '';
   // Lignes sans aucune quantité (« sel », « 1 boîte de ? ») : rangées à part, en bas, pour ne pas relire toute la liste.
   const vague = (l: ShopLine) => !l.need && l.unknown.length > 0;
   const todo = list.lines.filter(l => !l.done && !vague(l)), done = list.lines.filter(l => l.done), toJudge = list.lines.filter(l => !l.done && vague(l));
@@ -264,24 +265,22 @@ export function shopView(): string {
     ...Object.values(s.recipes).flatMap(r => current(r).ingredients.map(l => l.name))])].sort((x, y) => x.localeCompare(y, 'fr')).slice(0, 300);
   return `<div class="top"><h1>Courses</h1><button class="btn small-btn ${A.ui.store ? '' : 'ghost'}" data-a="storeMode" aria-pressed="${A.ui.store}">Mode magasin</button><button class="btn small-btn ghost" data-a="shareList" data-week="${week}">Partager</button></div>
   <main id="main" tabindex="-1">
-    <div class="weeknav"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><h2>Pour la semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
+    <div class="weeknav"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
     ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner}
+    ${A.ui.store ? '' : cartChangesCard(week)}
     ${toBuy && !A.ui.store ? (s.shop[week]?.spent
       ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
-      : `<button class="btn big block" data-a="drive" data-week="${week}">🛒 Commander au drive</button>`) : ''}
-    ${A.ui.store ? '' : cartChangesCard(week)}
-    ${A.ui.store || !on('factures') ? '' : '<button class="btn ghost block" data-a="invoice">🧾 Lire la facture du drive</button>'}
+      : `<button class="btn block" data-a="drive" data-week="${week}">🛒 Commander au drive · ${plural(toBuy, 'article', 'articles')}</button>`) : ''}
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
-    <p class="muted">${toBuy ? `${plural(toBuy, 'article', 'articles')} à acheter` : list.meals ? 'Tout est acheté pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>
+    ${toBuy && !A.ui.store && !s.shop[week]?.spent ? '' : `<p class="muted">${toBuy ? `${plural(toBuy, 'article', 'articles')} à acheter` : list.meals ? 'Tout est acheté pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>`}
     ${sections}
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(row).join('')}</ul></details>` : ''}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(row).join('')}${mDone.map(manualRow).join('')}${rDone.map(restockRow).join('')}</ul></details>` : ''}
     ${restockPromo}
-    ${A.ui.store || !on('budget') ? '' : budgetCard(week, list, restockView(week, list))}
-    <div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
-    <p class="small muted">Cocher = acheté (ou mis au panier) pour ces courses. Cela ne crée ni stock ni date. Montants : estimations automatiques, rien à saisir.</p></main>`;
+    ${A.ui.store ? '' : `<div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button>${on('factures') ? '<button class="btn ghost" data-a="invoice">🧾 Lire la facture du drive</button>' : ''}<button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>`}
+    ${A.ui.store || !on('budget') ? '' : budgetCard(week, list, restockView(week, list))}</main>`;
 }
 // Après le drive : un geste coche tout ce qui reste (chaque ligne garde son besoin du moment, comme une coche à la main).
 CLICK['allBought'] = d => {
