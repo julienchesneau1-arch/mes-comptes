@@ -302,6 +302,19 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.13 (lisibilité — choix de Julien du 26 octobre 2026)
+
+Question de Julien : « l'app est-elle assez simple et lisible pour être au niveau des meilleures ? » Mesure des écrans
+(`e2e/lisibilite.mjs`) : deux points faibles nets, l'écran Courses (liste sous le premier écran, six blocs avant elle) et la feuille
+« Produits du quotidien » (1 103 mots, 154 éléments touchables).
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Courses : liste d'abord | **livré** | Avant la liste : seulement le plat sans quantités (une ligne), le panier à mettre à jour, « 🛒 Commander au drive · N articles » et la saisie ; facture, produits du quotidien et date à surveiller regroupés après la liste, avant le budget ; note de bas de page versée dans l'aide. Premier rayon à 0,61 écran au lieu de 0,84 ; 304 → 268 mots |
+| Produits du quotidien allégés | **livré** | Suivis d'abord, triés par prochaine date ; catalogue replié par groupe (« 2 suivis · 8 à ajouter »), le paquet seul (l'hypothèse est sur la fiche) ; groupe ouvert gardé après une coche ; premier choix : maison dépliée, aliments repliés. 1 103 → 182 mots, 154 → 24 touchables |
+| Dernier élément jamais caché | **livré** | Défaut trouvé par l'E2E `rituel.mjs` : en bas de page, le dernier élément restait sous le message d'action (6 s) ; marge du bas portée à 10 rem et `scroll-padding` pour les barres fixes (focus clavier visible, WCAG 2.4.11) |
+| Comparaison chiffrée avec les autres apps | **non fait** | Aucune mesure équivalente possible sans les apps `[DONNÉE_MANQUANTE]` |
+
 ### V3.12 (commande guidée en moins de gestes — choix de Julien du 26 octobre 2026)
 
 Question de Julien : « est-ce réellement impossible que la liste arrive directement sur le site du drive ? » Réponse vérifiée :
@@ -513,6 +526,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-26 | V3.13 | Lisibilité mesurée : Courses avec la liste d'abord (premier rayon à 0,61 écran au lieu de 0,84), feuille du quotidien allégée (1 103 → 182 mots), dernier élément jamais caché par un message ; benchmark mis à jour (4,3 → 4,5, notes de l'auteur) | livré | Mesure en navigateur, pas sur iPhone ; aucune mesure équivalente des concurrents |
 | 2026-10-26 | V3.12 | Commande guidée en moins de gestes : « ✓ Ajouté · ouvrir le suivant » (1 toucher par article au lieu de 2), bouton principal selon le moment, produit retenu d'un toucher depuis le presse-papiers | livré | Panier rempli à distance impossible hors partenariat Auchan ; onglet unique et confirmation « Coller » non vérifiés sur iPhone |
 | 2026-10-26 | V3.11 | Desserts du quotidien, fruits à croquer, boissons, goûter (21 produits, 75 au total) ; drive complet : produits du quotidien dans la commande guidée, leur prix dans le budget (facture, prix noté, prix Insee × contenance) | livré | Rien d'office ; estimations = hypothèses écrites ; prix Insee absent pour la plupart des desserts, boissons et goûters (comptés « sans prix » jusqu'à la première facture) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.10 | Petit-déjeuner et placard (25 produits : café, thé, sucre, lait, céréales, beurre, huile, sel…) suivis comme les produits de la maison, chacun dans son rayon ; une seule ligne quand une recette en demande aussi | livré | Rien d'office (habitudes propres à chaque foyer) ; estimations = hypothèses écrites ; non vérifié sur iPhone |

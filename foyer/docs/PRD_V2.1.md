@@ -354,4 +354,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Le bon bouton au bon moment | Avant : ouvrir ; au retour d'Auchan : « Ajouté » en tête |
 | Retenir sans formulaire | L'adresse copiée sur Auchan se retient d'un toucher ; sinon le champ, jamais une supposition |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.12 incluses).
+## 29. V3.13 — lisible d'un coup d'œil (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| L'essentiel d'abord | Sur un écran, ce qui sert à chaque visite vient en premier (la liste dans Courses) ; les outils occasionnels après |
+| Replier plutôt qu'expliquer | Un long catalogue est replié par groupe ; l'explication détaillée vit sur la fiche ou dans l'aide |
+| Mesurer avant d'affirmer | Mots, éléments touchables, position du contenu principal : mesurés avant et après chaque version de lisibilité |
+| Rien de caché | Ni barre fixe ni message ne recouvrent un élément amené à l'écran |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.13 incluses).

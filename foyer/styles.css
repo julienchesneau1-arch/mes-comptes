@@ -39,10 +39,13 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; font-size: 100%; }
+/* Barres fixes (en-tête, onglets) : un élément amené à l'écran (focus clavier, défilement) n'est jamais caché dessous (WCAG 2.4.11). */
+html { scroll-padding: 5rem 0 calc(10rem + env(safe-area-inset-bottom)); }
+@media (min-width: 820px) { html { scroll-padding: 9rem 0 1rem; } }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 500 1rem/1.5 "Nunito", ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); overflow-x: hidden;
+  padding-bottom: calc(10rem + env(safe-area-inset-bottom)); overflow-x: hidden; /* sous la barre d'onglets et la zone des messages : le dernier élément reste visible */
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 h1, h2, h3, .title, .btn, .tag { font-family: "Nunito", ui-rounded, -apple-system, sans-serif; }

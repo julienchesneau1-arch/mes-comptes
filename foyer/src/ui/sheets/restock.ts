@@ -22,37 +22,49 @@ function dueText(due: LocalDate): string {
   return d === 0 ? 'à racheter aujourd\'hui' : `vers le ${fmtDayShort(due)} (dans ${plural(d, 'jour')})`;
 }
 
-export function openRestock(): void { openSheet({ id: 'restock', render: listHtml }); }
+// Groupes du catalogue dépliés pendant la séance (une case cochée redessine la feuille : le groupe reste ouvert).
+const openGroups = new Set<string>();
+export function openRestock(): void { openGroups.clear(); openSheet({ id: 'restock', render: listHtml }); }
 export function openRestockItem(id: string): void { openSheet({ id: `restock:${id}`, render: () => itemHtml(id) }); }
 
 function listHtml(): string {
   const s = S(), n = people();
-  const head = sheetHead('🔁 Produits du quotidien', 'Petit-déjeuner, desserts, fruits, goûter, boissons, placard, hygiène, entretien : remis aux courses quand ils devraient manquer, pas chaque semaine.');
+  const head = sheetHead('🔁 Produits du quotidien', 'Remis aux courses quand ils devraient manquer, pas chaque semaine.');
   if (!Object.keys(s.restock).length) {
     // Premier choix : les produits courants sont cochés, ceux qui dépendent de l'équipement (lave-vaisselle…) ne le sont pas.
-    const group = (g: RestockGroup) => `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${FOOD.has(g) ? '<p class="small muted">Rien d\'office : cochez ce que vous prenez (café ou thé, tartines ou céréales…).</p>' : ''}${RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
-      <span class="grow">${esc(d.name)}<br><span class="small muted">${esc(`≈ tous les ${estimate(d, n)} jours pour ${plural(n, 'personne')} · ${d.why}`)}</span></span></label>`).join('')}</fieldset>`;
+    // Aliments : rien d'office, groupes repliés (une ligne chacun) ; maison : dépliés, déjà cochés.
+    const items = (g: RestockGroup) => RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
+      <span class="grow">${esc(d.name)}<br><span class="small muted">${esc(`≈ tous les ${estimate(d, n)} jours pour ${plural(n, 'personne')} · ${d.why}`)}</span></span></label>`).join('');
+    const group = (g: RestockGroup) => FOOD.has(g)
+      ? `<details class="card"><summary><h3 class="section-title">${esc(GROUP_LABEL[g])}</h3> <span class="small muted">rien d'office</span></summary>${items(g)}</details>`
+      : `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${items(g)}</fieldset>`;
     return `${head}<form data-f="restockStart" class="stack">
-      <p class="small">Cochez ce que vous achetez régulièrement. Foyer part d'une estimation (écrite sous chaque produit), puis apprend votre vrai rythme à chaque achat noté : coche dans la liste de courses ou facture du drive lue.</p>
-      ${GROUPS.map(group).join('')}
+      <p class="small">Cochez ce que vous achetez régulièrement. Foyer part d'une estimation, puis apprend votre rythme à chaque achat noté.</p>
+      ${GROUPS.filter(g => !FOOD.has(g)).map(group).join('')}
+      ${GROUPS.filter(g => FOOD.has(g)).map(group).join('')}
       <button class="btn big block">Commencer le suivi</button></form>`;
   }
+  // Suivis d'abord (avec leur prochaine date) ; le reste du catalogue replié par groupe, le paquet seul (l'hypothèse est sur la fiche).
   const row = (id: string): string => {
     const it = s.restock[id], d = RESTOCK_DEF[id], r = rhythm(s, id), due = it?.on ? nextDue(s, id) : null;
-    const sub = it?.on && r && due ? `${dueText(due)} · ${rhythmText(r)}` : d ? `≈ tous les ${estimate(d, n)} jours · ${d.why}` : 'non suivi';
+    const sub = it?.on && r && due ? `${dueText(due)} · ${rhythmText(r)}` : d ? d.pack : 'non suivi';
     return `<li><div class="item"><label class="check"><input type="checkbox" data-c="restockOn" data-id="${esc(id)}" ${it?.on ? 'checked' : ''} aria-label="Suivre ${esc(nameOf(id, it))}"><span></span></label>
       <button class="item-btn grow" data-a="restockItem" data-id="${esc(id)}"><span class="grow"><span class="title">${esc(nameOf(id, it))}</span><br><span class="sub">${esc(sub)}</span></span></button></div></li>`;
   };
-  const mine = Object.keys(s.restock).filter(id => !RESTOCK_DEF[id]).sort((a, b) => nameOf(a, s.restock[a]).localeCompare(nameOf(b, s.restock[b]), 'fr'));
-  const section = (title: string, ids: readonly string[]) => ids.length ? `<section class="card stack"><h3 class="section-title">${esc(title)}</h3><ul class="list">${ids.map(row).join('')}</ul></section>` : '';
+  const followed = Object.keys(s.restock).filter(id => s.restock[id]?.on)
+    .sort((a, b) => (nextDue(s, a) ?? '9').localeCompare(nextDue(s, b) ?? '9') || nameOf(a, s.restock[a]).localeCompare(nameOf(b, s.restock[b]), 'fr'));
+  const mine = Object.keys(s.restock).filter(id => !RESTOCK_DEF[id] && !s.restock[id]?.on).sort((a, b) => nameOf(a, s.restock[a]).localeCompare(nameOf(b, s.restock[b]), 'fr'));
+  const fold = (key: string, title: string, ids: readonly string[], total: number) => ids.length
+    ? `<details class="card" data-g="${esc(key)}" ${openGroups.has(key) ? 'open' : ''}><summary><h3 class="section-title">${esc(title)}</h3> <span class="small muted">${total - ids.length ? `${total - ids.length} suivi${total - ids.length > 1 ? 's' : ''} · ` : ''}${ids.length} à ajouter</span></summary><ul class="list">${ids.map(row).join('')}</ul></details>` : '';
   return `${head}
-    ${GROUPS.map(g => section(GROUP_LABEL[g], RESTOCK.filter(d => d.group === g).map(d => d.id))).join('')}
-    ${section('Ajoutés par vous', mine)}
-    <form data-f="restockAdd" class="card stack"><h3 class="section-title">Ajouter un produit</h3>
+    ${followed.length ? `<section class="card stack"><h3 class="section-title">Suivis (${followed.length})</h3><ul class="list">${followed.map(row).join('')}</ul></section>` : '<p class="banner info">Aucun produit suivi : cochez-en un ci-dessous.</p>'}
+    <h3 class="section-title">Ajouter au suivi</h3>
+    ${GROUPS.map(g => { const all = RESTOCK.filter(d => d.group === g); return fold(g, GROUP_LABEL[g], all.filter(d => !s.restock[d.id]?.on).map(d => d.id), all.length); }).join('')}
+    ${fold('mine', 'Ajoutés par vous', mine, mine.length)}
+    <details class="card" data-g="add" ${openGroups.has('add') ? 'open' : ''}><summary><h3 class="section-title">Un produit à vous</h3></summary><form data-f="restockAdd" class="stack">
       <label class="field">Nom<input type="text" name="name" maxlength="60" required autocomplete="off" placeholder="ex. lait d'avoine, croquettes du chat, piles"></label>
       <label class="field">Environ tous les<select name="days">${EVERY.map(x => `<option value="${x}" ${x === 30 ? 'selected' : ''}>${x} jours</option>`).join('')}</select></label>
-      <button class="btn ghost">Ajouter</button></form>
-    <p class="small muted">Cocher = suivi. Le rythme part d'une estimation pour ${esc(plural(n, 'personne'))}, puis suit l'écart réel entre vos achats notés (coche dans la liste, facture lue). Deux achats à moins de 5 jours comptent pour un.</p>`;
+      <button class="btn ghost">Ajouter</button></form></details>`;
 }
 
 function itemHtml(id: string): string {
@@ -93,7 +105,11 @@ SUBMIT['restockAdd'] = (data, form) => {
   dispatch([{ t: 'restock.set', p: { id: `p${newId(10)}`, on: true, day: today(), name, days } }], { toast: `${name} : suivi, tous les ${days} jours` });
   form.reset();
 };
-CHANGE['restockOn'] = (d, el) => { const id = d['id'] ?? ''; dispatch([setOn(id, (el as HTMLInputElement).checked)]); };
+CHANGE['restockOn'] = (d, el) => {
+  const id = d['id'] ?? '', g = el.closest<HTMLElement>('details[data-g]')?.dataset['g'];
+  if (g) openGroups.add(g); // la feuille se redessine : le groupe où l'on coche reste ouvert
+  dispatch([setOn(id, (el as HTMLInputElement).checked)]);
+};
 CLICK['restockToggle'] = d => { const id = d['id'] ?? '', it = S().restock[id]; dispatch([setOn(id, !it?.on)], { toast: `${nameOf(id, it)} : ${it?.on ? 'plus suivi' : 'suivi'}` }); };
 CHANGE['restockDays'] = (d, el) => {
   const id = d['id'] ?? '', it = S().restock[id], v = (el as HTMLSelectElement).value;

@@ -21,6 +21,7 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/essentiel.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/maison.mjs
 ```
 
+- `lisibilite.mjs` (mesure, pas un test) : foyer de démonstration ; par écran, mots, mots du premier écran, éléments touchables, textes d'explication, position du premier rayon dans Courses. Imprime un tableau ; `FOYER_URL` pour mesurer une autre version.
 - `parcours.mjs` : création du foyer, recette complétée, proposition de semaine (maximum de nouveautés, recette sans nombre de personnes complétée dans le récapitulatif), panier prêt, courses, panier mis à jour après un changement du menu, conseil qualité-prix, commande guidée au drive Auchan (pages Auchan simulées : « ✓ Ajouté · ouvrir le suivant » ouvre la page de l'article suivant, un toucher par article, « Rouvrir » une fois la page ouverte), Aujourd'hui, feuille d'un créneau, rechargement (journal identique), mode découverte, grille ordinateur, zoom 200 % ; axe-core WCAG 2.0/2.1/2.2 A et AA sur 11 écrans.
 - `deux-telephones.mjs` et `synchro-auto.mjs` choisissent « Surtout nos plats » (Réglages) pour retrouver des plats connus d'un téléphone à l'autre.
 - `synchro-auto.mjs` simule aussi le signal temps réel (Supabase Realtime, `routeWebSocket`) : un article coché sur A apparaît chez B en moins de 3 s sans geste, et le signal reste vide. Le vrai relais est contrôlé par la CI (`scripts/realtime-check.mjs`, workflow `realtime`).

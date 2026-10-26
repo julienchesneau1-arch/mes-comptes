@@ -4,19 +4,33 @@
 
 ## Tableau
 
-| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.7** |
-|---|---|---|---|---|---|---|
-| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC, jusqu'à 3 découvertes Wikilivres par semaine, menu en cartes à balayer (sans photos, contrairement à Jow) |
-| Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée |
-| Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout |
-| Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) ou texte |
-| Restes, boîtes, portions réelles (×3) | 1 — notes | 1 | 1 — notes | 1 | **5** | **5** — préparé 4 → 2 ce soir, 1 boîte, 1 libre ; rendement réel ; jamais négatif |
-| Préparer à l'avance (×2) | 4 — vue cuisine, mise à l'échelle | 4 | 4 — mode cuisine | 4 | 4 — tâches de la veille, mode cuisine | **5** — + écran allumé, rappels dans l'agenda |
-| Imprévus (×2) | 4 — glisser-déposer | 3 | 4 — glisser-déposer | 3 | 4 — aperçu des conséquences | **5** — glisser-déposer + aperçu (portions, courses, repas dépendants) + agenda du mois (absences, télétravail, plat décalé) |
-| Finition native (×1) | **5** — Apple Watch, widgets | 4 | 3 — web | 4 | 2 — app web | **3** — rappels agenda + notifications chiffrées (**non vérifiées sur iPhone** : passera à 4 si le geste 11 réussit) ; pas de widget |
-| Commander au drive (×2) | ? | ? | ? | **5** — panier rempli en un clic chez Auchan, Carrefour, Leclerc… (partenariats avec les enseignes) | 1 — liste à partager | **2** — Auchan assisté : page du produit retenu ouverte, nombre de paquets calculé ; l'ajout au panier reste un geste sur Auchan, sans prix |
-| Coût, vie privée, pérennité (×1) | 3 — 14,99 $/an foyer | 3 — payant | 4 — à héberger soi-même | 3 — financé par les enseignes | **5** — gratuit, local, export | **5** |
-| **Moyenne pondérée** | **3,6** *(sans le critère non vérifié)* | **3,4** *(idem)* | **3,6** *(idem)* | **3,6** *(sans le critère non vérifié)* | **3,4** | **4,3** |
+| Critère (poids) | AnyList | Paprika | Mealie | Jow | Foyer V2.1 (avant) | **Foyer V2.7** | **Foyer V3.13** |
+|---|---|---|---|---|---|---|--|
+| Décider quoi manger (×3) | 2 — calendrier manuel | 2 — manuel | 3 — tirage au hasard | **5** — menu proposé dans 5 000+ recettes | 4 — propositions expliquées depuis vos plats | **4,5** — + variété des viandes, réutilisation des produits frais, DLC, jusqu'à 3 découvertes Wikilivres par semaine, menu en cartes à balayer (sans photos, contrairement à Jow) | **4,5** — inchangé : recettes prêtes partout, semaine générée dans le budget, 110 photos sur 424 ; catalogue toujours bien plus petit que Jow |
+| Courses (×3) | **5** — rayons, fusion des doublons | **5** — rayons personnalisables, fusion | 4 | 4 — + drive | 4 — quantités exactes, calcul visible | **5** — + ordre de votre magasin, mode magasin, habituels, saisie assistée | **5** — + produits du quotidien au bon rythme, une seule ligne avec les recettes ; liste visible dès le premier écran (V3.13) |
+| Partage à deux (×3) | **5** — temps réel | 4 — synchro cloud | **5** — temps réel | ? | 2 — lien à envoyer | **4** — automatique toutes les 20 s, chiffré de bout en bout | **4,5** — signal temps réel mesuré à 7 ms sur le relais (CI), app ouverte seulement ; relève toutes les 20 s sinon |
+| Ajouter ses recettes (×2) | 4 — import web (offre payante) | **5** — navigateur intégré | **5** — adresse ou HTML/JSON | 4 — catalogue + import | 2 — texte collé | **4** — adresse web (schema.org) ou texte | **4** — inchangé |
+| Restes, boîtes, portions réelles (×3) | 1 — notes | 1 | 1 — notes | 1 | **5** | **5** — préparé 4 → 2 ce soir, 1 boîte, 1 libre ; rendement réel ; jamais négatif | **5** — inchangé |
+| Préparer à l'avance (×2) | 4 — vue cuisine, mise à l'échelle | 4 | 4 — mode cuisine | 4 | 4 — tâches de la veille, mode cuisine | **5** — + écran allumé, rappels dans l'agenda | **5** — inchangé (+ séance batch guidée) |
+| Imprévus (×2) | 4 — glisser-déposer | 3 | 4 — glisser-déposer | 3 | 4 — aperçu des conséquences | **5** — glisser-déposer + aperçu (portions, courses, repas dépendants) + agenda du mois (absences, télétravail, plat décalé) | **5** — inchangé |
+| Finition native (×1) | **5** — Apple Watch, widgets | 4 | 3 — web | 4 | 2 — app web | **3** — rappels agenda + notifications chiffrées (**non vérifiées sur iPhone** : passera à 4 si le geste 11 réussit) ; pas de widget | **3** — inchangé : notifications et pastille **non vérifiées sur iPhone** |
+| Commander au drive (×2) | ? | ? | ? | **5** — panier rempli en un clic chez Auchan, Carrefour, Leclerc… (partenariats avec les enseignes) | 1 — liste à partager | **2** — Auchan assisté : page du produit retenu ouverte, nombre de paquets calculé ; l'ajout au panier reste un geste sur Auchan, sans prix | **3** — panier complet (recettes et produits du quotidien), un toucher par article, prix estimés puis payés (facture) ; l'ajout au panier reste un geste sur Auchan (partenariat réservé, CGU) |
+| Coût, vie privée, pérennité (×1) | 3 — 14,99 $/an foyer | 3 — payant | 4 — à héberger soi-même | 3 — financé par les enseignes | **5** — gratuit, local, export | **5** | **5** |
+| **Moyenne pondérée** | **3,6** *(sans le critère non vérifié)* | **3,4** *(idem)* | **3,6** *(idem)* | **3,6** *(sans le critère non vérifié)* | **3,4** | **4,3** | **4,5** |
+
+*Colonne V3.13 (26 octobre 2026) : seuls deux critères bougent, sur des fonctions éprouvées en navigateur — partage (signal temps réel mesuré) et drive (panier complet, un toucher par article, prix payés). Les autres restent inchangés tant que l'usage réel n'a pas tranché. Poids total : 22.*
+
+## Lisibilité mesurée (V3.13)
+
+Mesure reproductible (`e2e/lisibilite.mjs`, foyer de démonstration, écran 390×844), avant (V3.12) → après (V3.13). Pas de mesure équivalente des concurrents : comparaison `[DONNÉE_MANQUANTE]`.
+
+| Écran | Mots | Touchables | Explications (mots) | Premier rayon de la liste |
+|---|---|---|---|---|
+| Courses | 304 → 268 | 50 → 50 | 22 (143) → 21 (121) | à 0,84 → 0,61 écran (bandeau du mode découverte compris) |
+| Produits du quotidien | 1 103 → 182 | 154 → 24 | 77 (917) → 16 (144) | – |
+| Aujourd'hui, Semaine, Maison, drive, fiche repas | inchangés (218, 128, 92, 109, 46) | inchangés | inchangés | – |
+
+**Autres apps relevées le 26 octobre 2026** (comparatifs de blogs, non vérifiés sur les pages des éditeurs) : Bring! (liste partagée en 10 secondes sans compte pour l'autre personne, tri par rayon), Listonic (gratuit avec publicités, calculateur de budget), la Fabrique à Menus de Manger Bouger (gratuite, validée par des nutritionnistes), et Jowzi chez Jow (menu et panier drive dictés à la voix, septembre 2026). Foyer n'a ni partage sans installation ni saisie à la voix (pas d'IA, par choix).
 
 *Critère « Commander au drive » ajouté après coup, le 4 octobre : il manquait, et son absence flattait Foyer (V2.2 : 4,6 sans ce critère, 4,25 avec). Le panier assisté ne fait gagner qu'un point sur ce critère (4,25 → 4,34).*
 
