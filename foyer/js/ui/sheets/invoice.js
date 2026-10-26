@@ -47,7 +47,10 @@ function show(lines) {
     }
     const s = S(), day = inv.day ?? clock().date, week = shopWeekFor(s, day, weekOf(day, s.settings.weekStart));
     const cands = candidates(s, [week, addDays(week, 7), addDays(week, -7)]).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-    reading = { inv, week, cands, picks: inv.lines.map(l => capitalize(matchKey(l.label, cands)?.name ?? '')), restock: restockFromInvoice(s, inv.lines.map(l => productName(l.label))) };
+    // Produit du quotidien reconnu sans ingrédient proposé : son nom est proposé, pour que le prix payé chiffre ses prochains achats.
+    const rids = inv.lines.map(l => restockFromInvoice(s, [productName(l.label)])[0] ?? '');
+    reading = { inv, week, cands, picks: inv.lines.map((l, i) => capitalize(matchKey(l.label, cands)?.name ?? '') || (rids[i] ? nameOf(rids[i], s.restock[rids[i]]) : '')),
+        restock: [...new Set(rids.filter(Boolean))] };
 }
 const lineText = (l) => l.loose && l.weight !== null
     ? `${String(l.weight).replace('.', ',')} kg à ${eur(l.unitCents)} le kg = ${eur(l.cents)}`

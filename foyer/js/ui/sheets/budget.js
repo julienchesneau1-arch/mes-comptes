@@ -11,10 +11,10 @@ import { CLICK, SUBMIT } from '../registry.js';
 const plural = (n, one, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
 const amount = (c) => esc(eur(c).replace(/\s?€$/, '').replace(/ /g, ''));
 // Carte en tête des courses : panier estimé, par portion, payé, et la jauge du budget s'il y en a un.
-export function budgetCard(week, list) {
-    const s = S(), cart = cartEstimate(s, list), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
-    if (!list.meals && !spent)
-        return '';
+export function budgetCard(week, list, restock) {
+    const s = S(), cart = cartEstimate(s, list, restock), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
+    if (!list.meals && !spent && !restock?.todo.length)
+        return ''; // produits du quotidien seuls : leur coût compte aussi
     const base = spent?.cents ?? (cart.priced ? cart.cents : null);
     const ratio = budget && base !== null ? base / budget : null;
     const state = ratio === null ? '' : ratio > 1 ? 'over' : ratio >= .9 ? 'warn' : '';

@@ -25,7 +25,7 @@ import { weekBalance, TARGET, SOURCES } from '../core/balance.js';
 import { VARIETIES } from '../core/model.js';
 import { RELAY, VERSION } from './config.js';
 import { openLine } from './sheets/shop.js';
-import { cartChangesCard, shopWeekFor } from './sheets/drive.js';
+import { cartChangesCard, shopWeekFor, restockLines, restockView } from './sheets/drive.js';
 import { reglerSection, decisionsSummary } from './sheets/decisions.js';
 import { exclusionsSummary } from './sheets/allergies.js';
 import { shortcutsHtml, usageSummary } from './usage.js';
@@ -36,7 +36,6 @@ import { ingredientKey } from '../core/ingredients.js';
 import { dishLook } from '../core/visual.js';
 import { catalogNow, withPhoto, photoImg } from './catalog.js';
 import { discoveriesFor } from '../core/propose.js';
-import { restockFor, pairWithRecipes } from '../core/restock.js';
 const plural = (n, one, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
 /* ---------- Visuel d'un repas ---------- */
 export function slotLook(v) {
@@ -247,17 +246,6 @@ function restockRow(r) {
     return `<li class="${r.done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="restockCheck" data-id="${esc(r.id)}" ${r.done ? 'checked' : ''} aria-label="${esc(r.name)} : pris"><span></span></label>
     <button class="item-btn grow" data-a="restockItem" data-id="${esc(r.id)}"><span class="grow"><span class="title">${esc(r.name)}</span><br><span class="sub">${esc(sub)}</span></span><span class="qty">${esc(r.done ? '' : r.qty)}</span></button></div></li>`;
 }
-const restockLines = (week) => restockFor(S(), week, shopWeekFor(S(), clock().date, thisWeek()), clock().date);
-// Produits du quotidien de la semaine : ceux qu'une ligne de recette porte déjà (une seule ligne), et les autres, à part.
-function restockView(week, list) {
-    const rs = restockLines(week), pair = pairWithRecipes(rs, list.lines), byLine = new Map();
-    for (const r of rs) {
-        const k = pair.get(r.id);
-        if (k)
-            byLine.set(k, r);
-    }
-    return { todo: rs.filter(r => !r.done && !pair.has(r.id)), done: rs.filter(r => r.done && !pair.has(r.id)), byLine };
-}
 export function shopView() {
     const s = S(), c = clock();
     const week = A.ui.shopWeek ?? shopWeekFor(s, c.date, thisWeek());
@@ -300,7 +288,7 @@ export function shopView() {
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(row).join('')}</ul></details>` : ''}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(row).join('')}${mDone.map(manualRow).join('')}${rDone.map(restockRow).join('')}</ul></details>` : ''}
     ${restockPromo}
-    ${A.ui.store || !on('budget') ? '' : budgetCard(week, list)}
+    ${A.ui.store || !on('budget') ? '' : budgetCard(week, list, restockView(week, list))}
     <div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button><button class="btn ghost" data-a="watchNew">Surveiller la date d'un produit</button></div>
     <p class="small muted">Cocher = acheté (ou mis au panier) pour ces courses. Cela ne crée ni stock ni date. Montants : estimations automatiques, rien à saisir.</p></main>`;
 }

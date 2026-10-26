@@ -337,4 +337,12 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Au bon rayon | Sucre en épicerie sucrée, lait en crèmerie : là où on les cherche en magasin |
 | Jamais deux lignes | Si une recette de la semaine en demande aussi, une seule ligne : le paquet, et la part de la recette dessous |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.10 incluses).
+## 27. V3.11 — tout le panier de la semaine (26 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Les desserts du quotidien | Yaourts, compotes, glaces, fruits, boissons, goûter : suivis comme le reste, rien d'office, aucune recette ajoutée |
+| Une seule commande | La commande guidée au drive propose aussi les produits du quotidien de la semaine ; « Ajouté au panier » note l'achat |
+| Un budget complet, jamais deviné | Prix payé, sinon prix noté, sinon prix moyen Insee rapporté à la contenance ; sans source : compté « sans prix » ; le coût par portion reste celui des repas |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.11 incluses).

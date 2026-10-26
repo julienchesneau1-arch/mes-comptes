@@ -4,15 +4,16 @@
 import { type LocalDate, addDays, parseSlot, weekday, fmtDayShort } from '../../core/dates.ts';
 import type { Draft } from '../../core/reduce.ts';
 import type { Product } from '../../core/model.ts';
-import { deriveShopping, checkSig } from '../../core/shopping.ts';
-import { lineCost, cartEstimate, cartText, coverText, calibration } from '../../core/budget.ts';
+import { type ShoppingList, deriveShopping, checkSig } from '../../core/shopping.ts';
+import { lineCost, cartEstimate, cartText, coverText, calibration, restockCost, type RestockCost, type RestockPart } from '../../core/budget.ts';
+import { type RestockLine, restockFor, pairWithRecipes, nameOf } from '../../core/restock.ts';
 import { monthText, perText } from '../../core/refprice.ts';
 import { type Product as Offer, groupFor, productOf, VALUE_POINT } from '../../core/products.ts';
 import { DRIVE_HOME, driveItems, cartChanges, type CartChange, productLink, parseSize, sizeDraft, sizeText, searchUrl, type DriveItem } from '../../core/drive.ts';
 import { eur } from '../../core/money.ts';
 import { lineAlert } from '../../core/allergens.ts';
 import { capitalize } from '../../core/text.ts';
-import { S, dispatch } from '../state.ts';
+import { S, clock, dispatch, thisWeek } from '../state.ts';
 import { openSheet, sheetHead, esc, toast, refreshSheet } from '../dom.ts';
 import { CLICK, SUBMIT } from '../registry.ts';
 
@@ -22,8 +23,24 @@ export function openDrive(week: LocalDate): void { openSheet({ id: 'drive', rend
 
 const packsLine = (it: DriveItem): string =>
   (it.product || it.paid) && it.packs && it.packs.n !== null ? `<p>À mettre au panier : <strong>${esc(it.packs.text)}</strong></p>` : '';
+// Produits du quotidien de la semaine (core/restock.ts) : ceux qu'une ligne de recette porte déjà (une seule ligne), et les autres.
+export const restockLines = (week: LocalDate, s = S()): RestockLine[] => restockFor(s, week, shopWeekFor(s, clock().date, thisWeek()), clock().date);
+export function restockView(week: LocalDate, list: ShoppingList, s = S()): RestockPart & { todo: RestockLine[]; done: RestockLine[]; byLine: Map<string, RestockLine> } {
+  const rs = restockLines(week, s), pair = pairWithRecipes(rs, list.lines), byLine = new Map<string, RestockLine>();
+  for (const r of rs) { const k = pair.get(r.id); if (k) byLine.set(k, r); }
+  return { todo: rs.filter(r => !r.done && !pair.has(r.id)), done: rs.filter(r => r.done && !pair.has(r.id)), byLine };
+}
+// Prix d'un produit du quotidien, dit en clair (d'où il vient).
+export function restockCostText(c: RestockCost): string {
+  if (c.how === 'facture' && c.paid) return `≈ ${eur(c.cents)} au prix payé le ${dateText(c.paid.day)} (facture du drive)`;
+  if (c.how === 'noté') return `≈ ${eur(c.cents)} (prix noté sur le produit retenu)`;
+  if (c.how === 'relevé') return `≈ ${eur(c.cents)} au prix relevé du produit conseillé`;
+  return `≈ ${eur(c.cents)} · prix moyen Insee${c.ref ? ` ${c.ref.label.toLowerCase()} (${monthText(c.ref.period)})` : ''}`;
+}
+
 // Estimation automatique de l'article (prix moyen Insee), sans rien saisir ; rien d'affiché si aucune référence ne correspond.
 function costLine(week: LocalDate, it: DriveItem): string {
+  if (it.restock) { const c = restockCost(S(), it.restock); return c ? `<p class="small muted">${esc(restockCostText(c))}</p>` : ''; }
   if (!it.id.startsWith('l:')) return '';
   const l = deriveShopping(S(), week).lines.find(x => `l:${x.key}` === it.id), c = l ? lineCost(S(), l) : null;
   if (!c) return '';
@@ -75,7 +92,7 @@ export function productSection(productKey: string, name: string, product: Produc
 }
 
 function driveHtml(week: LocalDate): string {
-  const items = driveItems(S(), deriveShopping(S(), week));
+  const list = deriveShopping(S(), week), items = driveItems(S(), list, restockView(week, list));
   const todo = items.filter(i => !skipped.has(i.id));
   const head = sheetHead('Commander chez Auchan', 'Vous ajoutez au panier sur Auchan ; Foyer ouvre la bonne page et coche la liste.');
   const cur = todo[0];
@@ -110,13 +127,20 @@ CLICK['driveAgain'] = () => { skipped.clear(); refreshSheet(); };
 CLICK['driveAdded'] = d => {
   const id = d['id'] ?? '', week = d['week'] ?? '';
   added.add(id);
+  // Produit du quotidien : son achat est noté (le rythme s'en corrige) ; avec la ligne d'une recette, les deux.
+  const rid = driveItems(S(), deriveShopping(S(), week), restockView(week, deriveShopping(S(), week))).find(x => x.id === id)?.restock;
+  const bought: Draft[] = rid ? [{ t: 'restock.bought', p: { id: rid, day: clock().date, bought: true } }] : [];
+  if (id.startsWith('r:')) {
+    dispatch(bought, { toast: `${nameOf(id.slice(2), S().restock[id.slice(2)])} : au panier` });
+    return;
+  }
   if (id.startsWith('m:')) {
     const it = S().shop[week]?.items[id.slice(2)];
     if (it) dispatch([{ t: 'shop.item', p: { week, id: id.slice(2), name: it.name, qty: it.qty, aisle: it.aisle, checked: true, removed: false } }], { toast: `${it.name} : au panier` });
     return;
   }
   const l = deriveShopping(S(), week).lines.find(x => `l:${x.key}` === id);
-  if (l) dispatch([{ t: 'shop.check', p: { week, key: l.key, needAt: checkSig(l), name: l.name } }], { toast: `${l.name} : au panier` });
+  if (l) dispatch([{ t: 'shop.check', p: { week, key: l.key, needAt: checkSig(l), name: l.name } }, ...bought], { toast: `${l.name} : au panier` });
 };
 SUBMIT['productSet'] = (data, form) => {
   const key = form.dataset['key'] ?? '', name = form.dataset['name'] ?? '';
@@ -165,7 +189,7 @@ CLICK['cartFixedAll'] = d => { const w = d['week'] ?? ''; dispatch(fixDrafts(w, 
 // Juste après « Tout approuver » : le panier est prêt, un geste pour le remplir.
 export function openCartReady(week: LocalDate): void {
   openSheet({ id: 'cartReady', render: () => {
-    const s = S(), list = deriveShopping(s, week), cart = cartEstimate(s, list), n = driveItems(s, list).length;
+    const s = S(), list = deriveShopping(s, week), rv = restockView(week, list), cart = cartEstimate(s, list, rv), n = driveItems(s, list, rv).length;
     return `${sheetHead('🛒 Panier prêt', `Courses de la semaine du ${fmtDayShort(week)}, calculées d'après le menu.`)}
       <div class="stats" role="list"><span role="listitem"><strong>${n}</strong>article${n > 1 ? 's' : ''}</span><span role="listitem"><strong>${cart.priced ? esc(cartText(cart, eur)) : '–'}</strong>estimé${cart.priced ? ` · ${esc(coverText(cart))}` : ''}</span></div>
       <p class="small muted">Quantités en paquets, conseil qualité-prix par article. Si le menu change ensuite, Courses dira quoi ajouter ou retirer.</p>

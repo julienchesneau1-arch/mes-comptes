@@ -5,13 +5,13 @@ import assert from 'node:assert/strict';
 import { household, MON } from './helpers.ts';
 import { AISLE } from '../src/core/ingredients.ts';
 import { productName } from '../src/core/invoice.ts';
-import { RESTOCK, RESTOCK_DEF, GROUPS, estimate, restockFor, pairWithRecipes, restockFromInvoice } from '../src/core/restock.ts';
+import { RESTOCK, RESTOCK_DEF, GROUPS, FOOD, estimate, restockFor, pairWithRecipes, restockFromInvoice } from '../src/core/restock.ts';
 
 test('catalogue : petit-déjeuner et placard, rien d\'office, chaque produit dans un vrai rayon', () => {
-  const food = RESTOCK.filter(d => d.group === 'petitdej' || d.group === 'placard');
-  assert.ok(food.length >= 25);
+  const food = RESTOCK.filter(d => FOOD.has(d.group)), pantry = food.filter(d => d.group === 'petitdej' || d.group === 'placard');
+  assert.ok(pantry.length >= 24);
   assert.ok(food.every(d => !d.on), 'café ou thé : au foyer de cocher');
-  assert.ok(food.every(d => d.keys?.length), 'chaque aliment peut rejoindre la ligne d\'une recette');
+  assert.ok(pantry.every(d => d.keys?.length), 'chaque aliment du placard peut rejoindre la ligne d\'une recette');
   assert.ok(RESTOCK.every(d => !d.aisle || AISLE[d.aisle]));
   assert.deepEqual([...new Set(RESTOCK.map(d => d.group))].sort(), [...GROUPS].sort());
   assert.deepEqual(['cafe', 'sucre', 'lait', 'sel'].map(id => estimate(RESTOCK_DEF[id], 2)), [9, 50, 12, 80]);

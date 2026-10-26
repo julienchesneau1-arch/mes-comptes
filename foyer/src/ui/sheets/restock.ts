@@ -1,13 +1,15 @@
 // Produits du quotidien (core/restock.ts) : choisir ceux que Foyer suit, voir quand chacun devrait manquer, corriger d'un geste
 // (« il en faut », « il en reste »), fixer un rythme, ajouter un produit à soi. Les achats se notent dans la liste ou par la facture.
 import { type LocalDate, addDays, daysBetween, fmtDayShort, fmtRelDay } from '../../core/dates.ts';
-import { RESTOCK, RESTOCK_DEF, GROUP_LABEL, GROUPS, type RestockGroup, estimate, lastBought, later, nameOf, nextDue, packOf, rhythm, rhythmText, trips } from '../../core/restock.ts';
+import { RESTOCK, RESTOCK_DEF, GROUP_LABEL, GROUPS, FOOD, type RestockGroup, estimate, lastBought, later, nameOf, nextDue, packOf, rhythm, rhythmText, trips } from '../../core/restock.ts';
 import type { Draft } from '../../core/reduce.ts';
 import { newId } from '../../core/reduce.ts';
 import { capitalize, plural } from '../../core/text.ts';
 import { S, clock, dispatch } from '../state.ts';
 import { openSheet, sheetHead, esc, toast } from '../dom.ts';
 import { CLICK, CHANGE, SUBMIT } from '../registry.ts';
+import { restockCost } from '../../core/budget.ts';
+import { restockCostText } from './drive.ts';
 
 const EVERY = [7, 14, 21, 30, 45, 60, 90, 120, 180] as const;
 const people = (): number => Math.max(1, S().members.length);
@@ -25,10 +27,10 @@ export function openRestockItem(id: string): void { openSheet({ id: `restock:${i
 
 function listHtml(): string {
   const s = S(), n = people();
-  const head = sheetHead('🔁 Produits du quotidien', 'Petit-déjeuner, placard, hygiène, entretien : remis aux courses quand ils devraient manquer, pas chaque semaine.');
+  const head = sheetHead('🔁 Produits du quotidien', 'Petit-déjeuner, desserts, fruits, goûter, boissons, placard, hygiène, entretien : remis aux courses quand ils devraient manquer, pas chaque semaine.');
   if (!Object.keys(s.restock).length) {
     // Premier choix : les produits courants sont cochés, ceux qui dépendent de l'équipement (lave-vaisselle…) ne le sont pas.
-    const group = (g: RestockGroup) => `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${g === 'petitdej' || g === 'placard' ? '<p class="small muted">Rien d\'office : cochez ce que vous prenez (café ou thé, tartines ou céréales…).</p>' : ''}${RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
+    const group = (g: RestockGroup) => `<fieldset><legend>${esc(GROUP_LABEL[g])}</legend>${FOOD.has(g) ? '<p class="small muted">Rien d\'office : cochez ce que vous prenez (café ou thé, tartines ou céréales…).</p>' : ''}${RESTOCK.filter(d => d.group === g).map(d => `<label class="item"><input type="checkbox" name="on" value="${d.id}" ${d.on ? 'checked' : ''}>
       <span class="grow">${esc(d.name)}<br><span class="small muted">${esc(`≈ tous les ${estimate(d, n)} jours pour ${plural(n, 'personne')} · ${d.why}`)}</span></span></label>`).join('')}</fieldset>`;
     return `${head}<form data-f="restockStart" class="stack">
       <p class="small">Cochez ce que vous achetez régulièrement. Foyer part d'une estimation (écrite sous chaque produit), puis apprend votre vrai rythme à chaque achat noté : coche dans la liste de courses ou facture du drive lue.</p>
@@ -65,6 +67,7 @@ function itemHtml(id: string): string {
     ${it?.on && due ? `<section class="card stack">
       <p><strong>Prochain achat : ${esc(dueText(due))}</strong>${forced ? ' · date choisie par vous' : ''}</p>
       ${r ? `<p class="small">${esc(capitalize(rhythmText(r)))}.</p>` : ''}
+      <p class="small">${(() => { const c = restockCost(s, id); return c ? `Prix : ${esc(restockCostText(c))}` : 'Prix inconnu pour l\'instant : la prochaine facture du drive lue le donnera.'; })()}</p>
       <div class="actions"><button class="btn soft" data-a="restockNow" data-id="${esc(id)}">Il en faut maintenant</button>
         <button class="btn ghost" data-a="restockLater" data-id="${esc(id)}">Il en reste encore</button>
         <button class="btn ghost" data-a="restockBought" data-id="${esc(id)}">Acheté aujourd'hui</button>

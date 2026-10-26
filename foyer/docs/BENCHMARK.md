@@ -47,6 +47,8 @@
 
 **V3.6 (25 octobre 2026) — recettes prêtes.** Comme chez Jow, un plat jamais saisi se prévoit d'un toucher : idées d'Aujourd'hui dès le premier jour, section « Recettes prêtes » dans le choix d'un plat (recherche comprise), fiche avec les prochains repas libres. Jow garde une avance nette sur le nombre (plus de 5 000 recettes testées contre 424 plats bénévoles), les photos et la régularité des fiches ; 243 pages Wikilivres ne disent pas pour combien de personnes, et Foyer le demande au lieu de le deviner. Critère « décider quoi manger » inchangé tant que l'usage réel n'a pas tranché.
 
+**V3.11 (26 octobre 2026) — tout le panier.** Desserts du quotidien, fruits, boissons et goûter rejoignent les produits suivis ; la commande guidée au drive et le budget comptent désormais toute la semaine, pas seulement les recettes, sans jamais inventer un prix. Comparaison avec les autres apps non vérifiée : `[DONNÉE_MANQUANTE]`.
+
 **V3.10 (26 octobre 2026) — petit-déjeuner et placard.** Café, thé, sucre, lait, beurre, huile, sel… suivis au même rythme appris, chacun dans son rayon ; une seule ligne quand une recette en demande aussi. Comparaison avec les autres apps non vérifiée : `[DONNÉE_MANQUANTE]`.
 
 **V3.9 (26 octobre 2026) — produits de la maison.** Dentifrice, papier toilette, lessive… reviennent d'eux-mêmes dans la liste au bon rythme, appris des achats notés et des factures du drive. Ce que font les autres apps sur ce point n'a pas été vérifié : comparaison `[DONNÉE_MANQUANTE]`, notes du tableau inchangées. Utilité à confirmer par l'usage sur quelques semaines.

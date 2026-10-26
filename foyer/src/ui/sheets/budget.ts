@@ -2,7 +2,7 @@
 // Un article sans prix de référence est compté « non chiffré », jamais deviné : le montant est alors un minimum.
 import { type LocalDate, addDays, fmtDayShort } from '../../core/dates.ts';
 import type { ShoppingList } from '../../core/shopping.ts';
-import { cartEstimate, cartText, coverText, weekReport, calibration, calibrationText } from '../../core/budget.ts';
+import { cartEstimate, cartText, coverText, weekReport, calibration, calibrationText, type RestockPart } from '../../core/budget.ts';
 import { refPrices, monthText } from '../../core/refprice.ts';
 import { batchStreak } from '../../core/batch.ts';
 import { eur, parseEuros } from '../../core/money.ts';
@@ -14,9 +14,9 @@ const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n >
 const amount = (c: number): string => esc(eur(c).replace(/\s?€$/, '').replace(/ /g, ''));
 
 // Carte en tête des courses : panier estimé, par portion, payé, et la jauge du budget s'il y en a un.
-export function budgetCard(week: LocalDate, list: ShoppingList): string {
-  const s = S(), cart = cartEstimate(s, list), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
-  if (!list.meals && !spent) return '';
+export function budgetCard(week: LocalDate, list: ShoppingList, restock?: RestockPart): string {
+  const s = S(), cart = cartEstimate(s, list, restock), spent = s.shop[week]?.spent ?? null, budget = s.settings.budget ?? null;
+  if (!list.meals && !spent && !restock?.todo.length) return ''; // produits du quotidien seuls : leur coût compte aussi
   const base = spent?.cents ?? (cart.priced ? cart.cents : null);
   const ratio = budget && base !== null ? base / budget : null;
   const state = ratio === null ? '' : ratio > 1 ? 'over' : ratio >= .9 ? 'warn' : '';
