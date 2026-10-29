@@ -1,10 +1,11 @@
 // Aperçu avant d'enregistrer : on simule les événements, on compare avant/après, on décrit les conséquences.
 // Si le journal a changé entre l'aperçu et la validation (synchro reçue), l'aperçu est refait : jamais d'écrasement silencieux.
-import { parseSlot, weekOf, fmtSlot } from './dates.js';
+import { parseSlot, weekOf, fmtSlot, fmtDayShort } from './dates.js';
 import { replay, stamp } from './reduce.js';
 import { portions } from './plan.js';
 import { slotView, problems, prepTitle, capital } from './status.js';
 import { deriveShopping, lineQty } from './shopping.js';
+import { lateDishes } from './limits.js';
 export function previewChange(log, ctx, drafts, today, hour, before = replay(log)) {
     const events = stamp(ctx, drafts);
     const after = replay([...log, ...events]);
@@ -59,6 +60,14 @@ export function previewChange(log, ctx, drafts, today, hour, before = replay(log
     for (const [key, p] of pb)
         if (!pa.has(key))
             impacts.push({ level: p.level === 'manque' ? 'attention' : p.level, text: p.text });
+    // Date limite : un plat qui passerait après la DLC d'un produit qu'il utilise (ou qui revient à temps).
+    const la = lateDishes(a, today), lb = lateDishes(b, today);
+    for (const [k, l] of lb)
+        if (!la.has(k))
+            impacts.push({ level: 'attention', text: `⚠️ ${capital(slotView(b, k, today, hour).title || 'le plat')} ${fmtSlot(k, today)} : après la DLC (${l.name.toLowerCase()}, ${fmtDayShort(l.date)})` });
+    for (const [k, l] of la)
+        if (!lb.has(k) && ![...lb.values()].some(x => x.watch.id === l.watch.id))
+            impacts.push({ level: 'info', text: `${capital(l.name)} : utilisé avant sa DLC (${fmtDayShort(l.date)})` });
     for (const [key, p] of pa)
         if (!pb.has(key) && !p.event)
             impacts.push({ level: 'info', text: `Résolu : ${p.text}` });

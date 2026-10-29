@@ -1,11 +1,12 @@
 // Aperçu avant d'enregistrer : on simule les événements, on compare avant/après, on décrit les conséquences.
 // Si le journal a changé entre l'aperçu et la validation (synchro reçue), l'aperçu est refait : jamais d'écrasement silencieux.
-import { type LocalDate, type SlotKey, parseSlot, weekOf, fmtSlot } from './dates.ts';
+import { type LocalDate, type SlotKey, parseSlot, weekOf, fmtSlot, fmtDayShort } from './dates.ts';
 import type { AnyEv, State } from './model.ts';
 import { type Ctx, type Draft, type Replay, replay, stamp } from './reduce.ts';
 import { portions } from './plan.ts';
 import { slotView, problems, prepTitle, capital } from './status.ts';
 import { deriveShopping, lineQty } from './shopping.ts';
+import { lateDishes } from './limits.ts';
 
 export interface Impact { level: 'info' | 'attention' | 'conflit'; text: string }
 export interface Preview { drafts: Draft[]; events: AnyEv[]; impacts: Impact[]; blocked: boolean; base: number; after: Replay }
@@ -53,6 +54,10 @@ export function previewChange(log: readonly AnyEv[], ctx: Ctx, drafts: Draft[], 
   const pa = new Map(problems(before, today, hour).map(p => [p.key, p]));
   const pb = new Map(problems(after, today, hour).filter(p => !p.event).map(p => [p.key, p]));
   for (const [key, p] of pb) if (!pa.has(key)) impacts.push({ level: p.level === 'manque' ? 'attention' : p.level, text: p.text });
+  // Date limite : un plat qui passerait après la DLC d'un produit qu'il utilise (ou qui revient à temps).
+  const la = lateDishes(a, today), lb = lateDishes(b, today);
+  for (const [k, l] of lb) if (!la.has(k)) impacts.push({ level: 'attention', text: `⚠️ ${capital(slotView(b, k, today, hour).title || 'le plat')} ${fmtSlot(k, today)} : après la DLC (${l.name.toLowerCase()}, ${fmtDayShort(l.date)})` });
+  for (const [k, l] of la) if (!lb.has(k) && ![...lb.values()].some(x => x.watch.id === l.watch.id)) impacts.push({ level: 'info', text: `${capital(l.name)} : utilisé avant sa DLC (${fmtDayShort(l.date)})` });
   for (const [key, p] of pa) if (!pb.has(key) && !p.event) impacts.push({ level: 'info', text: `Résolu : ${p.text}` });
 
   return { drafts, events, impacts, blocked, base: before.count, after };

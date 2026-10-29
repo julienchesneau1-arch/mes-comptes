@@ -391,4 +391,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Le premier geste d'abord | Une feuille commence par ce que son titre promet (scanner), puis le reste |
 | Dire comment | Quand le geste dépend du téléphone (« Scanner le texte » de l'iPhone), les étapes sont écrites à côté, et disparaissent une fois le geste réussi |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.16 incluses).
+## 33. V3.17 — la date limite décide avec l'agenda (29 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| D'abord ce qui presse | Un menu proposé utilise d'abord, d'ici leur date, les produits surveillés à DLC ou DDM ; la raison est affichée |
+| La DLC ne se dépasse pas en silence | Un plat déplacé (agenda, carte, glisser-déposer) reste avant la DLC de ses produits ; sinon c'est dit avant ou au moment du changement |
+| Imposer ce qui est décidé, proposer le reste | Un événement d'agenda déjà décidé (« pareil les prochaines fois ») déplace seul, en le disant ; sinon la carte de l'agenda propose |
+| DDM indicative | La DDM oriente les menus, elle ne bloque jamais un déplacement |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.17 incluses).

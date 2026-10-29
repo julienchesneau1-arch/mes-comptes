@@ -34,6 +34,7 @@ const FILES = [
   'js/core/ics.js',
   'js/core/ingredients.js',
   'js/core/invoice.js',
+  'js/core/limits.js',
   'js/core/model.js',
   'js/core/modules.js',
   'js/core/money.js',
