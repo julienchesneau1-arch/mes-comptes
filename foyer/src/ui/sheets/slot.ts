@@ -6,7 +6,7 @@ import { slotView, STATUS_LABEL, problems, prepTitle, capital } from '../../core
 import { portionsDetail } from '../../core/today.ts';
 import { lineLabel } from '../../core/ingredients.ts';
 import { rank, leftovers, discoveriesFor } from '../../core/propose.ts';
-import { setDish, setLeftovers, setOutside, removeDish, move, eat, declarePrepared, reusable, type DependentsMode } from '../../core/commands.ts';
+import { setDish, setLeftovers, setOutside, removeDish, move, eat, declarePrepared, reusable, withLunch, type DependentsMode } from '../../core/commands.ts';
 import { search } from '../../core/catalog.ts';
 import type { CatalogRecipe } from '../../core/wikibook.ts';
 import { dishBlocked } from '../../core/allergens.ts';
@@ -20,7 +20,7 @@ import { A, S, clock, dispatch, undo } from '../state.ts';
 import { openSheet, sheetHead, closeSheet, esc } from '../dom.ts';
 import { CLICK, CHANGE, INPUT, SUBMIT, num } from '../registry.ts';
 import { openPreview } from './preview.ts';
-import { coverNote } from '../cover.ts';
+import { coverNote, lunchNote } from '../cover.ts';
 
 const title = (k: SlotKey): string => { const p = parseSlot(k); return p ? `${capital(fmtDay(p.date))} · ${p.slot}` : k; };
 
@@ -149,7 +149,8 @@ const pickDish = (fresh: boolean) => (d: DOMStringMap): void => {
   const k = d['k'] ?? '', id = d['id'] ?? '', s = S();
   const name = s.recipes[id] ? current(s.recipes[id]!).name : '', re = fresh ? null : reusable(s, k, id);
   afterPick(k);
-  dispatch(setDish(s, k, id, fresh), { toast: () => `${name} prévu ${fmtSlot(k, clock().date)}${re ? ` : ${reuseText(re, servings(s, k), clock().date)}` : ''}${coverNote(k)}` });
+  const w = withLunch(s, k, setDish(s, k, id, fresh));
+  dispatch(w.drafts, { toast: () => `${name} prévu ${fmtSlot(k, clock().date)}${re ? ` : ${reuseText(re, servings(s, k), clock().date)}` : ''}${lunchNote(w)}${coverNote(k)}` });
 };
 CLICK['pickRecipe'] = pickDish(false);
 CLICK['pickFresh'] = pickDish(true);
@@ -173,9 +174,9 @@ CLICK['pickNew'] = d => {
   if (!name) return;
   const id = newId();
   afterPick(k);
-  dispatch([{ t: 'recipe.save', p: { recipe: id, content: { name: name.charAt(0).toUpperCase() + name.slice(1), yield: null, ingredients: [], steps: [], ahead: [], tags: [], note: '' } } },
-    ...setDish(S(), k, id)],
-  { toast: `${name} créé et prévu. Ajoutez ses ingrédients quand vous voulez (Maison › Nos plats).` });
+  const w = withLunch(S(), k, setDish(S(), k, id));
+  dispatch([{ t: 'recipe.save', p: { recipe: id, content: { name: name.charAt(0).toUpperCase() + name.slice(1), yield: null, ingredients: [], steps: [], ahead: [], tags: [], note: '' } } }, ...w.drafts],
+  { toast: () => `${name} créé et prévu ${fmtSlot(k, clock().date)}${lunchNote(w)}${coverNote(k)}. Ajoutez ses ingrédients quand vous voulez (Maison › Nos plats).` });
 };
 
 /* ---------- Présences, invités, portions ---------- */

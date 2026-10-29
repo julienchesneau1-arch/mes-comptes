@@ -22,8 +22,8 @@ test('pas assez de plats : les repas où quelqu\'un mange (midis de semaine deho
   const c = cov(a);
   assert.deepEqual(c.meals, all);
   assert.equal(c.need, 18);
-  assert.deepEqual(coverageText(a.s, c, TODAY), { level: 'manque', title: 'Pas assez de plats : il manque 9 repas pour finir la semaine',
-    detail: 'demain soir, mardi soir, mercredi soir et 6 autres (18 portions).' });
+  assert.deepEqual(coverageText(a.s, c, TODAY), { level: 'manque', title: 'Pas assez de plats : il manque 9 plats à cuisiner pour finir la semaine',
+    detail: 'demain soir, mardi soir, mercredi soir et 6 autres (18 portions).', hint: 2 }); // midis du week-end : « le midi = restes du dîner » proposé
 });
 
 test('agenda : un repas où personne ne mange ne manque pas ; un plat qui y est posé est en trop, et se déplace d\'un toucher', () => {
@@ -37,7 +37,7 @@ test('agenda : un repas où personne ne mange ne manque pas ; un plat qui y est 
   const fix = coverageFixes(a.s, c, TODAY);
   assert.equal(fix[0]?.label, 'Déplacer Curry à mercredi soir');
   a.emit(...(fix[0]?.drafts ?? []));
-  assert.deepEqual(coverageText(a.s, cov(a), TODAY), { level: 'ok', title: 'Semaine couverte : 8 repas à la maison, tous prévus, rien en trop', detail: '' });
+  assert.deepEqual(coverageText(a.s, cov(a), TODAY), { level: 'ok', title: 'Semaine couverte : 8 plats pour 8 repas, rien en trop', detail: '', hint: 0 });
 });
 
 test('trop de plats : portions en plus et restes libres ; reprises sur un repas sans plat, rien de plus à cuisiner', () => {
@@ -51,5 +51,5 @@ test('trop de plats : portions en plus et restes libres ; reprises sur un repas 
   a.emit(...(fix[0]?.drafts ?? []));
   c = cov(a);
   assert.deepEqual([c.missing.length, c.spare], [0, 2]);                      // 2 reprises, 2 encore en trop
-  assert.deepEqual(coverageText(a.s, c, TODAY), { level: 'trop', title: 'Trop de plats : 2 portions en trop', detail: 'Pâtes : 2 portions en plus. De quoi faire ≈ 1 repas de restes.' });
+  assert.deepEqual(coverageText(a.s, c, TODAY), { level: 'trop', title: 'Trop de plats : 2 portions en trop', detail: 'Pâtes : 2 portions en plus. De quoi faire ≈ 1 repas de restes.', hint: 0 });
 });

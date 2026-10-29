@@ -409,4 +409,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Réparer sans cuisiner | Le premier geste proposé reprend ce qui est déjà en trop là où il manque un plat ; compléter vient ensuite |
 | Rien de deviné | Un changement d'agenda pas encore décidé n'est pas compté ; il est signalé |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.18 incluses).
+## 35. V3.19 — un plat, deux repas (29 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Compter ce qu'on cuisine | La semaine se dit en plats à cuisiner : un midi nourri par le dîner de la veille (boîtes ou restes) n'en est pas un |
+| Le dire une fois | Un foyer qui cuisine le soir pour le lendemain midi le dit une fois (accueil, Décisions automatiques, ou le bandeau du bilan) ; ensuite chaque dîner posé ajoute seul les portions du lendemain midi, et le message le dit |
+| Jamais un midi sans rien | Sans dîner la veille (personne, ou dîner passé sans plat), le midi se cuisine et compte comme un plat |
+| Saisie fiable | Ce qu'on tape s'écrit dans l'ordre, même quand la feuille se redessine à chaque lettre |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.19 incluses).

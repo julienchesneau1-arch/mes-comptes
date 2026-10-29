@@ -14,7 +14,8 @@ import { openSheet, sheetHead, closeSheet, esc, toast, refreshSheet } from '../d
 import { CLICK, INPUT } from '../registry.ts';
 import { loadCatalog, photoImg, photoHero } from '../catalog.ts';
 import { showParsed, allergenHtml } from './recipe.ts';
-import { coverNote } from '../cover.ts';
+import { coverNote, lunchNote } from '../cover.ts';
+import { withLunch } from '../../core/commands.ts';
 
 const LABEL: Record<Filter, string> = { 'tout': 'Tout', 'rapide': 'Rapide', 'volaille': 'Volaille', 'viande': 'Viande', 'poisson': 'Poisson', 'végétarien': 'Végétarien', 'soupe': 'Soupe', 'pâtes': 'Pâtes' };
 let q = '', f: Filter = 'tout', shown = 30;
@@ -94,7 +95,8 @@ CLICK['pickCatalog'] = async d => {
   if (!y) { void openOne(r.id, k); return; }
   const fresh = !ownedFor(S(), r);
   closeSheet();
-  dispatch(planCatalog(S(), k, r, r.yield ? null : y), { toast: () => `${r.title} prévu ${fmtSlot(k, clock().date)}${fresh ? ' · ajouté à vos plats' : ''}${coverNote(k)}` });
+  const w = withLunch(S(), k, planCatalog(S(), k, r, r.yield ? null : y));
+  dispatch(w.drafts, { toast: () => `${r.title} prévu ${fmtSlot(k, clock().date)}${fresh ? ' · ajouté à vos plats' : ''}${lunchNote(w)}${coverNote(k)}` });
 };
 CLICK['catalogAdd'] = async d => {
   const r = (await loadCatalog())?.recipes.find(x => x.id === d['id']);

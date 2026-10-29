@@ -19,6 +19,16 @@ export function servings(s, k) {
     return n;
 }
 export const eaters = (s, k) => s.members.map(m => ({ id: m.id, name: m.name, presence: presence(s, k, m.id) }));
+// Midi nourri par les restes du dîner de la veille (cuisiné avec des portions en plus) : tous les midis où quelqu'un mange si le
+// foyer l'a choisi ; sinon seulement ceux où chacun emporte une boîte, sans invités, si les boîtes viennent du dîner.
+export function fedByDinner(s, k) {
+    if (parseSlot(k)?.slot !== 'midi' || servings(s, k) === 0)
+        return false;
+    if (s.settings.lunchFromDinner)
+        return true;
+    const present = eaters(s, k).filter(e => e.presence !== 'dehors');
+    return s.settings.boxesFromDinner && present.length > 0 && present.every(e => e.presence === 'boite') && !s.slots[k]?.guests;
+}
 // Index des créneaux qui consomment chaque préparation (le créneau de cuisine compris). Calculé une fois par état.
 const IDX = new WeakMap();
 export function users(s, prepId) {

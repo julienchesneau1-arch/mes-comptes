@@ -362,7 +362,7 @@ dialog.sheet::backdrop { background: rgba(20, 12, 30, .5); backdrop-filter: blur
   background: var(--ink); color: var(--paper); border-radius: 22px; padding: .75rem .75rem .75rem 1.125rem; display: flex; gap: .75rem; align-items: center;
   box-shadow: 0 14px 34px rgba(0, 0, 0, .3); font-weight: 700; animation: pop .25s ease-out; }
 .toast[hidden] { display: none; }
-.toast .btn { background: var(--paper); color: var(--ink); box-shadow: none; }
+.toast .btn { background: var(--paper); color: var(--ink); box-shadow: none; flex-shrink: 0; }
 @media (min-width: 820px) { .toast { bottom: 1.5rem; } }
 
 .demo-bar { background: var(--blue-bg); color: var(--blue); padding: .5rem 1rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; justify-content: center; text-align: center; font-weight: 700; }

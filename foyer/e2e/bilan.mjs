@@ -1,6 +1,8 @@
-// V3.18, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : bilan de la semaine. Foyer neuf (tout le monde à la maison) :
-// « Pas assez de plats : il manque 14 repas » ; un plat posé lundi soir → le message dit ce qui manque encore ; « 2 portions en
-// plus » → « il y a du trop » et « ♻️ Pâtes demain midi » reprend les portions d'un toucher, rien de plus à cuisiner ; axe WCAG 2.2 AA.
+// V3.18-3.19, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : bilan de la semaine. Foyer neuf (tout le monde à la maison) :
+// « Pas assez de plats : il manque 14 plats à cuisiner » ; un plat posé lundi soir → le message dit ce qui manque encore ; « 2
+// portions en plus » → « il y a du trop » et « ♻️ Pâtes demain midi » reprend les portions d'un toucher, rien de plus à cuisiner.
+// V3.19 : le champ « Chercher ou créer un plat » garde l'ordre des lettres tapées une à une ; « 🥡 Oui : le midi = restes du dîner »
+// → il manque 7 plats, pas 12 ; un dîner posé ajoute tout seul « +2 portions » pour le midi du lendemain ; axe WCAG 2.2 AA.
 // Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
@@ -39,7 +41,7 @@ const openSlot = async (k, day) => {
 };
 
 await page.goto(URL);
-await step('foyer neuf, tout le monde à la maison : « Pas assez de plats : il manque 14 repas »', async () => {
+await step('foyer neuf, tout le monde à la maison : « Pas assez de plats : il manque 14 plats à cuisiner »', async () => {
   await page.getByRole('button', { name: 'Créer notre foyer' }).click();
   await page.getByLabel('Prénom de la personne 1').fill('Julien');
   await page.getByLabel('Prénom de la personne 2 (facultatif)').fill('Lauriane');
@@ -56,7 +58,7 @@ await step('foyer neuf, tout le monde à la maison : « Pas assez de plats : il 
   await dlg.getByLabel(/^Ingrédients/).fill('200 g de pâtes');
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
-  await card.getByText('Pas assez de plats : il manque 14 repas pour finir la semaine').waitFor();
+  await card.getByText('Pas assez de plats : il manque 14 plats à cuisiner pour finir la semaine').waitFor();
   if (!(await card.getByRole('button', { name: '✨ Compléter la semaine' }).count())) throw new Error('« Compléter » absent');
   await page.screenshot({ path: `${SHOTS}/bilan-manque.png` });
   await axe('bilan-manque');
@@ -65,23 +67,53 @@ await step('un plat posé lundi soir : le message dit ce qui manque encore ; 2 p
   await openSlot('2026-10-05|soir', /lundi/i);
   await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
   await dlg.getByRole('button', { name: /Pâtes/ }).first().click();
-  await page.getByText(/Pâtes prévu ce soir · encore 13 repas sans plat cette semaine/).first().waitFor();
+  await page.getByText(/Pâtes prévu ce soir · encore 13 plats à cuisiner cette semaine/).first().waitFor();
   await dlg.getByRole('button', { name: 'Une portion en plus', exact: true }).click();
   await dlg.getByRole('button', { name: 'Une portion en plus', exact: true }).click();
   await dlg.locator('output', { hasText: '2' }).waitFor();
   await page.keyboard.press('Escape');
-  await card.getByText(/Il manque 13 repas pour finir la semaine, mais il y a du trop/).waitFor();
+  await card.getByText(/Il manque 13 plats à cuisiner pour finir la semaine, mais il y a du trop/).waitFor();
   if (!/En trop : Pâtes : 2 portions en plus\. De quoi couvrir 1 repas sans rien cuisiner de plus\./.test(await text(card))) throw new Error('détail : ' + await text(card));
   await axe('bilan-trop');
 });
 await step('« ♻️ Pâtes demain midi » : les portions en plus reprises d\'un toucher, rien de plus à cuisiner', async () => {
   await card.getByRole('button', { name: '♻️ Pâtes demain midi' }).click();
-  await page.getByText(/Pâtes demain midi · encore 12 repas sans plat cette semaine/).first().waitFor();
-  await card.getByText('Pas assez de plats : il manque 12 repas pour finir la semaine').waitFor();
+  await page.getByText(/Pâtes demain midi · encore 12 plats à cuisiner cette semaine/).first().waitFor();
+  await card.getByText('Pas assez de plats : il manque 12 plats à cuisiner pour finir la semaine').waitFor();
   const midi = page.locator('[data-a="slot"][data-k="2026-10-06|midi"]');
   if (!(await midi.count())) await page.getByRole('button', { name: /mardi/i }).first().click();
   if (!/Pâtes/.test(await midi.first().innerText())) throw new Error('mardi midi : ' + await midi.first().innerText());
   await page.screenshot({ path: `${SHOTS}/bilan-repris.png` });
+});
+await step('« 🥡 Oui : le midi = restes du dîner » : il manque 7 plats à cuisiner, pas 12', async () => {
+  await card.getByText(/midis de moins à cuisiner cette semaine/).waitFor();
+  await card.getByRole('button', { name: '🥡 Oui : le midi = restes du dîner' }).click();
+  await card.getByText('Pas assez de plats : il manque 7 plats à cuisiner pour finir la semaine').waitFor();
+  if (!/6 midis suivent le dîner de la veille/.test(await text(card))) throw new Error('détail : ' + await text(card));
+  if (await card.getByRole('button', { name: '🥡 Oui : le midi = restes du dîner' }).count()) throw new Error('bandeau encore affiché');
+  await page.screenshot({ path: `${SHOTS}/bilan-restes-midi.png` });
+  await axe('bilan-restes-midi');
+});
+await step('nom de plat tapé lettre par lettre : « Gratin », pas « nitarG » ; le dîner posé ajoute +2 portions pour le lendemain midi', async () => {
+  await openSlot('2026-10-06|soir', /mardi/i);
+  await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
+  const q = dlg.getByLabel('Chercher ou créer un plat');
+  await q.click();
+  await page.keyboard.type('Gratin', { delay: 60 });
+  await dlg.getByRole('button', { name: 'Créer « Gratin » et le prévoir' }).waitFor();
+  if ((await q.inputValue()) !== 'Gratin') throw new Error('saisie : ' + await q.inputValue());
+  await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft'); await page.keyboard.type('X');
+  if ((await q.inputValue()) !== 'GratXin') throw new Error('insertion au milieu : ' + await q.inputValue());
+  await page.keyboard.press('Backspace');
+  await dlg.getByRole('button', { name: 'Créer « Gratin » et le prévoir' }).click();
+  await page.getByText(/Gratin créé et prévu demain soir · \+2 portions pour mercredi midi · encore 6 plats à cuisiner cette semaine\. Ajoutez/).first().waitFor();
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.getByRole('link', { name: 'Semaine', exact: true }).click();
+  const midi = page.locator('[data-a="slot"][data-k="2026-10-07|midi"]');
+  if (!(await midi.count())) await page.getByRole('button', { name: /mercredi/i }).first().click();
+  if (!/Gratin/.test(await midi.first().innerText())) throw new Error('mercredi midi : ' + await midi.first().innerText());
+  await card.getByText('Pas assez de plats : il manque 6 plats à cuisiner pour finir la semaine').waitFor();
+  await page.screenshot({ path: `${SHOTS}/bilan-midi-relie.png` });
 });
 
 await browser.close();

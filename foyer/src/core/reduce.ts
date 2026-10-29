@@ -81,6 +81,7 @@ function apply(s: State, e: AnyEv): void {
       if (e.p.weekStart !== undefined) s.settings.weekStart = e.p.weekStart;
       if (e.p.rhythm !== undefined) s.settings.rhythm = structuredClone(e.p.rhythm);
       if (e.p.boxesFromDinner !== undefined) s.settings.boxesFromDinner = e.p.boxesFromDinner;
+      if (e.p.lunchFromDinner !== undefined) s.settings.lunchFromDinner = e.p.lunchFromDinner;
       if (e.p.aisleOrder !== undefined) s.settings.aisleOrder = [...e.p.aisleOrder];
       if (e.p.holidays !== undefined) s.settings.holidays = e.p.holidays;
       if (e.p.ritual !== undefined) s.settings.ritual = e.p.ritual ? { ...e.p.ritual } : null;

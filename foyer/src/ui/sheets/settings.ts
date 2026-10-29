@@ -67,6 +67,7 @@ CLICK['rhPreset'] = d => {
 };
 CLICK['rhSave'] = () => { closeSheet(); dispatch([{ t: 'settings.set', p: { rhythm } }], { toast: 'Rythme enregistré : portions et courses recalculées' }); };
 CHANGE['boxes'] = (_d, el) => dispatch([{ t: 'settings.set', p: { boxesFromDinner: (el as HTMLInputElement).checked } }]);
+CHANGE['lunchFromDinner'] = (_d, el) => dispatch([{ t: 'settings.set', p: { lunchFromDinner: (el as HTMLInputElement).checked } }], { toast: (el as HTMLInputElement).checked ? 'Tous les midis : restes du dîner de la veille (portions en plus le soir)' : 'Les midis se cuisinent à nouveau' });
 CHANGE['weekStart'] = (_d, el) => dispatch([{ t: 'settings.set', p: { weekStart: Number((el as HTMLSelectElement).value) } }], { toast: 'Début de semaine changé' });
 
 /* ---------- Synchro par lien ---------- */

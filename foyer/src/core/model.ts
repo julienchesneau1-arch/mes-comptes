@@ -16,6 +16,7 @@ export interface RhythmDay { midi: Record<MemberId, Presence>; soir: Record<Memb
 export interface Ritual { shop: number; shopAt: string; cook: number; cookAt: string }
 export interface Settings {
   weekStart: number; rhythm: RhythmDay[]; boxesFromDinner: boolean; aisleOrder?: string[];
+  lunchFromDinner?: boolean;     // tous les midis (maison ou boîte) : les restes du dîner de la veille, cuisiné avec des portions en plus
   holidays?: boolean;            // fériés (absent = oui)
   ritual?: Ritual | null;        // absent ou null = pas de rituel
   budget?: number | null;        // budget courses par semaine, en centimes, choisi par le foyer
@@ -106,7 +107,7 @@ export interface RestockItem { on: boolean; name?: string; days: number | null; 
 export interface Payloads {
   'household.init': { hid: string; members: Member[]; settings: Settings };
   'members.set': { members: Member[] };
-  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule; exclude?: Exclusions; evening?: string | null };
+  'settings.set': { weekStart?: number; rhythm?: RhythmDay[]; boxesFromDinner?: boolean; lunchFromDinner?: boolean; aisleOrder?: string[]; holidays?: boolean; ritual?: Ritual | null; budget?: number | null; variety?: Variety; leftovers?: LeftoverRule; exclude?: Exclusions; evening?: string | null };
   'recipe.save': { recipe: string; content: RecipeContent };
   'recipe.archive': { recipe: string; archived: boolean };
   'slot.presence': { slot: SlotKey; member: MemberId; presence: Presence | null };
@@ -210,7 +211,7 @@ export function validRhythm(v: unknown): v is RhythmDay[] {
 }
 const validAisleOrder = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 20 && new Set(v).size === v.length && v.every(a => typeof a === 'string' && !!AISLE[a]);
 function validSettings(v: unknown): v is Settings {
-  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
+  return isObj(v) && int(v['weekStart'], 0, 6) && validRhythm(v['rhythm']) && bool(v['boxesFromDinner']) && (v['lunchFromDinner'] === undefined || bool(v['lunchFromDinner'])) && (v['aisleOrder'] === undefined || validAisleOrder(v['aisleOrder'])) && (v['holidays'] === undefined || bool(v['holidays']))
     && optRitual(v['ritual']) && optCents(v['budget'], MAX_CENTS) && (v['variety'] === undefined || isVariety(v['variety']))
     && (v['leftovers'] === undefined || isLeftoverRule(v['leftovers'])) && optExclusions(v['exclude']) && (v['evening'] === undefined || v['evening'] === null || isHHMM(v['evening']));
 }
@@ -254,7 +255,7 @@ const P: { [K in EventType]: (p: R) => boolean } = {
   'household.init': p => isId(p['hid']) && validMembers(p['members']) && validSettings(p['settings']),
   'members.set': p => validMembers(p['members']),
   'settings.set': p => (p['weekStart'] === undefined || int(p['weekStart'], 0, 6)) && (p['rhythm'] === undefined || validRhythm(p['rhythm']))
-    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
+    && (p['boxesFromDinner'] === undefined || bool(p['boxesFromDinner'])) && (p['lunchFromDinner'] === undefined || bool(p['lunchFromDinner'])) && (p['aisleOrder'] === undefined || validAisleOrder(p['aisleOrder']))
     && (p['holidays'] === undefined || bool(p['holidays'])) && optRitual(p['ritual']) && optCents(p['budget'], MAX_CENTS)
     && (p['variety'] === undefined || isVariety(p['variety'])) && (p['leftovers'] === undefined || isLeftoverRule(p['leftovers'])) && optExclusions(p['exclude'])
     && (p['evening'] === undefined || p['evening'] === null || isHHMM(p['evening'])),

@@ -1,8 +1,8 @@
 // Commandes métier → événements. Pures : elles lisent l'état et décrivent les changements ; l'aperçu les simule avant d'enregistrer.
-import { parseSlot, slotKey, addDays, daysBetween, slotOrder } from './dates.js';
+import { parseSlot, slotKey, addDays, daysBetween, slotOrder, nextSlot } from './dates.js';
 import { current } from './model.js';
 import { newId } from './reduce.js';
-import { dependents, portions, servings } from './plan.js';
+import { dependents, portions, servings, fedByDinner } from './plan.js';
 // « Plat entier » : on prépare toujours la recette complète ; ce qui dépasse les repas prévus devient des portions « en plus ».
 export const WHOLE = 'plat entier';
 export function wholeExtra(s, recipe, needed) {
@@ -56,6 +56,21 @@ export function setDish(s, slot, recipe, fresh = false) {
         }
     }
     return [...(d ? [{ t: 'slot.clear', p: { slot } }] : []), { t: 'slot.cook', p: { slot, prep: newId(), recipe, extra: wholeExtra(s, recipe, servings(s, slot)) } }];
+}
+// Un dîner posé nourrit aussi le midi du lendemain quand le foyer fait ainsi (boîtes, ou « le midi = restes du dîner ») : ce midi,
+// encore vide, est relié au plat, cuisiné avec autant de portions en plus. Rien si le midi a déjà un plat ou si le dîner est un reste.
+export function withLunch(s, slot, drafts) {
+    const next = nextSlot(slot), none = { drafts, lunch: null, n: 0 };
+    if (parseSlot(slot)?.slot !== 'soir' || s.slots[next]?.dish || !fedByDinner(s, next))
+        return none;
+    const cook = drafts.find((d) => d.t === 'slot.cook' && d.p.slot === slot);
+    const was = s.slots[slot]?.dish, prep = cook?.p.prep ?? (was?.kind === 'cook' && !drafts.some(d => d.t === 'slot.clear') ? was.prep : null);
+    if (!prep)
+        return none;
+    const n = servings(s, next);
+    // « Plat entier » : les portions de trop servent d'abord ce midi.
+    const out = drafts.map(d => (d === cook && cook.p.extra > 0 ? { ...cook, p: { ...cook.p, extra: Math.max(0, cook.p.extra - n) } } : d));
+    return { drafts: [...out, ...fromDrafts(s, next, prep, n)], lunch: next, n };
 }
 export function setLeftovers(s, slot, prep) {
     const d = s.slots[slot]?.dish;
