@@ -38,7 +38,7 @@ export function onboardingView() {
         case 'rhythm': return `<main id="main" class="onb" tabindex="-1">${dots(2)}<h1>Votre rythme habituel</h1>
       <p class="muted">C'est la base de chaque semaine (combien de portions servir). Les exceptions se changent ensuite d'un geste, pas besoin de confirmer chaque repas.</p>
       <fieldset class="stack"><legend class="sr-only">Rythme</legend>
-      ${[['tout', 'Tout le monde à la maison, midi et soir'], ['dehors', 'Le soir ensemble ; en semaine, le midi dehors (cantine, travail)'], ['boite', 'Le soir ensemble ; en semaine, le midi en boîte (restes du dîner)']]
+      ${[['restes', 'On cuisine le soir, avec des portions en plus pour les boîtes du lendemain midi (week-end compris)'], ['tout', 'Tout le monde à la maison, midi et soir : on cuisine aux deux repas'], ['dehors', 'Le soir ensemble ; en semaine, le midi dehors (cantine, travail)'], ['boite', 'Le soir ensemble ; en semaine, le midi en boîte (restes du dîner)']]
             .map(([id, label]) => `<label class="card item"><input type="radio" name="preset" value="${id}" data-c="onbPreset" ${preset === id ? 'checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>
       <p class="small muted">Week-end : tout le monde à la maison. Tout se règle ensuite dans Maison › Réglages.</p>
       <div class="actions"><button class="btn ghost" data-a="onb" data-s="names">Retour</button><button class="btn grow" data-a="onb" data-s="classics" ${preset ? '' : 'disabled'}>Continuer</button></div></main>`;
@@ -103,9 +103,9 @@ SUBMIT['onbDone'] = data => {
         return;
     }
     const ids = names.map(() => newId(8));
-    const p = preset === 'dehors' ? 'dehors' : preset === 'boite' ? 'boite' : 'maison';
+    const p = preset === 'dehors' ? 'dehors' : preset === 'boite' || preset === 'restes' ? 'boite' : 'maison';
     const drafts = [{ t: 'household.init', p: { hid: newId(), members: names.map((n, i) => ({ id: ids[i], name: n })),
-                settings: { weekStart: 0, rhythm: defaultRhythm(ids, p, 'maison'), boxesFromDinner: preset === 'boite', ...(budget ? { budget } : {}),
+                settings: { weekStart: 0, rhythm: defaultRhythm(ids, p, 'maison'), boxesFromDinner: preset === 'boite' || preset === 'restes', ...(preset === 'restes' ? { lunchFromDinner: true } : {}), ...(budget ? { budget } : {}),
                     ...(exclude.allergens.length || exclude.foods.length ? { exclude } : {}) } } }];
     for (const name of picks)
         drafts.push({ t: 'recipe.save', p: { recipe: newId(), content: { name, yield: null, ingredients: [], steps: [], ahead: [], tags: [], note: '' } } });

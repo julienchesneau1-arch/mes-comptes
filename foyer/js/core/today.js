@@ -1,5 +1,5 @@
 // Écran « Aujourd'hui » : le prochain repas, l'action suivante, les tâches courtes, et seulement les problèmes utiles à ces repas.
-import { slotKey, addDays, parseSlot, fmtSlot, fmtRelDay, weekOf, weekday, SLOTS, paris } from './dates.js';
+import { slotKey, addDays, parseSlot, fmtSlot, fmtRelDay, weekOf, weekday, paris } from './dates.js';
 import { current } from './model.js';
 import { portions, servings, eaters, dependents } from './plan.js';
 import {} from './reduce.js';
@@ -7,6 +7,7 @@ import { slotView, problems, prepTitle } from './status.js';
 import { deriveShopping } from './shopping.js';
 import { rank, leftovers, isUpcoming } from './propose.js';
 import { ritualNow } from './batch.js';
+import { coverage } from './coverage.js';
 const capitalFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const who = (s, k) => {
     const boxes = eaters(s, k).filter(e => e.presence === 'boite').map(e => e.name);
@@ -117,13 +118,7 @@ export function deriveToday(r, now) {
     const checks = problems(r, today, hour).filter(p => p.event || p.watch || (p.slot && (shown.has(p.slot) || soon.has(p.slot))) || (p.prep && shownPreps.has(p.prep)));
     // Ce qui reste à décider.
     const week = weekOf(today, s.settings.weekStart);
-    let empty = 0;
-    for (let i = 0; i < 7; i++)
-        for (const sl of SLOTS) {
-            const x = slotKey(addDays(week, i), sl);
-            if (isUpcoming(x, today, hour) && !s.slots[x]?.dish && servings(s, x) > 0)
-                empty++;
-        }
+    const empty = coverage(s, week, today, hour).missing.length; // plats à cuisiner : un midi nourri par le dîner de la veille n'en est pas un
     const next = addDays(week, 7);
     const nextWeekEmpty = weekday(today) >= 4 && !Object.entries(s.slots).some(([x, v]) => v.dish && (parseSlot(x)?.date ?? '') >= next && (parseSlot(x)?.date ?? '') < addDays(next, 7));
     const first = cards[0];

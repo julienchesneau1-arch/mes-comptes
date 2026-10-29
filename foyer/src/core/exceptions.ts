@@ -154,7 +154,7 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
         { label: 'Plus rien', drafts: [{ t: 'task.set', p: { key: placardKey(w, l.key), done: true } }] }] });
   }
 
-  // Menu généré en attente d'approbation (sur ce téléphone ou l'autre) : il remplace la carte « repas sans plat » de sa semaine.
+  // Menu généré en attente d'approbation (sur ce téléphone ou l'autre) : il remplace la carte « plats à cuisiner » de sa semaine.
   for (const w of [thisWk, nextWk]) {
     const d = s.drafts[w];
     if (!d) continue;
@@ -165,8 +165,8 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
 
   // Repas sans plat : rien que le rituel du batch ne propose déjà.
   const rit = t.ritual, ritualMenu = !!rit && (rit.kind === 'menu' || rit.kind === 'choose' || (rit.kind === 'courses' && rit.menuEmpty));
-  if (t.empty && !s.drafts[thisWk]) add({ key: `semaine:${today}`, code: 'semaine', prio: BASE.semaine, title: `${t.empty} repas sans plat d'ici la fin de la semaine`, sub: '',
-    actions: [{ label: `✨ Compléter cette semaine (${t.empty} repas)`, open: 'propose', arg: '' }] });
+  if (t.empty && !s.drafts[thisWk]) add({ key: `semaine:${today}`, code: 'semaine', prio: BASE.semaine, title: `${t.empty} plat${t.empty > 1 ? 's' : ''} à cuisiner d'ici la fin de la semaine, encore sans plat`, sub: '',
+    actions: [{ label: `✨ Compléter cette semaine (${t.empty} plat${t.empty > 1 ? 's' : ''})`, open: 'propose', arg: '' }] });
   if (t.nextWeekEmpty && !ritualMenu && !s.drafts[nextWk]) {
     const next = nextWk;
     add({ key: `semaine:${next}`, code: 'semaine', prio: BASE.semaine - 10, title: 'La semaine prochaine est vide', sub: '',

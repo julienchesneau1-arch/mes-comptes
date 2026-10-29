@@ -1,8 +1,8 @@
 // Commandes métier → événements. Pures : elles lisent l'état et décrivent les changements ; l'aperçu les simule avant d'enregistrer.
-import { type SlotKey, parseSlot, slotKey, addDays, daysBetween, slotOrder } from './dates.ts';
+import { type SlotKey, parseSlot, slotKey, addDays, daysBetween, slotOrder, nextSlot } from './dates.ts';
 import { type Prep, type State, current } from './model.ts';
 import { type Draft, newId } from './reduce.ts';
-import { dependents, portions, servings } from './plan.ts';
+import { dependents, portions, servings, fedByDinner } from './plan.ts';
 
 // « Plat entier » : on prépare toujours la recette complète ; ce qui dépasse les repas prévus devient des portions « en plus ».
 export const WHOLE = 'plat entier';
@@ -53,6 +53,20 @@ export function setDish(s: State, slot: SlotKey, recipe: string, fresh = false):
     }
   }
   return [...(d ? [{ t: 'slot.clear', p: { slot } } as Draft] : []), { t: 'slot.cook', p: { slot, prep: newId(), recipe, extra: wholeExtra(s, recipe, servings(s, slot)) } }];
+}
+
+// Un dîner posé nourrit aussi le midi du lendemain quand le foyer fait ainsi (boîtes, ou « le midi = restes du dîner ») : ce midi,
+// encore vide, est relié au plat, cuisiné avec autant de portions en plus. Rien si le midi a déjà un plat ou si le dîner est un reste.
+export function withLunch(s: State, slot: SlotKey, drafts: Draft[]): { drafts: Draft[]; lunch: SlotKey | null; n: number } {
+  const next = nextSlot(slot), none = { drafts, lunch: null, n: 0 };
+  if (parseSlot(slot)?.slot !== 'soir' || s.slots[next]?.dish || !fedByDinner(s, next)) return none;
+  const cook = drafts.find((d): d is Extract<Draft, { t: 'slot.cook' }> => d.t === 'slot.cook' && d.p.slot === slot);
+  const was = s.slots[slot]?.dish, prep = cook?.p.prep ?? (was?.kind === 'cook' && !drafts.some(d => d.t === 'slot.clear') ? was.prep : null);
+  if (!prep) return none;
+  const n = servings(s, next);
+  // « Plat entier » : les portions de trop servent d'abord ce midi.
+  const out = drafts.map(d => (d === cook && cook.p.extra > 0 ? { ...cook, p: { ...cook.p, extra: Math.max(0, cook.p.extra - n) } } : d));
+  return { drafts: [...out, ...fromDrafts(s, next, prep, n)], lunch: next, n };
 }
 
 export function setLeftovers(s: State, slot: SlotKey, prep: string): Draft[] {

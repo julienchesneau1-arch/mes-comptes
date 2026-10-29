@@ -32,6 +32,9 @@ export function openSheet(s) {
 function paint(d, s, focusFirst) {
     const active = document.activeElement;
     const keep = active && d.contains(active) ? active.dataset['focus'] ?? active.id : null;
+    // Champ en cours de saisie (recherche redessinée à chaque lettre) : le curseur reste où il était. Sans cela, le nouveau champ
+    // reçoit le focus avec le curseur au début, et « Gratin » s'écrit « nitarG » (iPhone compris).
+    const caret = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? [active.selectionStart, active.selectionEnd] : null;
     const scroll = d.querySelector('.sheet-in')?.scrollTop ?? 0;
     d.innerHTML = `<div class="sheet-in">${s.render()}</div>`;
     const inner = d.querySelector('.sheet-in');
@@ -39,8 +42,16 @@ function paint(d, s, focusFirst) {
         inner.scrollTop = scroll;
     s.mount?.(d);
     const target = keep ? d.querySelector(`[data-focus="${CSS.escape(keep)}"], #${CSS.escape(keep)}`) : null;
-    if (target)
+    if (target) {
         target.focus();
+        if (caret && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+            const end = target.value.length;
+            try {
+                target.setSelectionRange(Math.min(caret[0] ?? end, end), Math.min(caret[1] ?? end, end));
+            }
+            catch { /* type sans sélection (nombre, date) */ }
+        }
+    }
     else if (focusFirst)
         (d.querySelector('[autofocus]') ?? d.querySelector('h2'))?.focus();
 }

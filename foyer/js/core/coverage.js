@@ -1,15 +1,17 @@
-// Bilan d'une semaine : les repas où quelqu'un mange (présence de chacun, agenda appliqué, invités) face aux plats et portions
-// prévus. « Il manque » : repas à venir sans plat. « En trop » : portions sans repas pour les manger (portions « en plus » d'un plat
-// pas encore cuisiné, restes déjà préparés et libres) et plats posés sur un repas où personne ne mange. Fonction pure de l'état et
-// de l'heure : rien n'est enregistré, le bilan change dès que l'agenda, les présences ou les plats changent.
-import { SLOTS, addDays, slotKey, parseSlot, slotOrder, daysBetween, fmtSlot } from './dates.js';
-import { servings, portions } from './plan.js';
+// Bilan d'une semaine : les repas où quelqu'un mange (présence de chacun, agenda appliqué, invités) face aux plats prévus, compté
+// en plats à cuisiner. Un midi nourri par le dîner de la veille (boîtes, ou tous les midis si le foyer cuisine le soir avec des
+// portions en plus) n'est pas un plat de plus : il suit son dîner. « Il manque » : plats à cuisiner sans plat prévu. « En trop » :
+// portions sans repas pour les manger (portions « en plus » d'un plat pas encore cuisiné, restes déjà préparés et libres) et plats
+// posés sur un repas où personne ne mange. Fonction pure de l'état et de l'heure : le bilan suit l'agenda, les présences, les plats.
+import { SLOTS, addDays, slotKey, parseSlot, slotOrder, daysBetween, fmtSlot, prevSlot } from './dates.js';
+import { servings, portions, fedByDinner } from './plan.js';
 import { isUpcoming, leftovers } from './propose.js';
 import { prepTitle } from './status.js';
 import { fromDrafts, REUSE_DAYS } from './commands.js';
 import { plural } from './text.js';
 export function coverage(s, week, today, hour) {
-    const meals = [], missing = [], idle = [];
+    const meals = [], missing = [], idle = [], fed = [], lunches = [];
+    const boxes = [];
     let need = 0;
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
@@ -19,6 +21,27 @@ export function coverage(s, week, today, hour) {
             const n = servings(s, k);
             if (n > 0) {
                 meals.push(k);
+                const src = prevSlot(k), dinner = s.slots[src];
+                if (sl === 'midi' && servings(s, src) > 0 && !dinner?.eaten && (slot?.dish?.kind === 'from' || !slot?.dish)) {
+                    if (fedByDinner(s, k)) {
+                        if (dinner?.dish?.kind === 'cook') {
+                            fed.push(k);
+                            if (!slot?.dish)
+                                boxes.push({ slot: k, prep: dinner.dish.prep });
+                            continue;
+                        }
+                        if (!dinner?.dish && isUpcoming(src, today, hour)) {
+                            fed.push(k);
+                            continue;
+                        } // le dîner, à prévoir, le nourrira
+                        if (slot?.dish) {
+                            fed.push(k);
+                            continue;
+                        }
+                    }
+                    else if (!slot?.dish)
+                        lunches.push(k);
+                }
                 if (!slot?.dish) {
                     missing.push(k);
                     need += n;
@@ -42,10 +65,14 @@ export function coverage(s, week, today, hour) {
     if (today >= week && today <= end)
         for (const x of leftovers(s, today))
             spares.push({ prep: x.prep, name: x.name, n: x.free, ready: true, from: null });
-    return { meals, missing, need, idle, spares, spare: spares.reduce((t, x) => t + x.n, 0) };
+    return { meals, missing, need, fed, boxes, idle, spares, spare: spares.reduce((t, x) => t + x.n, 0), lunches };
 }
 export function coverageFixes(s, c, today) {
     const out = [], left = new Map(c.spares.map(x => [x.prep, x.n])), open = [...c.missing];
+    for (const b of c.boxes) {
+        const n = servings(s, b.slot);
+        out.push({ label: `♻️ ${prepTitle(s, s.preps[b.prep])} aussi ${fmtSlot(b.slot, today)} (+${n} portion${n > 1 ? 's' : ''} la veille)`, drafts: fromDrafts(s, b.slot, b.prep, n) });
+    }
     for (const k of [...open]) {
         const n = servings(s, k), at = parseSlot(k)?.date ?? '';
         const x = c.spares.find(sp => (left.get(sp.prep) ?? 0) >= n && (sp.ready || (!!sp.from && slotOrder(sp.from) < slotOrder(k)
@@ -65,6 +92,7 @@ export function coverageFixes(s, c, today) {
     return out.slice(0, 3);
 }
 // En une phrase : ce qui manque, ce qui est en trop, ou que tout est prévu. Vide s'il ne reste aucun repas à venir.
+// hint : midis qu'on cuisine encore alors que la veille au soir on mange ensemble (proposer « le midi = restes du dîner »).
 export function coverageText(s, c, today) {
     if (!c.meals.length && !c.idle.length && !c.spare)
         return null;
@@ -72,16 +100,19 @@ export function coverageText(s, c, today) {
     const per = Math.max(1, Math.round(c.meals.reduce((t, k) => t + servings(s, k), 0) / Math.max(1, c.meals.length))); // portions d'un repas, en moyenne
     const trop = [...c.spares.map(x => `${x.ready ? `restes de ${x.name}` : x.name} : ${plural(x.n, 'portion', 'portions')} en plus`),
         ...c.idle.map(k => `${prepTitle(s, s.preps[(s.slots[k]?.dish).prep])} ${fmtSlot(k, today)}, où personne ne mange`)];
+    const hint = !s.settings.lunchFromDinner && c.lunches.length >= 2 ? c.lunches.length : 0;
+    const fedText = c.fed.length ? ` ${plural(c.fed.length, 'midi suit', 'midis suivent')} le dîner de la veille (portions en plus le soir).` : '';
+    const dishes = c.meals.length - c.fed.length;
     if (c.missing.length && (c.spare || c.idle.length)) {
-        const fill = coverageFixes(s, c, today).length; // restes reposés ou plat déplacé : des repas sans plat en moins
-        return { level: 'manque', title: `Il manque ${plural(c.missing.length, 'repas', 'repas')} pour finir la semaine, mais il y a du trop`,
-            detail: `Sans plat : ${slots(c.missing)}. En trop : ${trop.join(' · ')}.${fill ? ` De quoi couvrir ${plural(fill, 'repas', 'repas')} sans rien cuisiner de plus.` : ''}` };
+        const fill = coverageFixes(s, c, today).length; // midis reliés, restes reposés ou plat déplacé : des repas sans plat en moins
+        return { level: 'manque', title: `Il manque ${plural(c.missing.length, 'plat', 'plats')} à cuisiner pour finir la semaine, mais il y a du trop`,
+            detail: `Sans plat : ${slots(c.missing)}. En trop : ${trop.join(' · ')}.${fill ? ` De quoi couvrir ${plural(fill, 'repas', 'repas')} sans rien cuisiner de plus.` : ''}${fedText}`, hint };
     }
     if (c.missing.length)
-        return { level: 'manque', title: `Pas assez de plats : il manque ${plural(c.missing.length, 'repas', 'repas')} pour finir la semaine`,
-            detail: `${slots(c.missing)} (${plural(c.need, 'portion', 'portions')}).` };
+        return { level: 'manque', title: `Pas assez de plats : il manque ${plural(c.missing.length, 'plat', 'plats')} à cuisiner pour finir la semaine`,
+            detail: `${slots(c.missing)} (${plural(c.need, 'portion', 'portions')}).${fedText}`, hint };
     if (c.spare || c.idle.length)
         return { level: 'trop', title: `Trop de plats : ${c.spare ? `${plural(c.spare, 'portion', 'portions')} en trop` : plural(c.idle.length, 'plat sans personne pour le manger', 'plats sans personne pour les manger')}`,
-            detail: `${trop.join(' · ')}.${c.spare >= per ? ` De quoi faire ≈ ${plural(Math.floor(c.spare / per), 'repas', 'repas')} de restes.` : ''}` };
-    return { level: 'ok', title: `Semaine couverte : ${plural(c.meals.length, 'repas', 'repas')} à la maison, tous prévus, rien en trop`, detail: '' };
+            detail: `${trop.join(' · ')}.${c.spare >= per ? ` De quoi faire ≈ ${plural(Math.floor(c.spare / per), 'repas', 'repas')} de restes.` : ''}`, hint };
+    return { level: 'ok', title: `Semaine couverte : ${plural(dishes, 'plat', 'plats')} pour ${plural(c.meals.length, 'repas', 'repas')}, rien en trop`, detail: c.boxes.length ? '' : fedText.trim(), hint };
 }

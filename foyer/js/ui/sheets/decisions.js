@@ -59,7 +59,7 @@ export const LEFTOVER_TEXT = {
 };
 export function decisionsSummary() {
     const s = S(), rule = s.settings.leftovers ?? 'auto';
-    return `Restes : ${LEFTOVER_TEXT[rule].label.toLowerCase()} · boîtes du midi : ${s.settings.boxesFromDinner ? 'dîner de la veille' : 'à choisir'}`;
+    return `Restes : ${LEFTOVER_TEXT[rule].label.toLowerCase()} · ${s.settings.lunchFromDinner ? 'tous les midis : dîner de la veille' : `boîtes du midi : ${s.settings.boxesFromDinner ? 'dîner de la veille' : 'à choisir'}`}`;
 }
 export function openDecisions() {
     openSheet({ id: 'decisions', render: () => {
@@ -69,7 +69,8 @@ export function openDecisions() {
       <div class="seg" role="radiogroup" aria-label="Règle des restes">${LEFTOVER_RULES.map(r => `<label><input type="radio" name="leftovers" value="${r}" data-c="leftoverRule" ${rule === r ? 'checked' : ''}>${LEFTOVER_TEXT[r].label}</label>`).join('')}</div>
       <p class="small muted">Exemple : ${esc(LEFTOVER_TEXT[rule].example)}</p></section>
     <section class="card stack"><h3 class="section-title">Boîtes du midi</h3>
-      <label class="item"><input type="checkbox" data-c="boxes" ${s.settings.boxesFromDinner ? 'checked' : ''}><span>Les boîtes du midi viennent du dîner de la veille (proposition automatique, toujours à valider)</span></label></section>
+      <label class="item"><input type="checkbox" data-c="boxes" ${s.settings.boxesFromDinner ? 'checked' : ''}><span>Les boîtes du midi viennent du dîner de la veille (proposition automatique, toujours à valider)</span></label>
+      <label class="item"><input type="checkbox" data-c="lunchFromDinner" ${s.settings.lunchFromDinner ? 'checked' : ''}><span>Tous les midis, boîte ou maison : les restes du dîner de la veille. On cuisine une fois par jour, le soir, avec des portions en plus ; le bilan compte les plats à cuisiner, pas les repas.</span></label></section>
     <section class="card stack"><h3 class="section-title">Agenda</h3>
       <p>${agendaRules ? `${agendaRules} décision${agendaRules > 1 ? 's' : ''} mémorisée${agendaRules > 1 ? 's' : ''} (« toujours appliquer » ou « ignorer » un événement).` : 'Aucune décision mémorisée.'}</p>
       <p class="small muted">Elles se revoient dans Réglages › Agendas.</p></section>

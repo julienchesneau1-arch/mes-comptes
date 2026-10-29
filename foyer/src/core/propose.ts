@@ -3,7 +3,7 @@
 // « favori », et un plat qui utilise un produit surveillé dont la DLC approche. Rien n'est appliqué sans votre accord.
 import { type LocalDate, type SlotKey, slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.ts';
 import { type State, type Presence, current } from './model.ts';
-import { eaters, servings, portions, presence as presenceOf } from './plan.ts';
+import { servings, portions, presence as presenceOf, fedByDinner } from './plan.ts';
 import { nameKey } from './text.ts';
 import { aisleOf } from './ingredients.ts';
 import { type Draft, newId } from './reduce.ts';
@@ -160,10 +160,6 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
   return out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr') || (a.recipe < b.recipe ? -1 : 1));
 }
 
-const onlyBoxes = (s: State, k: SlotKey): boolean => {
-  const present = eaters(s, k).filter(e => e.presence !== 'dehors');
-  return present.length > 0 && present.every(e => e.presence === 'boite') && !(s.slots[k]?.guests);
-};
 
 // Créneau encore à venir (on ne propose rien pour un repas passé).
 export const isUpcoming = (k: SlotKey, today: LocalDate, hour: number): boolean => {
@@ -250,7 +246,7 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
   const pushNew = (k: SlotKey, fresh: NonNullable<ReturnType<typeof pickNew>>, reason = fresh.reason) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
   const pushOwn = (k: SlotKey, best: Ranked, reason = best.reason) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
   const open = (k: SlotKey): boolean => isUpcoming(k, today, hour) && !s.slots[k]?.dish && servings(s, k) > 0 && !out.some(p => p.slot === k)
-    && !(parseSlot(k)?.slot === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner);
+    && !fedByDinner(s, k);
   for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
     const k = slotKey(addDays(week, i), sl);
     const d = s.slots[k]?.dish;
@@ -274,10 +270,12 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
   for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
     const k = slotKey(addDays(week, i), sl);
     if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0 || out.some(p => p.slot === k)) continue;
-    if (sl === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner) {
-      const src = prevSlot(k);
-      if (cooks.has(src)) out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'boîte : restes du dîner de la veille', presence: {}, guests: 0 });
-      continue;
+    if (fedByDinner(s, k)) {
+      const src = prevSlot(k), prev = s.slots[src]?.dish; // dîner de la veille déjà prévu (semaine précédente comprise)
+      if (!cooks.has(src) && prev?.kind === 'cook') cooks.set(src, prev.prep);
+      if (cooks.has(src)) { out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'midi : restes du dîner de la veille', presence: {}, guests: 0 }); continue; }
+      if (!s.settings.lunchFromDinner) continue; // boîtes sans dîner la veille : rien d'office
+      // Pas de dîner la veille (personne, ou semaine précédente vide) : ce midi se cuisine.
     }
     if (mode === 'max') {
       const fresh = pickNew(k);

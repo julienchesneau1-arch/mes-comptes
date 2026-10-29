@@ -81,7 +81,7 @@ await step('brouillon en attente : « À régler » le propose, il se retrouve t
   await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
   const card = page.locator('li.exc', { hasText: /Menu de la semaine proposé : \d+ repas à approuver/ });
   await card.waitFor();
-  if (await page.locator('li.exc', { hasText: /repas sans plat/ }).count()) throw new Error('« repas sans plat » encore affiché à côté du menu proposé');
+  if (await page.locator('li.exc', { hasText: /à cuisiner d'ici la fin de la semaine/ }).count()) throw new Error('« plats à cuisiner » encore affiché à côté du menu proposé');
   await card.getByRole('button', { name: 'Voir et approuver' }).click();
   await dlg.getByText('Tout est prêt : approuvez, ou changez un repas.').waitFor();
   const back = await titles();

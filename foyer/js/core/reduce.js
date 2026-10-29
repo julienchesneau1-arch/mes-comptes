@@ -89,6 +89,8 @@ function apply(s, e) {
                 s.settings.rhythm = structuredClone(e.p.rhythm);
             if (e.p.boxesFromDinner !== undefined)
                 s.settings.boxesFromDinner = e.p.boxesFromDinner;
+            if (e.p.lunchFromDinner !== undefined)
+                s.settings.lunchFromDinner = e.p.lunchFromDinner;
             if (e.p.aisleOrder !== undefined)
                 s.settings.aisleOrder = [...e.p.aisleOrder];
             if (e.p.holidays !== undefined)

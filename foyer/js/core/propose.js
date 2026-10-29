@@ -3,7 +3,7 @@
 // « favori », et un plat qui utilise un produit surveillé dont la DLC approche. Rien n'est appliqué sans votre accord.
 import { slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.js';
 import { current } from './model.js';
-import { eaters, servings, portions, presence as presenceOf } from './plan.js';
+import { servings, portions, presence as presenceOf, fedByDinner } from './plan.js';
 import { nameKey } from './text.js';
 import { aisleOf } from './ingredients.js';
 import { newId } from './reduce.js';
@@ -180,10 +180,6 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
     }
     return out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'fr') || (a.recipe < b.recipe ? -1 : 1));
 }
-const onlyBoxes = (s, k) => {
-    const present = eaters(s, k).filter(e => e.presence !== 'dehors');
-    return present.length > 0 && present.every(e => e.presence === 'boite') && !(s.slots[k]?.guests);
-};
 // Créneau encore à venir (on ne propose rien pour un repas passé).
 export const isUpcoming = (k, today, hour) => {
     const p = parseSlot(k);
@@ -280,7 +276,7 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
     const pushNew = (k, fresh, reason = fresh.reason) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
     const pushOwn = (k, best, reason = best.reason) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
     const open = (k) => isUpcoming(k, today, hour) && !s.slots[k]?.dish && servings(s, k) > 0 && !out.some(p => p.slot === k)
-        && !(parseSlot(k)?.slot === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner);
+        && !fedByDinner(s, k);
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
             const k = slotKey(addDays(week, i), sl);
@@ -322,11 +318,17 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
             const k = slotKey(addDays(week, i), sl);
             if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0 || out.some(p => p.slot === k))
                 continue;
-            if (sl === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner) {
-                const src = prevSlot(k);
-                if (cooks.has(src))
-                    out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'boîte : restes du dîner de la veille', presence: {}, guests: 0 });
-                continue;
+            if (fedByDinner(s, k)) {
+                const src = prevSlot(k), prev = s.slots[src]?.dish; // dîner de la veille déjà prévu (semaine précédente comprise)
+                if (!cooks.has(src) && prev?.kind === 'cook')
+                    cooks.set(src, prev.prep);
+                if (cooks.has(src)) {
+                    out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'midi : restes du dîner de la veille', presence: {}, guests: 0 });
+                    continue;
+                }
+                if (!s.settings.lunchFromDinner)
+                    continue; // boîtes sans dîner la veille : rien d'office
+                // Pas de dîner la veille (personne, ou semaine précédente vide) : ce midi se cuisine.
             }
             if (mode === 'max') {
                 const fresh = pickNew(k);

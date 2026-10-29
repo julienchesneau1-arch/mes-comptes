@@ -1,5 +1,5 @@
 // Bilan de la semaine (core/coverage.ts) : carte en haut de l'écran Semaine, et une demi-phrase après chaque plat posé.
-import { parseSlot, weekOf } from '../core/dates.js';
+import { parseSlot, weekOf, fmtSlot } from '../core/dates.js';
 import { coverage, coverageFixes, coverageText } from '../core/coverage.js';
 import { plural } from '../core/text.js';
 import { A, S, clock, dispatch } from './state.js';
@@ -18,18 +18,23 @@ export function coverageCard(week) {
     <p><strong>${esc(t.title)}</strong>${t.detail ? `<br><span class="small">${esc(t.detail)}</span>` : ''}</p>
     ${fixes.length || c.missing.length ? `<div class="actions">${fixes.map((f, i) => `<button class="btn small-btn ghost" data-a="coverFix" data-week="${week}" data-n="${i}">${esc(f.label)}</button>`).join('')}
       ${c.missing.length > fixes.filter(f => f.drafts.some(d => d.t === 'slot.from' || d.t === 'slot.move')).length ? `<button class="btn small-btn" data-a="propose" data-week="${week}">✨ Compléter la semaine</button>` : ''}</div>` : ''}
+    ${t.hint ? `<div class="banner info"><p class="grow">Vous cuisinez le soir avec des portions en plus pour le midi du lendemain ? ${plural(t.hint, 'midi', 'midis')} de moins à cuisiner cette semaine.</p><button class="btn small-btn" data-a="lunchOn">🥡 Oui : le midi = restes du dîner</button></div>` : ''}
     ${agenda}</section>`;
 }
+// Tous les midis : les restes du dîner de la veille (Réglages › Décisions automatiques pour revenir en arrière).
+CLICK['lunchOn'] = () => dispatch([{ t: 'settings.set', p: { lunchFromDinner: true } }], { toast: () => `Le midi = restes du dîner de la veille : chaque dîner se cuisine avec des portions en plus${coverNote(clock().date)}` });
+// « · + 2 portions pour demain midi » : le dîner posé nourrit aussi le midi du lendemain.
+export const lunchNote = (w) => (w.lunch ? ` · +${plural(w.n, 'portion', 'portions')} pour ${fmtSlot(w.lunch, clock().date)}` : '');
 CLICK['coverFix'] = d => {
     const week = d['week'] ?? '', c = cov(week), f = coverageFixes(S(), c, clock().date)[Number(d['n'] ?? -1)];
     if (f)
         dispatch(f.drafts, { toast: () => `${f.label.replace(/^♻️ /, '')}${coverNote(week)}` });
 };
-// « · encore 2 repas sans plat cette semaine », « · 4 portions en trop cette semaine », « · semaine couverte ✓ ».
+// « · encore 2 plats à cuisiner cette semaine », « · 4 portions en trop cette semaine », « · semaine couverte ✓ ».
 export function coverNote(at) {
     const d = parseSlot(at)?.date ?? at, c = cov(weekOf(d, S().settings.weekStart));
     if (!c.meals.length)
         return '';
-    return c.missing.length ? ` · encore ${plural(c.missing.length, 'repas', 'repas')} sans plat cette semaine`
+    return c.missing.length ? ` · encore ${plural(c.missing.length, 'plat', 'plats')} à cuisiner cette semaine`
         : c.spare || c.idle.length ? ` · ${c.spare ? `${plural(c.spare, 'portion', 'portions')} en trop` : 'un plat sans personne pour le manger'} cette semaine` : ' · semaine couverte ✓';
 }

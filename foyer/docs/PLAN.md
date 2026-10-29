@@ -302,6 +302,23 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.19 (un plat le soir = dîner + boîtes du lendemain ; texte à l'envers — demande de Julien du 29 octobre 2026)
+
+« Quand on crée une recette, ça écrit à l'envers dans l'encart. » « À chaque fois l'application nous dit de faire 14 repas : on fait
+un repas, mais à chaque fois des boîtes, donc deux portions en plus. Pas la peine de proposer 14 repas ; trouver une solution pour
+comprendre facilement. » Avant : chaque lettre tapée dans « Chercher ou créer un plat » redessinait la feuille et remettait le curseur
+au début (« Gratin » devenait « nitarG ») ; le bilan comptait des repas (14 pour un foyer à la maison midi et soir) et seuls les midis
+où tout le monde emporte une boîte suivaient le dîner de la veille.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Texte tapé dans le bon ordre | **livré** | `ui/dom.ts` (`paint`) : le redessin d'une feuille rend le focus **et la position du curseur** au champ ; insertion au milieu comprise (E2E `bilan.mjs` : « Gratin » tapé lettre par lettre, « GratXin » au milieu) |
+| Compter en plats à cuisiner | **livré** | `core/coverage.ts` : un midi nourri par le dîner de la veille (prévu, ou à prévoir) n'est pas un plat de plus ; « il manque 7 plats à cuisiner », « 7 midis suivent le dîner de la veille (portions en plus le soir) », « Semaine couverte : 7 plats pour 14 repas » ; même compte dans Aujourd'hui, « À régler » et après chaque plat posé (« encore 6 plats à cuisiner cette semaine ») (`tests/v319.test.ts`) |
+| Réglage « le midi = restes du dîner » | **livré** | `settings.lunchFromDinner` (`core/plan.ts`, `fedByDinner`) : tous les midis où l'on mange, boîte ou maison, suivent le dîner de la veille ; proposé à l'accueil (« On cuisine le soir, avec des portions en plus pour les boîtes du lendemain midi », premier choix), dans Décisions automatiques et par le bilan (« 🥡 Oui : le midi = restes du dîner » quand 2 midis ou plus se cuisinent encore) ; ancien appareil : réglage ignoré, sans erreur |
+| +2 portions toutes seules | **livré** | `core/commands.ts` (`withLunch`) : un dîner posé (vos plats, nouveau plat, recette prête) relie le midi du lendemain s'il est vide et nourri par ce dîner ; portions « en plus » d'un plat entier reprises d'abord ; message « · +2 portions pour mercredi midi » ; dîner posé avant le réglage : « ♻️ Curry aussi mardi midi (+2 portions la veille) » d'un toucher |
+| Semaine générée | **livré** | `proposeWeek` : chaque midi nourri reprend le dîner de la veille (« midi : restes du dîner de la veille ») ; sans dîner la veille, le midi se cuisine ; 7 plats proposés pour 14 repas |
+| Vérifié sur iPhone | **non fait** | Chromium mobile seulement |
+
 ### V3.18 (bilan de la semaine — demande de Julien du 29 octobre 2026)
 
 « Un système qui prend en compte notre agenda : quand on met plusieurs plats, qu'il nous dise qu'on n'a pas assez de plats pour
@@ -610,6 +627,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
 | 2026-10-29 | V3.18 | Bilan de la semaine : repas où quelqu'un mange (agenda compris) face aux plats prévus, « pas assez de plats » ou « trop de plats » dans Semaine et après chaque plat posé, restes repris ou plat déplacé d'un toucher | livré | Changements d'agenda pas encore décidés non comptés (signalés) ; non vérifié sur iPhone |
+| 2026-10-29 | V3.19 | Texte tapé dans le bon ordre (curseur gardé au redessin) ; semaine comptée en plats à cuisiner, réglage « le midi = restes du dîner » (accueil, Décisions automatiques, bilan), dîner posé = +2 portions pour le lendemain midi, menus générés de même | livré | Non vérifié sur iPhone |
 | 2026-10-29 | V3.17 | Dates limites, menus et agenda liés : menu proposé qui utilise d'abord les produits à DLC ou DDM (recettes prêtes comprises, raison affichée), plat décalé par l'agenda gardé avant la DLC (repas libre, sinon échange, sinon ⚠️), carte « personne » et aperçu de déplacement qui le disent | livré | Agenda réel et iPhone non vérifiés ; « date limite de commande » comprise comme DLC, à confirmer |
 | 2026-10-29 | V3.16 | Bouton de scan des dates limites visible : en-tête d'Aujourd'hui, haut de Courses, rappel après l'achat d'un produit frais ; zone de scan en premier dans la feuille, étapes iPhone affichées | livré | « Scanner le texte » reste à deux touchers dans le menu d'iOS (pas d'interface web pour l'ouvrir) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.15 | Couverture des prix sans rien aspirer : nom d'achat des ingrédients, eau du robinet non comptée, 21 groupes Open Prices de plus, contenances du quotidien, part payée dite en euros, ticket de caisse scanné ; mesuré sans facture : recettes 29 → 36 % des lignes chiffrées, quotidien 15 → 35 % | livré | 64 % des lignes de recettes et 65 % des produits du quotidien restent sans prix avant la première facture (ail, herbes, bouillons, poulet, vin, hygiène, entretien) ; tickets non vérifiés sur iPhone ni sur de vrais tickets |

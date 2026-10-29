@@ -1,5 +1,5 @@
 // Écran « Aujourd'hui » : le prochain repas, l'action suivante, les tâches courtes, et seulement les problèmes utiles à ces repas.
-import { type LocalDate, type SlotKey, slotKey, addDays, parseSlot, fmtSlot, fmtRelDay, weekOf, weekday, SLOTS, paris } from './dates.ts';
+import { type LocalDate, type SlotKey, slotKey, addDays, parseSlot, fmtSlot, fmtRelDay, weekOf, weekday, paris } from './dates.ts';
 import { type State, type Prep, current } from './model.ts';
 import { portions, servings, eaters, dependents } from './plan.ts';
 import { type Replay } from './reduce.ts';
@@ -7,6 +7,7 @@ import { type SlotView, type Problem, slotView, problems, prepTitle } from './st
 import { deriveShopping } from './shopping.ts';
 import { type Ranked, type Leftover, rank, leftovers, isUpcoming } from './propose.ts';
 import { type RitualNow, ritualNow } from './batch.ts';
+import { coverage } from './coverage.ts';
 
 export interface Task { key: string; text: string; done: boolean; hint: string }
 export interface Card { label: string; view: SlotView; detail: string | null }
@@ -16,7 +17,7 @@ export interface Today {
   tasks: Task[];
   toBuy: { label: string; names: string[] }[];
   checks: Problem[];
-  empty: number;          // créneaux à venir cette semaine où quelqu'un mange et rien n'est prévu
+  empty: number;          // plats à cuisiner cette semaine (repas où quelqu'un mange, sans plat, hors midis nourris par le dîner)
   nextWeekEmpty: boolean;
   ideas: { leftovers: Leftover[]; recipes: Ranked[] } | null;
   ritual: RitualNow | null;
@@ -119,11 +120,7 @@ export function deriveToday(r: Replay, now: Date): Today {
 
   // Ce qui reste à décider.
   const week = weekOf(today, s.settings.weekStart);
-  let empty = 0;
-  for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
-    const x = slotKey(addDays(week, i), sl);
-    if (isUpcoming(x, today, hour) && !s.slots[x]?.dish && servings(s, x) > 0) empty++;
-  }
+  const empty = coverage(s, week, today, hour).missing.length; // plats à cuisiner : un midi nourri par le dîner de la veille n'en est pas un
   const next = addDays(week, 7);
   const nextWeekEmpty = weekday(today) >= 4 && !Object.entries(s.slots).some(([x, v]) => v.dish && (parseSlot(x)?.date ?? '') >= next && (parseSlot(x)?.date ?? '') < addDays(next, 7));
 
