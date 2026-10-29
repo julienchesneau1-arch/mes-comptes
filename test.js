@@ -852,3 +852,17 @@ console.log('OK — fichier de rappels publié');
   assert.strictEqual(C.filterAmount({ amount: -12, cat: 'restos' }, 'pole:manger'), -12);
   console.log('OK — filtre des opérations par pôle');
 }
+
+{ // Solde prévu jour par jour (frise des prélèvements) : même fixture que la prévision ci-dessus.
+  const Fc = { accounts: { A: { owner: 'p1' } }, tx: [], rules: {} }, fr = [];
+  for (const m of ['03', '04', '05']) fr.push({ date: `2026-${m}-10`, amount: -800, label: 'PRLV LOYER SCI' }, { date: `2026-${m}-28`, amount: 1000, label: 'VIR SALAIRE ACME' });
+  C.importParsed(Fc, [{ account: 'A', rows: fr }]);
+  Fc.accounts.A.balance = { amount: 300, date: '2026-06-05' };
+  const P = C.forecastPath(C.forecast(Fc, 'A'));
+  assert.strictEqual(P.pts.length, 36);                                                        // du 05/06 au 10/07 inclus
+  assert.deepStrictEqual([P.pts[0].date, P.pts[0].bal, P.pts.at(-1).date], ['2026-06-05', 300, '2026-07-10']);
+  assert.deepStrictEqual(P.pts.filter(p => p.items.length).map(p => [p.date, p.bal]), [['2026-06-10', -500], ['2026-06-28', 500], ['2026-07-10', -300]]);
+  assert.deepStrictEqual([P.low.date, P.min, P.max], ['2026-06-10', -500, 500]);              // le premier jour le plus bas
+  assert.strictEqual(C.forecastPath(null), null);
+  console.log('OK — solde prévu jour par jour');
+}

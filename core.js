@@ -804,6 +804,18 @@ function forecast(state, id, days = 35) {
   return { start, from: ref, items, nextIn, due, dueTotal: round2(-due.reduce((a, i) => a + i.amount, 0)), need: run < 0 ? Math.ceil(-run) : 0, short };
 }
 
+// Solde prévu jour par jour, d'après une prévision de compte (forecast) : [{ date, bal, items }] du dernier relevé à +days.
+// Seuls les prélèvements fixes et les rentrées habituelles bougent la courbe ; low = le jour le plus bas (le premier s'il y en a plusieurs).
+function forecastPath(f, days = 35) {
+  if (!f) return null;
+  const by = {}, pts = [];
+  for (const i of f.items) (by[i.date] ||= []).push(i);
+  let bal = f.start;
+  for (let k = 0; k <= days; k++) { const d = addDay(f.from, k), its = by[d] || []; for (const i of its) bal = round2(bal + i.amount); pts.push({ date: d, bal, items: its }); }
+  const low = pts.reduce((a, p) => (p.bal < a.bal ? p : a), pts[0]);
+  return { pts, low, min: low.bal, max: Math.max(...pts.map(p => p.bal)) };
+}
+
 // Saisies du jour (à la main ou via Apple Pay) : comptées tout de suite, puis remplacées par la vraie opération
 // du relevé (même compte, même montant, de 3 jours avant à 10 jours après). La famille choisie est gardée.
 function addPending(state, { acc, date, amount, label, cat, uid = '', auto = false }) {
@@ -1500,6 +1512,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  forecastPath, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

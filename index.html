@@ -236,6 +236,12 @@ nav#tabs button{font-size:12px;min-height:54px}
 .pl .v{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap;font-family:var(--num)}
 .pl .v .d{margin:0}
 .dn-l .hb .bar{height:10px}
+.fcc{width:100%;height:auto;display:block;margin:6px 0 2px;overflow:visible}
+.fcc text{font-size:11px;fill:var(--mute)}
+.fcc .hit{fill:transparent;cursor:pointer}
+.fcc .mk{stroke:var(--card);stroke-width:2;pointer-events:none}
+.fcc .mk.on{stroke:var(--acc);stroke-width:3}
+.fcd{min-height:22px;margin:0 0 6px;line-height:1.4}
 .trend.stk .bars{height:150px}
 .stk .stack{display:flex;flex-direction:column-reverse;gap:2px;width:16px;border-radius:5px 5px 2px 2px;overflow:hidden}
 .trend.stk .bars .stack i{width:100%;border-radius:0;min-height:0}
@@ -1115,6 +1121,29 @@ function whereLegend() {
     ${p.fam.concat(gone).map(([c, v]) => `<div class="hb click" data-a="${c === 'autres' && toSort().length ? 'goSort' : 'goCat'}" data-c="${c}">${ico(cat(c))}<span class="ell">${famName(c)}</span><span><span class="mute sm">${pctTxt(v, p.v)} %</span> <b>${eur(v)}</b>${arrow(c)}</span>
       <div class="bar"><i style="width:${v / mx * 100}%;background:var(--pl-${p.id})"></i></div></div>`).join('')}`;
 }
+// Frise du solde prévu (Comptes › À venir) : une marche par prélèvement ou rentrée, zéro toujours à l'échelle, le point bas nommé.
+let FCP = []; // les courbes affichées, par position dans la carte
+const fcDayTxt = p => `<b>${shortDate(p.date)}</b> · ${p.items.map(i => `${esc(nice(i.name))} ${i.expected ? '≈ ' : ''}${signed(Math.round(i.amount))}`).join(' · ')} → solde <b class="${p.bal < 0 ? 'st-tight' : ''}">${eur(p.bal)}</b>`;
+function fcLow(P) {
+  const neg = P.pts.find(p => p.bal < 0);
+  return neg ? `🌧️ <b class="st-tight">Sous zéro le ${shortDate(neg.date)}</b>, jusqu'à ${eur(P.min)} le ${shortDate(P.low.date)}` : `Au plus bas : <b>${eur(P.min)}</b> le ${shortDate(P.low.date)}`;
+}
+function fcChart(i) {
+  const P = FCP[i]; if (!P) return '';
+  const W = 340, top = 10, bot = 92, n = P.pts.length - 1, lo = Math.min(0, P.min), hi = Math.max(0, P.max), sp = hi - lo || 1;
+  const X = k => +(36 + k / n * (W - 46)).toFixed(1), Y = v => +(top + (hi - v) / sp * (bot - top)).toFixed(1);
+  const path = P.pts.reduce((a, p, k) => a + (k ? ` H${X(k)} V${Y(p.bal)}` : `M${X(0)},${Y(p.bal)}`), '');
+  const days = P.pts.map((p, k) => [p, k]).filter(([p]) => p.items.length), tk = P.pts.findIndex(p => p.date === today()), w = Math.max(14, (W - 46) / n);
+  return `<svg class="fcc" id="fcc${i}" viewBox="0 0 ${W} 112" role="img" aria-label="Solde prévu : de ${eur(P.pts[0].bal)} à ${eur(P.pts[n].bal)}, au plus bas ${eur(P.min)} le ${shortDate(P.low.date)}">
+    ${P.min < 0 ? `<rect x="32" y="${Y(0)}" width="${W - 32}" height="${bot - Y(0)}" fill="var(--tights)"/>` : ''}
+    <line x1="32" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mute)" stroke-dasharray="3 3" opacity=".6"/><text x="0" y="${Y(0)}" dominant-baseline="central">0 €</text>
+    ${tk > 0 ? `<line x1="${X(tk)}" x2="${X(tk)}" y1="${top - 6}" y2="${bot}" stroke="var(--mute)" stroke-dasharray="2 3" opacity=".7"/><text x="${X(tk)}" y="${top - 1}" text-anchor="middle">auj.</text>` : ''}
+    <path d="${path}" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linejoin="round"/>
+    ${days.map(([p, k]) => `<circle class="mk" data-k="${k}" cx="${X(k)}" cy="${Y(p.bal)}" r="4.5" fill="${p.items.some(x => x.amount > 0) ? 'var(--acc)' : 'var(--ink)'}"/>`).join('')}
+    <text x="${X(0)}" y="108">${shortDate(P.pts[0].date)}</text><text x="${X(n)}" y="108" text-anchor="end">${shortDate(P.pts[n].date)}</text>
+    ${days.map(([p, k]) => `<rect class="hit" data-a="fcDay" data-i="${i}" data-k="${k}" x="${(X(k) - w / 2).toFixed(1)}" y="0" width="${w.toFixed(1)}" height="${bot + 6}"><title>${shortDate(p.date)} : solde ${eur(p.bal)}</title></rect>`).join('')}</svg>
+    <div class="fcd sm" id="fcd${i}" aria-live="polite">${fcLow(P)}</div>`;
+}
 // Toucher une part : seuls la sélection, le centre et la légende changent (l'anneau reste, sans rejouer l'animation).
 function paintWhere() {
   const el = $('#where'), w = el && el.querySelector('.dn-w');
@@ -1369,13 +1398,15 @@ function accounts() {
       <b>${eur(x.perMonth)}/mois</b><button class="ib" data-a="annHide" data-k="${esc(x.key)}" title="Ce n'est pas une charge annuelle" aria-label="Masquer">×</button></div>`).join('')}
     <p class="sm mute hint">Mettre ce montant de côté chaque mois évite la mauvaise surprise le jour J.</p></section>` : '';
   const fc = realIds().map(id => [id, forecast(S, id)]).filter(([, f]) => f && f.items.length);
+  FCP = fc.map(([, f]) => forecastPath(f));
   const coming = fc.length ? `<section class="card span"><h2>À venir · prélèvements et rentrées</h2>
-    ${fc.map(([id, f]) => `<div style="padding:6px 0 12px"><div class="row" style="padding:0"><b class="grow">${esc(accName(id))}</b><span class="sm mute">${eur(f.start)} au ${shortDate(f.from)}</span></div>
+    ${fc.map(([id, f], i) => `<div style="padding:6px 0 12px"><div class="row" style="padding:0"><b class="grow">${esc(accName(id))}</b><span class="sm mute">${eur(f.start)} au ${shortDate(f.from)}</span></div>
       ${f.need ? `<div class="note" style="background:var(--warms);margin:6px 0">⚠ ${f.start < 0 ? `Compte à ${eur(f.start)}` : `${eur(f.dueTotal)} de prélèvements`} avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'} : prévoir <b>~${eur(Math.ceil(f.need / 10) * 10)}</b>${f.start < 0 ? '' : ` avant le ${shortDate(f.short)}`}.</div>`
         : `<div class="sm pos" style="margin:4px 0 6px">✔ ${f.dueTotal ? `Les ${eur(f.dueTotal)} de prélèvements avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'} sont couverts.` : `Rien à couvrir avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'}.`}</div>`}
-      ${f.items.slice(0, 10).map(it => `<div class="row fc" style="padding:5px 0;border:0;gap:8px"><span class="sm mute" style="width:46px;flex:none">${shortDate(it.date)}</span>${ico(cat(it.cat))}<span class="grow ell sm">${esc(nice(it.name))}</span>
+      ${fcChart(i)}
+      ${f.items.slice(0, 10).map(it => `<div class="row fc" style="padding:5px 0;border:0;gap:8px"><span class="sm mute" style="width:58px;flex:none;white-space:nowrap">${shortDate(it.date)}</span>${ico(cat(it.cat))}<span class="grow ell sm">${esc(nice(it.name))}</span>
         <span class="sm ${it.amount > 0 ? 'pos' : ''}">${it.expected ? '≈ ' : ''}${signed(Math.round(it.amount))}</span></div>`).join('')}</div>`).join('')}
-    <p class="sm mute hint">Prélèvements fixes repérés sur vos relevés, et rentrées habituelles (≈, montant moyen). Les dépenses du quotidien ne sont pas prévues : elles varient trop pour être fiables.</p></section>` : '';
+    <p class="sm mute hint">Prélèvements fixes repérés sur vos relevés, et rentrées habituelles (≈, montant moyen). Les dépenses du quotidien ne sont pas prévues : elles varient trop pour être fiables. La courbe : le solde jour par jour si seuls ces mouvements passent ; touchez un point pour son détail.</p></section>` : '';
   const toTrends = `<section class="card span click" data-a="tab" data-t="trends" style="display:flex;align-items:center;gap:12px"><span class="em" style="--c:var(--acc)">📈</span><span class="grow"><b>Tendances, tableau et bilan de l'année</b><div class="sm mute">évolution sur 12 mois, par famille, export Excel</div></span><span class="mute">›</span></section>`;
   return comptes + coming + joint + recCard + annCard + toTrends;
 }
@@ -1756,6 +1787,7 @@ const A = {
   goSort: () => { ui.tab = 'ops'; ui.sort = true; render(); scrollTo(0, 0); },
   filterAcc: d => { ui.acc = d.id; ui.tab = 'ops'; ui.cat = ''; render(); scrollTo(0, 0); },
   goMonth: d => { ui.month = d.m; render(); },
+  fcDay: d => { const p = FCP[d.i] && FCP[d.i].pts[+d.k], el = $('#fcd' + d.i); if (!p || !el) return; el.innerHTML = fcDayTxt(p); document.querySelectorAll(`#fcc${d.i} .mk`).forEach(m => m.classList.toggle('on', m.dataset.k === d.k)); },
   pole: d => { ui.pole = d.p && d.p !== ui.pole ? d.p : ''; paintWhere(); },
   goCat: d => { ui.tab = 'ops'; ui.cat = d.c === 'couple' ? 'interne' : d.c; render(); scrollTo(0, 0); },
   own: d => { S.accounts[d.id].owner = d.o; save(); render(); toast(`${S.accounts[d.id].name} → ${whoName(d.o)}. Renommez-le dans Réglages si besoin.`); },
