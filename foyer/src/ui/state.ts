@@ -63,7 +63,7 @@ export function undoProblem(ids: readonly string[]): string | null {
   return null;
 }
 
-export interface DispatchOpts { toast?: string; undo?: boolean }
+export interface DispatchOpts { toast?: string | (() => string); undo?: boolean } // fonction : texte écrit d'après l'état enregistré
 // Une commande : événements horodatés, ajoutés au journal, rejoués, enregistrés. Renvoie les événements créés.
 export function dispatch(drafts: readonly Draft[], opts: DispatchOpts = {}): AnyEv[] {
   if (!drafts.length) return [];
@@ -75,7 +75,7 @@ export function dispatch(drafts: readonly Draft[], opts: DispatchOpts = {}): Any
   A.onChange();
   const rejected = events.map(e => A.r.rejected.get(e.id)).find(x => x?.severity === 'conflict');
   if (rejected) toast(`Non enregistré : ${rejected.reason}`);
-  else if (opts.toast) toast(opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));
+  else if (opts.toast) toast(typeof opts.toast === 'function' ? opts.toast() : opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));
   return events;
 }
 

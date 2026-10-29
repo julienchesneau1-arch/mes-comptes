@@ -302,6 +302,20 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.18 (bilan de la semaine — demande de Julien du 29 octobre 2026)
+
+« Un système qui prend en compte notre agenda : quand on met plusieurs plats, qu'il nous dise qu'on n'a pas assez de plats pour
+finir la semaine, ou trop de plats et qu'on aura des restes. » Avant : « N repas sans plat » dans Aujourd'hui seulement, restes et
+plats sans personne en cartes séparées, rien dans l'écran Semaine ni au moment de poser un plat.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Bilan calculé | **livré** | `core/coverage.ts` : repas à venir de la semaine où quelqu'un mange (présence de chacun, agenda appliqué, invités) ; manque = repas sans plat (et leurs portions) ; trop = portions « en plus » d'un plat pas encore cuisiné, restes déjà préparés et libres, plat posé sur un repas où personne ne mange (`tests/v318.test.ts`) |
+| Dit dans Semaine | **livré** | Carte « Bilan de la semaine » en haut : « Pas assez de plats : il manque 9 repas… », « Trop de plats : 2 portions en trop… de quoi faire ≈ 1 repas de restes », ou « Semaine couverte : 8 repas à la maison, tous prévus, rien en trop » ; agenda compris, ou dit comment le brancher ; changements d'agenda à décider signalés |
+| Dit en posant un plat | **livré** | Le message après chaque plat posé (vos plats, restes, recettes prêtes) finit par « · encore 13 repas sans plat cette semaine », « · 4 portions en trop cette semaine » ou « · semaine couverte ✓ » |
+| Gestes d'un toucher | **livré** | « ♻️ Pâtes demain midi » : portions en plus (6 jours au plus après la cuisson) ou restes reprises sur un repas sans plat, rien de plus à cuisiner ; « Déplacer Curry à mercredi soir » : plat d'un repas où personne ne mange vers un repas sans plat ; « ✨ Compléter la semaine » pour le reste (E2E `bilan.mjs`) |
+| Agenda à décider compris dans le bilan | **non fait** | Volontairement : un changement d'agenda pas encore décidé n'est pas compté (il serait deviné) ; la carte le signale et renvoie à l'agenda |
+
 ### V3.17 (dates limites, menus et agenda liés — demande de Julien du 29 octobre 2026)
 
 « En fonction de la date de péremption ou de la date limite recommandée, que l'application propose un menu plutôt qu'un autre ; et si
@@ -595,6 +609,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-29 | V3.18 | Bilan de la semaine : repas où quelqu'un mange (agenda compris) face aux plats prévus, « pas assez de plats » ou « trop de plats » dans Semaine et après chaque plat posé, restes repris ou plat déplacé d'un toucher | livré | Changements d'agenda pas encore décidés non comptés (signalés) ; non vérifié sur iPhone |
 | 2026-10-29 | V3.17 | Dates limites, menus et agenda liés : menu proposé qui utilise d'abord les produits à DLC ou DDM (recettes prêtes comprises, raison affichée), plat décalé par l'agenda gardé avant la DLC (repas libre, sinon échange, sinon ⚠️), carte « personne » et aperçu de déplacement qui le disent | livré | Agenda réel et iPhone non vérifiés ; « date limite de commande » comprise comme DLC, à confirmer |
 | 2026-10-29 | V3.16 | Bouton de scan des dates limites visible : en-tête d'Aujourd'hui, haut de Courses, rappel après l'achat d'un produit frais ; zone de scan en premier dans la feuille, étapes iPhone affichées | livré | « Scanner le texte » reste à deux touchers dans le menu d'iOS (pas d'interface web pour l'ouvrir) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.15 | Couverture des prix sans rien aspirer : nom d'achat des ingrédients, eau du robinet non comptée, 21 groupes Open Prices de plus, contenances du quotidien, part payée dite en euros, ticket de caisse scanné ; mesuré sans facture : recettes 29 → 36 % des lignes chiffrées, quotidien 15 → 35 % | livré | 64 % des lignes de recettes et 65 % des produits du quotidien restent sans prix avant la première facture (ail, herbes, bouillons, poulet, vin, hygiène, entretien) ; tickets non vérifiés sur iPhone ni sur de vrais tickets |

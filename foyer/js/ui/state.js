@@ -64,7 +64,7 @@ export function dispatch(drafts, opts = {}) {
     if (rejected)
         toast(`Non enregistré : ${rejected.reason}`);
     else if (opts.toast)
-        toast(opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));
+        toast(typeof opts.toast === 'function' ? opts.toast() : opts.toast, opts.undo === false ? undefined : () => undo(events.map(e => e.id)));
     return events;
 }
 export function undo(ids) {

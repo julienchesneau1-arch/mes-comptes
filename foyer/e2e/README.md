@@ -19,7 +19,11 @@ CHROMIUM_PATH=/chemin/vers/chromium node e2e/usage.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/recettes.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/essentiel.mjs
 CHROMIUM_PATH=/chemin/vers/chromium node e2e/maison.mjs
+CHROMIUM_PATH=/chemin/vers/chromium node e2e/dates.mjs
+CHROMIUM_PATH=/chemin/vers/chromium node e2e/bilan.mjs
 ```
+
+- `bilan.mjs` : lundi 5 octobre 2026, 12 h : foyer neuf, tout le monde à la maison : « Pas assez de plats : il manque 14 repas » et « ✨ Compléter la semaine » ; pâtes posées lundi soir → « encore 13 repas sans plat cette semaine » ; 2 portions en plus → « il y a du trop », « ♻️ Pâtes demain midi » reprend les portions d'un toucher (mardi midi rempli, rien de plus à cuisiner). axe sur le bilan.
 
 - `dates.mjs` : lundi 5 octobre 2026, 12 h : curry de poulet prévu samedi ; Courses : « 📷 Scanner une date limite » dans la première moitié de l'écran, poulet coché → rappel « Poulet : acheté » (« 📷 Scanner » avec le nom repris, « Plus tard » le retire), zone de scan en premier avec les étapes iPhone (masquées après une lecture réussie) ; poulet de la liste en un toucher, texte « scanné » (simulé) lu DLC mer. 7 oct. ; Aujourd'hui : « Avancer mercredi soir » d'un toucher, carte disparue, curry au mercredi ; depuis l'en-tête d'Aujourd'hui (« 📷 Scanner une date ») : texte sans date, rien deviné ; « DLC 09/10 » : année déduite et signalée ; « Enregistrer et scanner un autre » ; « Proposer le menu » (catalogue réel) : un plat qui utilise la crème fraîche avant sa DLC, « ⏳ à utiliser : crème fraîche (DLC ven. 9 oct.) » affiché, rien pour le poulet déjà utilisé à temps. axe sur le rappel, la zone de scan, la feuille et la carte.
 - `lisibilite.mjs` (mesure, pas un test) : foyer de démonstration ; par écran, mots, mots du premier écran, éléments touchables, textes d'explication, position du premier rayon dans Courses. Imprime un tableau ; `FOYER_URL` pour mesurer une autre version.
