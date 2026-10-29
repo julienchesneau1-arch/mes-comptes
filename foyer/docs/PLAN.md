@@ -302,6 +302,21 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.20 (photo de la date en un toucher — accord de Julien du 29 octobre 2026)
+
+« Oui pour le bouton photo en un toucher » (proposé en V3.16 : lecture embarquée, 3 à 5 Mo). Avant : la date se lisait seulement
+avec « Scanner le texte » de l'iPhone (deux touchers dans un menu) ou se tapait.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Bouton photo | **livré** | « 📸 Prendre la date en photo » en tête de la feuille « Scanner une date limite » (et sur un produit déjà suivi) : `capture="environment"`, l'appareil photo arrière s'ouvre d'un toucher ; « Scanner le texte » reste proposé dessous (E2E `photo.mjs`) |
+| Lecture sur le téléphone | **livré** | Tesseract 5 (tesseract.js 7.0.0, Apache-2.0) auto-hébergé dans `vendor/tesseract/`, chargé à la première photo (≈ 3,8 Mo : 5 fichiers), rien avant ; modèle français LSTM ; aucun appel réseau hors de l'app (E2E : requêtes comptées) ; lecteur gardé une minute, puis mémoire rendue ; préchargé à l'ouverture de la feuille une fois la photo déjà utilisée |
+| Image préparée | **livré** | `core/scan.ts` (fonctions pures, `tests/v320.test.ts`) : seuil local, texte penché redressé (profil de projection, −20° à 20°), impression à points reconnue (taches rondes de même taille, pas régulier) puis reliée (fermeture morphologique au pas mesuré), bords d'étiquette effacés ; seuil Sauvola de Tesseract pour le texte plein |
+| Jamais deviné | **livré** | Date retenue par `core/printed.ts` (comme le texte scanné). Confiance ≥ 80 : reportée, « vérifiez avec l'emballage » ; en dessous : seulement proposée (« Utiliser jeu. 12 nov. 2026 ») ; rien lu : la marche à suivre est dite (de plus près, « Scanner le texte », ou taper). Texte lu affiché (« Texte lu sur la photo ») |
+| Taux de lecture mesuré | **livré** | `e2e/lecture-photo.mjs`, 190 étiquettes **simulées** (10 dates × 19 styles), Chromium : texte imprimé net, mono, serif, gris clair, sur couleur, flou, bruité, petit, reflet, penché 8° : **100/100** ; penché 15° : 7/10 ; impression à points (jet d'encre, matrice 5×7) : **13/70** ; tout cumulé : 2/10. Total 122/190 justes, 14 fausses, 54 non lues. Confiance ≥ 80 : 108 justes, 1 fausse ; en dessous : 14 justes, 13 fausses. 0,12 à 1,8 s par photo sur ce serveur (Chromium ; iPhone non mesuré) |
+| Dates à points | **partiel** | Lecture rare (13/70) : l'aide et le message d'échec renvoient à « Scanner le texte » de l'iPhone pour ces dates |
+| Vraies photos, iPhone | **non fait** | `[DONNÉE_MANQUANTE]` : aucune photo réelle d'emballage ni mesure sur iPhone (temps, mémoire) ; hors ligne après la première photo : service worker (https), non vérifiable en E2E local (http) |
+
 ### V3.19 (un plat le soir = dîner + boîtes du lendemain ; texte à l'envers — demande de Julien du 29 octobre 2026)
 
 « Quand on crée une recette, ça écrit à l'envers dans l'encart. » « À chaque fois l'application nous dit de faire 14 repas : on fait
@@ -337,7 +352,7 @@ plats sans personne en cartes séparées, rien dans l'écran Semaine ni au momen
 
 « En fonction de la date de péremption ou de la date limite recommandée, que l'application propose un menu plutôt qu'un autre ; et si
 l'emploi du temps décale des plats qui risquent d'arriver à péremption, qu'elle le dise tout de suite, et qu'elle l'impose ou propose
-le plat selon l'emploi du temps. » « Date limite de commande » compris comme date limite de consommation : à confirmer.
+le plat selon l'emploi du temps. » « Date limite de commande » compris comme date limite de consommation : confirmé par Julien le 29 octobre 2026.
 Avant : seuls vos plats étaient mis en avant par une DLC (pas les recettes prêtes, proposées d'abord par défaut, ni la DDM) ; un plat
 que l'agenda vidait partait au repas libre suivant, même après la DLC.
 
@@ -628,7 +643,8 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
 | 2026-10-29 | V3.18 | Bilan de la semaine : repas où quelqu'un mange (agenda compris) face aux plats prévus, « pas assez de plats » ou « trop de plats » dans Semaine et après chaque plat posé, restes repris ou plat déplacé d'un toucher | livré | Changements d'agenda pas encore décidés non comptés (signalés) ; non vérifié sur iPhone |
 | 2026-10-29 | V3.19 | Texte tapé dans le bon ordre (curseur gardé au redessin) ; semaine comptée en plats à cuisiner, réglage « le midi = restes du dîner » (accueil, Décisions automatiques, bilan), dîner posé = +2 portions pour le lendemain midi, menus générés de même | livré | Non vérifié sur iPhone |
-| 2026-10-29 | V3.17 | Dates limites, menus et agenda liés : menu proposé qui utilise d'abord les produits à DLC ou DDM (recettes prêtes comprises, raison affichée), plat décalé par l'agenda gardé avant la DLC (repas libre, sinon échange, sinon ⚠️), carte « personne » et aperçu de déplacement qui le disent | livré | Agenda réel et iPhone non vérifiés ; « date limite de commande » comprise comme DLC, à confirmer |
+| 2026-10-29 | V3.20 | « 📸 Prendre la date en photo » : lecture sur le téléphone (Tesseract auto-hébergé, 3,8 Mo à la première photo), image redressée, points du jet d'encre reliés, date reportée si sûre, seulement proposée sinon ; « date limite de commande » = DLC confirmé | livré | Mesuré sur 190 étiquettes simulées (texte net 100/100, points 13/70) ; aucune vraie photo ni iPhone |
+| 2026-10-29 | V3.17 | Dates limites, menus et agenda liés : menu proposé qui utilise d'abord les produits à DLC ou DDM (recettes prêtes comprises, raison affichée), plat décalé par l'agenda gardé avant la DLC (repas libre, sinon échange, sinon ⚠️), carte « personne » et aperçu de déplacement qui le disent | livré | Agenda réel et iPhone non vérifiés ; « date limite de commande » = DLC, confirmé le 29 octobre 2026 |
 | 2026-10-29 | V3.16 | Bouton de scan des dates limites visible : en-tête d'Aujourd'hui, haut de Courses, rappel après l'achat d'un produit frais ; zone de scan en premier dans la feuille, étapes iPhone affichées | livré | « Scanner le texte » reste à deux touchers dans le menu d'iOS (pas d'interface web pour l'ouvrir) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.15 | Couverture des prix sans rien aspirer : nom d'achat des ingrédients, eau du robinet non comptée, 21 groupes Open Prices de plus, contenances du quotidien, part payée dite en euros, ticket de caisse scanné ; mesuré sans facture : recettes 29 → 36 % des lignes chiffrées, quotidien 15 → 35 % | livré | 64 % des lignes de recettes et 65 % des produits du quotidien restent sans prix avant la première facture (ail, herbes, bouillons, poulet, vin, hygiène, entretien) ; tickets non vérifiés sur iPhone ni sur de vrais tickets |
 | 2026-10-26 | V3.14 | Dates limites lues (texte scanné par l'iPhone ou tapé : DLC, DDM, précision, année déduite) et utiles : avancer d'un toucher le plat prévu après la DLC, ou prévoir un plat qui l'utilise | livré | « Scanner le texte » non vérifié sur iPhone ; rapprochement par mots (« lait » pourrait désigner « lait de coco ») |

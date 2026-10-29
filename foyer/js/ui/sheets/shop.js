@@ -19,6 +19,7 @@ import { setLeftovers } from '../../core/commands.js';
 import { productSection, adviceHtml } from './drive.js';
 import { lineAlert } from '../../core/allergens.js';
 import { lastBought } from '../../core/restock.js';
+import { readPhoto, warmOcr, SURE } from '../ocr.js';
 const when = (iso) => { const p = paris(new Date(iso)); return `${fmtDayShort(p.date)} ${String(p.hour).padStart(2, '0')} h ${String(p.minute).padStart(2, '0')}`; };
 /* ---------- Ligne calculée ---------- */
 export function openLine(week, key) { openSheet({ id: `line:${key}`, render: () => lineHtml(week, key) }); }
@@ -174,8 +175,10 @@ export function openWatch(id, name = '') {
     const w = id ? S().watch[id] : undefined;
     const v = w?.date?.value ?? '';
     wd = { id, name: w?.name ?? name, qty: w?.qty ?? '', kind: w?.date?.kind ?? 'none', date: v.length === 10 ? v : '', month: v.length === 7 ? v : '', year: v.length === 4 ? v : '',
-        precision: v.length === 7 ? 'mois' : v.length === 4 ? 'annee' : 'jour', state: w?.state ?? 'ferme', slot: w?.slot ?? '', printed: '' };
+        precision: v.length === 7 ? 'mois' : v.length === 4 ? 'annee' : 'jour', state: w?.state ?? 'ferme', slot: w?.slot ?? '', printed: '', photo: null };
     openSheet({ id: 'watch', render: watchHtml, onClose: () => { wd = null; } });
+    if (ocrUsed())
+        warmOcr(); // déjà servi sur ce téléphone : lecteur prêt avant la photo (fichiers gardés hors ligne)
 }
 // Produits frais de la liste (cette semaine et la précédente) pas encore surveillés : le nom en un toucher.
 function freshNames() {
@@ -199,17 +202,32 @@ export function boughtFresh(week) {
 }
 // Icône « Scanner le texte » de l'iPhone (cadre de visée et lignes de texte), pour la reconnaître dans le menu.
 const SCAN_ICON = '<svg class="scan-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M7 9h10M7 12h10M7 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-// Ce qui a été lu dans le champ, dit en clair (ou pourquoi rien ne l'a été).
+const said = (r) => `${r.kind === 'inconnu' ? 'date' : r.kind} ${fmtDecl({ kind: r.kind, value: r.value })}${r.guessedYear ? ' (année déduite : vérifiez)' : ''}`;
+// Ce qui a été lu (champ, sinon photo), dit en clair (ou pourquoi rien ne l'a été).
 function readText(d) {
-    if (!d.printed.trim())
-        return '';
+    const p = d.photo;
+    if (!d.printed.trim()) {
+        if (!p)
+            return '';
+        if (p.busy)
+            return '📸 Lecture de la photo… (la première fois, 3,8 Mo à charger)';
+        if (p.error)
+            return `📸 Lecture photo impossible (${p.error}) : utilisez « Scanner le texte », ou tapez la date.`;
+        if (!p.printed)
+            return '📸 Date non lue sur la photo. Reprenez-la de plus près, bien éclairée, la date droite ; ou utilisez « Scanner le texte » (plus sûr pour les dates en points), ou tapez-la.';
+        if (!p.sure)
+            return `📸 Lecture incertaine : ${said(p.printed)} ? Vérifiez chaque chiffre sur l'emballage avant de l'utiliser.`;
+        return `📸 Lu sur la photo : ${said(p.printed)} · vérifiez avec l'emballage avant d'enregistrer.${p.printed.kind === 'inconnu' ? ' DLC ou DDM ? Choisissez ci-dessous.' : ''}`;
+    }
     const r = readPrinted(d.printed, clock().date);
     if (!r)
         return 'Aucune date reconnue : visez la date seule, ou tapez-la (ex. 28/10/2026).';
-    return `Lu : ${r.kind === 'inconnu' ? 'date' : r.kind} ${fmtDecl({ kind: r.kind, value: r.value })}${r.guessedYear ? ' (année déduite : vérifiez)' : ''}${r.kind === 'inconnu' ? ' · DLC ou DDM ? Choisissez ci-dessous.' : ''}`;
+    return `Lu : ${said(r)}${r.kind === 'inconnu' ? ' · DLC ou DDM ? Choisissez ci-dessous.' : ''}`;
 }
+// Lecture retenue : celle du champ, sinon celle de la photo quand elle est sûre (ou confirmée d'un toucher).
+const reading = (d) => (d.printed.trim() ? readPrinted(d.printed, clock().date) : d.photo?.sure ? d.photo.printed : null);
 function applyRead(d) {
-    const r = readPrinted(d.printed, clock().date);
+    const r = reading(d);
     if (!r)
         return;
     d.kind = r.kind;
@@ -226,6 +244,22 @@ function applyRead(d) {
         d.precision = 'annee';
     }
 }
+// Date du formulaire remise à celle du produit enregistré (ou vide) : avant de reporter une nouvelle lecture.
+function restoreDate(d) {
+    const v = (d.id ? S().watch[d.id]?.date : null) ?? null, s = v?.value ?? '';
+    d.kind = v?.kind ?? 'none';
+    d.date = s.length === 10 ? s : '';
+    d.month = s.length === 7 ? s : '';
+    d.year = s.length === 4 ? s : '';
+    d.precision = s.length === 7 ? 'mois' : s.length === 4 ? 'annee' : 'jour';
+}
+const OCR_KEY = 'foyer-ocr-used';
+const ocrUsed = () => { try {
+    return localStorage.getItem(OCR_KEY) === '1';
+}
+catch {
+    return false;
+} };
 function watchHtml() {
     const d = wd;
     if (!d)
@@ -242,13 +276,17 @@ function watchHtml() {
     const chips = [['aujourd\'hui', 0], ['demain', 1], ['+2 j', 2], ['+3 j', 3], ['+5 j', 5], ['+7 j', 7]];
     const w = d.id ? S().watch[d.id] : undefined;
     const view = w ? watchView(w, c.date) : null;
-    const read = readText(d), ok = !!d.printed.trim() && !!readPrinted(d.printed, c.date), names = d.id ? [] : freshNames().filter(n => nameKey(n) !== nameKey(d.name));
+    const read = readText(d), ok = !!reading(d), unsure = !d.printed.trim() && d.photo?.printed && !d.photo.sure ? d.photo.printed : null, names = d.id ? [] : freshNames().filter(n => nameKey(n) !== nameKey(d.name));
     return `${sheetHead(d.id ? `Surveiller ${esc(d.name)}` : '📷 Scanner une date limite', 'Foyer vous dit quand l\'utiliser, et quel plat avancer si besoin.')}
   ${view?.checks.length ? `<ul class="impacts">${view.checks.map(x => `<li class="${x.level === 'manque' ? 'attention' : x.level}">${esc(x.text)}</li>`).join('')}</ul>` : ''}
   <form data-f="watchSave" class="stack">
     ${d.id ? '' : `<section class="scan-zone stack" aria-labelledby="w-scan-h"><h3 id="w-scan-h" class="section-title">📷 Scanner la date</h3>`}
-    <label class="field">Date imprimée<input class="scan-field" type="text" name="printed" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(d.printed)}" data-i="wPrinted" data-c="wPrintedDone" placeholder="📷 Touchez ici pour scanner" aria-describedby="w-read w-how"></label>
+    <label class="btn big block">${d.photo?.busy ? '📸 Lecture…' : '📸 Prendre la date en photo'}<input type="file" accept="image/*" capture="environment" data-c="wPhoto" class="sr-only"${d.photo?.busy ? ' disabled' : ''}></label>
+    <p class="small muted">Lue sur ce téléphone, rien n'est envoyé. Visez la date seule, de près.</p>
+    <label class="field">Ou la date imprimée, scannée ou tapée<input class="scan-field" type="text" name="printed" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(d.printed)}" data-i="wPrinted" data-c="wPrintedDone" placeholder="📷 Touchez ici : « Scanner le texte »" aria-describedby="w-read w-how"></label>
     <p id="w-read" class="small ${ok ? '' : 'muted'}" aria-live="polite">${esc(read)}</p>
+    ${unsure ? `<button type="button" class="btn ghost" data-a="wPhotoUse">Utiliser ${esc(fmtDecl({ kind: unsure.kind, value: unsure.value }))}</button>` : ''}
+    ${d.photo?.text && !d.printed.trim() ? `<details><summary class="small">Texte lu sur la photo</summary><p class="small muted">${esc(d.photo.text.slice(0, 300))}</p></details>` : ''}
     <div id="w-how" class="small">${ok ? '' : `<p><strong>Sur iPhone</strong> :</p><ol class="steps">
       <li>Touchez la zone ci-dessus.</li>
       <li>Touchez-la une 2<sup>e</sup> fois : dans le petit menu, choisissez <strong>« Scanner le texte »</strong> ${SCAN_ICON} (pas visible ? ouvrez la flèche › du menu).</li>
@@ -257,7 +295,7 @@ function watchHtml() {
     ${d.id ? '' : '</section>'}
     <label class="field">Produit<input type="text" name="name" required maxlength="80" value="${esc(d.name)}" data-i="wName" placeholder="Poulet, crème fraîche…"></label>
     ${names.length ? `<div class="chips" aria-label="Produits frais de vos courses">${names.map(n => `<button type="button" class="tag" data-a="wName" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-    <details class="card" ${!ok && d.kind !== 'none' ? 'open' : ''}><summary>${ok ? 'Vérifier ou corriger' : 'Saisir la date à la main'}</summary>
+    <details class="card" ${(!ok && d.kind !== 'none') || (ok && d.kind === 'inconnu') ? 'open' : ''}><summary>${ok ? 'Vérifier ou corriger' : 'Saisir la date à la main'}</summary>
     <fieldset><legend>Type de date</legend><div class="seg" role="radiogroup" aria-label="Type de date">
       ${['DLC', 'DDM', 'inconnu', 'none'].map(k => `<label><input type="radio" name="kind" value="${k}" data-c="wKind" ${d.kind === k ? 'checked' : ''}>${k === 'DLC' ? 'DLC' : k === 'DDM' ? 'DDM' : k === 'inconnu' ? 'Je ne sais pas' : 'Pas de date'}</label>`).join('')}</div>
       <p class="small muted">${d.kind === 'DLC' ? esc(KIND_LABEL.DLC) + ' : limite impérative.' : d.kind === 'DDM' ? esc(KIND_LABEL.DDM) + ' : date de qualité, jour, mois ou année seulement selon l\'emballage.' : d.kind === 'inconnu' ? 'La date sera gardée, avec son type « à préciser ».' : 'Le produit s\'affichera « Date à renseigner ».'}</p>
@@ -296,6 +334,64 @@ INPUT['wPrinted'] = (_d, el) => {
 };
 CHANGE['wPrintedDone'] = () => { if (wd)
     rerender(); };
+// 📸 Un toucher : l'appareil photo s'ouvre ; la photo est lue ici (ui/ocr.ts), la date proposée seulement si la lecture est sûre.
+CHANGE['wPhoto'] = (_d, el) => {
+    const file = el.files?.[0], d = wd;
+    if (!file || !d)
+        return;
+    d.photo = { busy: true, text: '', printed: null, sure: false, error: '' };
+    restoreDate(d); // une nouvelle photo remplace la lecture précédente : jamais de date restée d'une autre photo
+    rerender();
+    void (async () => {
+        let photo;
+        try {
+            const img = await loadImage(file);
+            const r = await readPhoto(img, clock().date);
+            if ('close' in img)
+                img.close();
+            photo = { busy: false, text: r.text, printed: r.printed, sure: !!r.printed && r.confidence >= SURE, error: '' };
+            try {
+                localStorage.setItem(OCR_KEY, '1');
+            }
+            catch { /* stockage refusé : pas de préchargement */ }
+        }
+        catch (e) {
+            photo = { busy: false, text: '', printed: null, sure: false, error: navigator.onLine ? 'image illisible' : 'hors connexion, première fois' };
+            console.warn('Lecture photo', e);
+        }
+        if (wd !== d)
+            return; // feuille fermée entre-temps
+        d.photo = photo;
+        d.printed = '';
+        applyRead(d);
+        rerender();
+    })();
+};
+// Lecture incertaine confirmée d'un toucher, après vérification sur l'emballage.
+CLICK['wPhotoUse'] = () => { if (wd?.photo?.printed) {
+    wd.photo.sure = true;
+    applyRead(wd);
+    rerender();
+} };
+// Photo du téléphone, orientation de prise de vue comprise (EXIF) ; image classique si createImageBitmap est absent.
+async function loadImage(file) {
+    if (typeof createImageBitmap === 'function') {
+        try {
+            return await createImageBitmap(file, { imageOrientation: 'from-image' });
+        }
+        catch { /* repli ci-dessous */ }
+    }
+    const url = URL.createObjectURL(file);
+    try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        return img;
+    }
+    finally {
+        URL.revokeObjectURL(url);
+    }
+}
 CLICK['wName'] = d => { if (wd) {
     wd.name = d['n'] ?? '';
     rerender();

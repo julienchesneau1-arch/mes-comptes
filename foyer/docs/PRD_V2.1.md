@@ -111,7 +111,7 @@ Retours métier explicites : chaque événement impossible est écarté avec sa 
 ## 7. Livraisons
 
 - **V1A** : livrée dans ce dépôt (`foyer/`), preuves dans `PLAN.md`.
-- **V1B (OCR)** : **bloquée** (Savore inaccessible) et **non recommandée** avant d'avoir mesuré que la saisie manuelle des dates est un vrai frein. La saisie actuelle prend une date en un geste (« demain », « +3 j ») ; un OCR à confirmer champ par champ ne ferait gagner du temps qu'avec beaucoup de produits suivis — ce que la V2 elle-même déconseille.
+- **V1B (OCR)** : **bloquée** (Savore inaccessible) et **non recommandée** avant d'avoir mesuré que la saisie manuelle des dates est un vrai frein. La saisie actuelle prend une date en un geste (« demain », « +3 j ») ; un OCR à confirmer champ par champ ne ferait gagner du temps qu'avec beaucoup de produits suivis — ce que la V2 elle-même déconseille. *(Révisé : lecture photo livrée en V3.20 à la demande de Julien, voir §36.)*
 - **V1C (proposée)** : synchro automatique via un relais qui ne voit que des données chiffrées (voir `PLAN.md`), sur décision du foyer.
 
 ---
@@ -418,4 +418,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Jamais un midi sans rien | Sans dîner la veille (personne, ou dîner passé sans plat), le midi se cuisine et compte comme un plat |
 | Saisie fiable | Ce qu'on tape s'écrit dans l'ordre, même quand la feuille se redessine à chaque lettre |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.19 incluses).
+## 36. V3.20 — la date en photo (29 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Décision | Le bouton photo est demandé par Julien (29 octobre 2026) : la réserve du §V1B (« OCR non recommandé avant mesure du frein ») est levée par ce choix explicite |
+| Sur le téléphone | La photo est lue sur l'appareil, jamais envoyée ; le lecteur (3,8 Mo) n'est chargé qu'à la première photo |
+| Jamais deviné | Une date n'est reportée que si elle se lit et que la lecture est sûre ; incertaine, elle est seulement proposée ; dans tous les cas, l'utilisateur la vérifie sur l'emballage avant d'enregistrer |
+| Dire les limites | Les dates imprimées en points se lisent mal en photo : l'app le dit et renvoie à « Scanner le texte » |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.20 incluses).
