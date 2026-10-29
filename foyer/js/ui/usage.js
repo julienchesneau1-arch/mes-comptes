@@ -54,7 +54,8 @@ const recipeOk = (id) => !!S().recipes[id] && !S().recipes[id]?.archived;
 export function shortcutsHtml() {
     if (A.demo)
         return '';
-    const list = shortcuts(load(), clock().date, A.device.pins, recipeOk);
+    // « Scanner une date » a son bouton fixe en haut d'Aujourd'hui : pas de raccourci en double.
+    const list = shortcuts(load(), clock().date, A.device.pins, recipeOk).filter(x => x.key !== 'a:watchNew');
     if (!list.length)
         return '';
     const btn = (key) => {

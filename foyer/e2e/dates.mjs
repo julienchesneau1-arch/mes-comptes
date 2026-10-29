@@ -1,8 +1,10 @@
-// V3.14, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : dates limites lues et utiles. Curry de poulet prévu samedi ;
-// « 📷 Scanner une date limite » : le poulet de la liste en un toucher, la date « scannée » (le texte que l'iPhone insère avec
-// « Scanner le texte » est simulé en le tapant dans le champ), lue DLC mer. 7 oct. ; Aujourd'hui propose d'avancer le curry avant
-// la DLC, un toucher ; texte sans date : rien deviné ; année absente : déduite et signalée ; « Enregistrer et scanner un autre ».
-// axe WCAG 2.2 AA. Lancer : voir e2e/README.md
+// V3.14–V3.16, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : dates limites lues et utiles. Curry de poulet prévu samedi ;
+// Courses : bouton « 📷 Scanner une date limite » en haut ; poulet coché → rappel « acheté, scannez la date » (« 📷 Scanner » avec le
+// nom repris, « Plus tard ») ; feuille : zone de scan en premier avec les étapes iPhone, le poulet de la liste en un toucher, la date
+// « scannée » (le texte que l'iPhone insère avec « Scanner le texte » est simulé en le tapant dans le champ), lue DLC mer. 7 oct. ;
+// Aujourd'hui propose d'avancer le curry avant la DLC, un toucher ; depuis l'en-tête d'Aujourd'hui (« 📷 Scanner une date ») : texte
+// sans date, rien deviné ; année absente : déduite et signalée ; « Enregistrer et scanner un autre ». axe WCAG 2.2 AA.
+// Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
@@ -61,8 +63,29 @@ await step('foyer neuf ; Curry de poulet prévu samedi soir', async () => {
   await dlg.getByRole('button', { name: /Curry de poulet/ }).first().click();
   await page.keyboard.press('Escape');
 });
-await step('scanner une date : le poulet de la liste en un toucher, date lue (DLC mer. 7 oct.), suggestion annoncée', async () => {
+await step('Courses : bouton en haut ; poulet coché → rappel « 📷 Scanner » (nom repris) ; « Plus tard » ; zone de scan en premier', async () => {
   await tab('Courses');
+  const top = page.getByRole('button', { name: '📷 Scanner une date limite' });
+  const y = await top.evaluate(el => el.getBoundingClientRect().top);
+  if (y > 844 * 0.5) throw new Error(`bouton trop bas : ${Math.round(y)} px`);
+  await page.getByRole('checkbox', { name: 'Poulet : pris' }).click();                     // poulet acheté
+  const banner = page.locator('.banner', { hasText: 'Poulet : acheté' });
+  await banner.waitFor();
+  await axe('dates-rappel');
+  await banner.getByRole('button', { name: '📷 Scanner' }).click();
+  await dlg.getByRole('heading', { name: /Scanner une date limite/ }).waitFor();
+  if (await dlg.getByLabel('Produit', { exact: true }).inputValue() !== 'Poulet') throw new Error('nom non repris depuis le rappel');
+  const order = await dlg.locator('input[name=printed], input[name=name]').evaluateAll(els => els.map(e => e.getAttribute('name')));
+  if (order[0] !== 'printed') throw new Error('zone de scan pas en premier : ' + order.join(', '));
+  await dlg.getByText('Touchez la zone ci-dessus.').waitFor();                              // étapes iPhone visibles
+  await dlg.locator('#w-how', { hasText: '« Scanner le texte »' }).waitFor();
+  await page.screenshot({ path: `${SHOTS}/dates-zone.png` });
+  await axe('dates-zone');
+  await page.keyboard.press('Escape');                                                       // fermé sans enregistrer : le rappel reste
+  await banner.getByRole('button', { name: 'Plus tard' }).click();
+  if (await page.locator('.banner', { hasText: 'Poulet : acheté' }).count()) throw new Error('rappel encore affiché après « Plus tard »');
+});
+await step('scanner une date : le poulet de la liste en un toucher, date lue (DLC mer. 7 oct.), suggestion annoncée', async () => {
   await page.getByRole('button', { name: '📷 Scanner une date limite' }).click();
   await dlg.getByRole('heading', { name: /Scanner une date limite/ }).waitFor();
   await dlg.getByRole('button', { name: 'Poulet', exact: true }).click();                  // produit frais de la liste
@@ -71,6 +94,7 @@ await step('scanner une date : le poulet de la liste en un toucher, date lue (DL
   await dlg.getByText('Lu : DLC mer. 7 oct. 2026').waitFor();
   await page.keyboard.press('Tab');                                                          // le formulaire se met à jour
   await dlg.locator('summary', { hasText: 'Vérifier ou corriger' }).waitFor();
+  if (await dlg.getByText('Touchez la zone ci-dessus.').count()) throw new Error('étapes encore affichées après une lecture réussie');
   await page.screenshot({ path: `${SHOTS}/dates-scan.png`, fullPage: true });
   await axe('dates-scan');
   await dlg.getByRole('button', { name: 'Enregistrer', exact: true }).click();
@@ -88,9 +112,9 @@ await step('Aujourd\'hui : « Avancer » le curry avant la DLC, un toucher ; la 
   const wed = await slotIn('mercredi 7 octobre', '2026-10-07|soir');
   if (!/Curry de poulet/.test(await wed.innerText())) throw new Error('curry non avancé au mercredi soir : ' + await wed.innerText());
 });
-await step('texte sans date : rien deviné ; année absente : déduite et signalée ; enregistrer et scanner un autre', async () => {
-  await tab('Courses');
-  await page.getByRole('button', { name: '📷 Scanner une date limite' }).click();
+await step('en-tête d\'Aujourd\'hui ; texte sans date : rien deviné ; année absente : déduite et signalée ; enregistrer et scanner un autre', async () => {
+  await tab('Aujourd\'hui');
+  await page.locator('.top').getByRole('button', { name: '📷 Scanner une date' }).click();       // en-tête collant, sans défiler
   if (await dlg.getByRole('button', { name: 'Poulet', exact: true }).count()) throw new Error('poulet déjà surveillé encore proposé');
   await dlg.getByLabel('Produit', { exact: true }).fill('Crème fraîche');
   await dlg.getByLabel('Date imprimée').fill('Lot 12345');

@@ -24,7 +24,7 @@ import { budgetCard, reportView } from './sheets/budget.js';
 import { weekBalance, TARGET, SOURCES } from '../core/balance.js';
 import { VARIETIES } from '../core/model.js';
 import { RELAY, VERSION } from './config.js';
-import { openLine } from './sheets/shop.js';
+import { openLine, boughtFresh } from './sheets/shop.js';
 import { cartChangesCard, shopWeekFor, restockLines, restockView } from './sheets/drive.js';
 import { reglerSection, decisionsSummary } from './sheets/decisions.js';
 import { exclusionsSummary } from './sheets/allergies.js';
@@ -134,7 +134,7 @@ export function todayView() {
     const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
     const who = s.members.find(m => m.id === A.device.me)?.name;
     const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
-    return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button></div>
+    return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button><button class="btn small-btn ghost" data-a="watchNew">📷 Scanner une date</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}${shortcutsHtml()}
     <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide || !on('batch') ? '' : ritualPromo()}</div></div></main>`;
 }
@@ -270,6 +270,11 @@ export function shopView() {
     const doneCount = done.length + mDone.length + rDone.length, toBuy = todo.length + mTodo.length + toJudge.length + rTodo.length;
     const restockPromo = !Object.keys(s.restock).length && !A.ui.store && A.device.restockHint && week === shopWeekFor(s, c.date, thisWeek())
         ? `<div class="banner info"><p class="grow"><strong>Café, sucre, dentifrice, papier toilette…</strong> Foyer peut les remettre dans la liste quand ils devraient manquer, sans rien noter chaque semaine.</p><button class="btn small-btn" data-a="restockList">Choisir</button><button class="btn small-btn quiet" data-a="restockHintOff">Pas maintenant</button></div>` : '';
+    // Produits frais cochés et pas encore surveillés : le moment de scanner leur date (écartable pour la semaine).
+    const fresh = A.ui.store ? [] : boughtFresh(week);
+    const scanTop = A.ui.store ? '' : fresh.length && A.device.scanOff !== week
+        ? `<div class="banner info"><p class="grow"><strong>${esc(fresh.slice(0, 3).join(', '))}${fresh.length > 3 ? '…' : ''}</strong> : ${fresh.length > 1 ? 'achetés' : 'acheté'}. Scannez la date limite : Foyer vous dira quand l'utiliser.</p><button class="btn small-btn" data-a="watchNew" data-name="${esc(fresh[0] ?? '')}">📷 Scanner</button><button class="btn small-btn quiet" data-a="scanHintOff" data-week="${week}">Plus tard</button></div>`
+        : '<button class="btn ghost block" data-a="watchNew">📷 Scanner une date limite</button>';
     const known = [...new Set([...Object.values(s.staples).map(x => x.name), ...Object.values(s.shop).flatMap(w => Object.values(w.items).map(x => x.name)),
             ...Object.values(s.recipes).flatMap(r => current(r).ingredients.map(l => l.name))])].sort((x, y) => x.localeCompare(y, 'fr')).slice(0, 300);
     return `<div class="top"><h1>Courses</h1><button class="btn small-btn ${A.ui.store ? '' : 'ghost'}" data-a="storeMode" aria-pressed="${A.ui.store}">Mode magasin</button><button class="btn small-btn ghost" data-a="shareList" data-week="${week}">Partager</button></div>
@@ -280,6 +285,7 @@ export function shopView() {
     ${toBuy && !A.ui.store ? (s.shop[week]?.spent
         ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
         : `<button class="btn block" data-a="drive" data-week="${week}">🛒 Commander au drive · ${plural(toBuy, 'article', 'articles')}</button>`) : ''}
+    ${scanTop}
     <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
@@ -288,7 +294,7 @@ export function shopView() {
     ${toJudge.length ? `<details class="card"><summary>Quantité non indiquée par la recette (${toJudge.length})</summary><p class="small muted">Souvent au placard (sel, huile, épices) : à juger.</p><ul class="list">${toJudge.map(row).join('')}</ul></details>` : ''}
     ${doneCount && !A.ui.store ? `<details class="card" ${A.ui.showDone ? 'open' : ''}><summary data-a="toggleDone">Déjà traités (${doneCount})</summary><ul class="list">${done.map(row).join('')}${mDone.map(manualRow).join('')}${rDone.map(restockRow).join('')}</ul></details>` : ''}
     ${restockPromo}
-    ${A.ui.store ? '' : `<div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button>${on('factures') ? '<button class="btn ghost" data-a="invoice">🧾 Lire la facture du drive</button>' : ''}<button class="btn ghost" data-a="watchNew">📷 Scanner une date limite</button></div>`}
+    ${A.ui.store ? '' : `<div class="actions"><button class="btn ghost" data-a="restockList">🔁 Produits du quotidien</button>${on('factures') ? '<button class="btn ghost" data-a="invoice">🧾 Lire la facture du drive</button>' : ''}</div>`}
     ${A.ui.store || !on('budget') ? '' : budgetCard(week, list, restockView(week, list))}</main>`;
 }
 // Après le drive : un geste coche tout ce qui reste (chaque ligne garde son besoin du moment, comme une coche à la main).
@@ -302,6 +308,7 @@ CLICK['allBought'] = d => {
     dispatch(drafts, { toast: `${plural(drafts.length, 'article coché', 'articles cochés')} : tout est acheté` });
 };
 CLICK['restockHintOff'] = () => { setDevice({ restockHint: false }); A.render(); };
+CLICK['scanHintOff'] = d => { setDevice({ scanOff: d['week'] ?? '' }); A.render(); };
 CLICK['shopWk'] = d => { A.ui.shopWeek = addDays(d['w'] ?? thisWeek(), Number(d['d'])); A.render(); };
 CLICK['toggleDone'] = () => { A.ui.showDone = !A.ui.showDone; A.render(); };
 CLICK['storeMode'] = async () => {
@@ -354,7 +361,7 @@ function portionsView() {
 function watchListView() {
     const c = clock();
     const list = activeWatch(S().watch, c.date);
-    return `<section class="card stack"><div class="row"><h2 class="grow">Produits à surveiller</h2><button class="btn small-btn" data-a="watchNew">Ajouter</button></div>
+    return `<section class="card stack"><div class="row"><h2 class="grow">Produits à surveiller</h2><button class="btn small-btn" data-a="watchNew">📷 Scanner une date</button></div>
     ${list.length ? `<ul class="list">${list.map(v => `<li><button class="item-btn" data-a="watch" data-id="${v.item.id}"><span class="grow"><span class="title">${esc(v.item.name)}${v.item.qty ? ` · ${esc(v.item.qty)}` : ''}</span><br>
       <span class="sub">${esc(v.headline)}${v.item.slot ? ` · prévu ${esc(fmtSlot(v.item.slot, c.date))}` : ''}</span></span>${v.checks[0] ? `<span class="chip ${v.checks[0].level}">${v.checks[0].level === 'conflit' ? 'À résoudre' : v.checks[0].level === 'attention' ? 'Bientôt' : v.checks[0].level === 'manque' ? 'À compléter' : 'Info'}</span>` : ''}</button></li>`).join('')}</ul>`
         : '<p class="empty"><strong>Aucun produit suivi</strong>Ajoutez seulement ceux qui comptent (viande, poisson, crème…). Pas d\'inventaire du frigo.</p>'}

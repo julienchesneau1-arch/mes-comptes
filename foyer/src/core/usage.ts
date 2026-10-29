@@ -54,7 +54,7 @@ export const FEATURES: readonly Feature[] = [
   { key: 'a:pasteRecipe', icon: '📋', label: 'Coller une recette', where: 'Maison › Nos plats' },
   { key: 'a:discover', icon: '📚', label: 'Recettes prêtes', where: 'Maison › Nos plats, et « Choisir un plat »' },
   { key: 'a:copyWeek', icon: '📑', label: 'Reprendre une semaine', where: 'Semaine' },
-  { key: 'a:watchNew', icon: '⏰', label: 'Surveiller une date', where: 'Maison › À surveiller' },
+  { key: 'a:watchNew', icon: '📷', label: 'Scanner une date limite', where: 'Aujourd\'hui, Courses, Maison › À surveiller' },
   { key: 'a:agendaOpen', icon: '📅', label: 'Ce que l\'agenda change', where: 'Aujourd\'hui, quand l\'agenda change un repas' },
 ];
 export const featureOf = (key: string): Feature | undefined => FEATURES.find(f => f.key === key);
