@@ -17,6 +17,7 @@ import { fmtCode } from '../core/sync.js';
 import { CLICK, INPUT, CHANGE } from './registry.js';
 import { pushOn } from './push.js';
 import { toDecide } from './agenda.js';
+import { coverageCard } from './cover.js';
 import { agendaSection } from './sheets/agenda.js';
 import { guideCard } from './sheets/help.js';
 import { ritualCard, ritualPromo, weekBatchButton, ritualSection } from './sheets/batch.js';
@@ -180,7 +181,7 @@ export function weekView() {
       <div class="stack">${slotButton(slotKey(sel, 'midi'), 'Midi')}${slotButton(slotKey(sel, 'soir'), 'Soir')}</div>`;
     }
     return `<div class="top"><h1>Semaine</h1>${wide ? '' : `<button class="btn small-btn ghost" data-a="weekList" aria-pressed="${A.ui.weekList}">${A.ui.weekList ? 'Vue jour' : 'Toute la semaine'}</button>`}</div>
-  <main id="main" tabindex="-1">${head}${body}${balanceCard(week)}</main>`;
+  <main id="main" tabindex="-1">${head}${coverageCard(week)}${body}${balanceCard(week)}</main>`;
 }
 // Repères de la semaine (Santé publique France) : seulement quand des repas sont prévus. Toujours un texte, jamais la couleur seule.
 function balanceCard(week) {

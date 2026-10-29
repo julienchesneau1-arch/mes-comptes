@@ -13,6 +13,7 @@ import { openSheet, sheetHead, closeSheet, esc, toast, refreshSheet } from '../d
 import { CLICK, INPUT } from '../registry.js';
 import { loadCatalog, photoImg, photoHero } from '../catalog.js';
 import { showParsed, allergenHtml } from './recipe.js';
+import { coverNote } from '../cover.js';
 const LABEL = { 'tout': 'Tout', 'rapide': 'Rapide', 'volaille': 'Volaille', 'viande': 'Viande', 'poisson': 'Poisson', 'végétarien': 'Végétarien', 'soupe': 'Soupe', 'pâtes': 'Pâtes' };
 let q = '', f = 'tout', shown = 30;
 const meta = (r) => [r.yield ? `pour ${r.yield}` : 'nombre de personnes à préciser', r.minutes !== null ? `${r.minutes} min` : '', ...r.tags.filter(t => t !== 'rapide')].filter(Boolean).join(' · ');
@@ -97,7 +98,7 @@ CLICK['pickCatalog'] = async (d) => {
     }
     const fresh = !ownedFor(S(), r);
     closeSheet();
-    dispatch(planCatalog(S(), k, r, r.yield ? null : y), { toast: `${r.title} prévu ${fmtSlot(k, clock().date)}${fresh ? ' · ajouté à vos plats' : ''}` });
+    dispatch(planCatalog(S(), k, r, r.yield ? null : y), { toast: () => `${r.title} prévu ${fmtSlot(k, clock().date)}${fresh ? ' · ajouté à vos plats' : ''}${coverNote(k)}` });
 };
 CLICK['catalogAdd'] = async (d) => {
     const r = (await loadCatalog())?.recipes.find(x => x.id === d['id']);

@@ -400,4 +400,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Imposer ce qui est décidé, proposer le reste | Un événement d'agenda déjà décidé (« pareil les prochaines fois ») déplace seul, en le disant ; sinon la carte de l'agenda propose |
 | DDM indicative | La DDM oriente les menus, elle ne bloque jamais un déplacement |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.17 incluses).
+## 34. V3.18 — assez, pas trop (29 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Compter qui mange | Le besoin de la semaine, ce sont les repas où quelqu'un mange : présences, agenda appliqué, invités ; un repas où personne ne mange ne manque jamais |
+| Dire les deux sens | « Pas assez de plats » (repas sans plat) et « trop de plats » (portions en plus, restes, plat sans personne) sont dits au même endroit, en haut de Semaine, et après chaque plat posé |
+| Réparer sans cuisiner | Le premier geste proposé reprend ce qui est déjà en trop là où il manque un plat ; compléter vient ensuite |
+| Rien de deviné | Un changement d'agenda pas encore décidé n'est pas compté ; il est signalé |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.18 incluses).

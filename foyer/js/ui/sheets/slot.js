@@ -19,6 +19,7 @@ import { A, S, clock, dispatch, undo } from '../state.js';
 import { openSheet, sheetHead, closeSheet, esc } from '../dom.js';
 import { CLICK, CHANGE, INPUT, SUBMIT, num } from '../registry.js';
 import { openPreview } from './preview.js';
+import { coverNote } from '../cover.js';
 const title = (k) => { const p = parseSlot(k); return p ? `${capital(fmtDay(p.date))} · ${p.slot}` : k; };
 /* ---------- Feuille du créneau ---------- */
 export function openSlot(k) { openSheet({ id: `slot:${k}`, render: () => slotHtml(k) }); }
@@ -153,7 +154,7 @@ const pickDish = (fresh) => (d) => {
     const k = d['k'] ?? '', id = d['id'] ?? '', s = S();
     const name = s.recipes[id] ? current(s.recipes[id]).name : '', re = fresh ? null : reusable(s, k, id);
     afterPick(k);
-    dispatch(setDish(s, k, id, fresh), { toast: `${name} prévu ${fmtSlot(k, clock().date)}${re ? ` : ${reuseText(re, servings(s, k), clock().date)}` : ''}` });
+    dispatch(setDish(s, k, id, fresh), { toast: () => `${name} prévu ${fmtSlot(k, clock().date)}${re ? ` : ${reuseText(re, servings(s, k), clock().date)}` : ''}${coverNote(k)}` });
 };
 CLICK['pickRecipe'] = pickDish(false);
 CLICK['pickFresh'] = pickDish(true);
@@ -171,7 +172,7 @@ function reuseText(p, n, today) {
 CLICK['pickLeft'] = d => {
     const k = d['k'] ?? '';
     afterPick(k);
-    dispatch(setLeftovers(S(), k, d['id'] ?? ''), { toast: `Restes prévus ${fmtSlot(k, clock().date)}` });
+    dispatch(setLeftovers(S(), k, d['id'] ?? ''), { toast: () => `Restes prévus ${fmtSlot(k, clock().date)}${coverNote(k)}` });
 };
 CLICK['pickNew'] = d => {
     const k = d['k'] ?? '', name = pickQ.trim().slice(0, 80);
