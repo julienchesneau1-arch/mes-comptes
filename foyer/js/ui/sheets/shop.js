@@ -52,7 +52,7 @@ function lineHtml(week, key) {
   ${l.check ? `<p class="small">Coché « pris » par ${esc(memberName(l.check.by))} (${esc(when(l.check.at))})${l.check.delta ? ` · il faut ${esc(showQty(l.check.delta, l.dim ?? 'piece'))} de plus depuis` : ''}${l.check.newUnknown ? ' · un plat sans quantité s\'est ajouté depuis' : ''}.</p>` : ''}
   ${productSection(ingredientKey(l.name, l.form), l.name, S().products[ingredientKey(l.name, l.form)] ?? null)}
   <label class="field">Rayon<select data-c="aisleSet" data-name="${esc(l.name)}">${AISLES.map(a => `<option value="${a.id}" ${a.id === l.aisle ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></label>
-  <button class="btn ghost" data-a="watchNew" data-name="${esc(l.name)}">Surveiller une date pour ce produit</button>`;
+  <button class="btn ghost" data-a="watchNew" data-name="${esc(l.name)}">📷 Scanner sa date limite</button>`;
 }
 SUBMIT['pantryQty'] = (data, form) => {
     const week = form.dataset['week'] ?? '', key = form.dataset['key'] ?? '';
@@ -187,6 +187,18 @@ function freshNames() {
         }
     return out.slice(0, 8);
 }
+// Produits frais cochés (achetés) cette semaine de courses et pas encore surveillés : le moment de scanner leur date.
+export function boughtFresh(week) {
+    const s = S(), watched = new Set(Object.values(s.watch).filter(w => !w.closed).map(w => nameKey(w.name))), out = [];
+    const list = deriveShopping(s, week);
+    const names = [...list.lines.filter(l => l.done && PERISH.has(l.aisle)).map(l => l.name), ...list.manual.filter(m => m.checked && PERISH.has(m.aisle)).map(m => m.name)];
+    for (const n of names)
+        if (!watched.has(nameKey(n)) && !out.some(o => nameKey(o) === nameKey(n)))
+            out.push(n);
+    return out;
+}
+// Icône « Scanner le texte » de l'iPhone (cadre de visée et lignes de texte), pour la reconnaître dans le menu.
+const SCAN_ICON = '<svg class="scan-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M7 9h10M7 12h10M7 15h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 // Ce qui a été lu dans le champ, dit en clair (ou pourquoi rien ne l'a été).
 function readText(d) {
     if (!d.printed.trim())
@@ -234,11 +246,17 @@ function watchHtml() {
     return `${sheetHead(d.id ? `Surveiller ${esc(d.name)}` : '📷 Scanner une date limite', 'Foyer vous dit quand l\'utiliser, et quel plat avancer si besoin.')}
   ${view?.checks.length ? `<ul class="impacts">${view.checks.map(x => `<li class="${x.level === 'manque' ? 'attention' : x.level}">${esc(x.text)}</li>`).join('')}</ul>` : ''}
   <form data-f="watchSave" class="stack">
+    ${d.id ? '' : `<section class="scan-zone stack" aria-labelledby="w-scan-h"><h3 id="w-scan-h" class="section-title">📷 Scanner la date</h3>`}
+    <label class="field">Date imprimée<input class="scan-field" type="text" name="printed" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(d.printed)}" data-i="wPrinted" data-c="wPrintedDone" placeholder="📷 Touchez ici pour scanner" aria-describedby="w-read w-how"></label>
+    <p id="w-read" class="small ${ok ? '' : 'muted'}" aria-live="polite">${esc(read)}</p>
+    <div id="w-how" class="small">${ok ? '' : `<p><strong>Sur iPhone</strong> :</p><ol class="steps">
+      <li>Touchez la zone ci-dessus.</li>
+      <li>Touchez-la une 2<sup>e</sup> fois : dans le petit menu, choisissez <strong>« Scanner le texte »</strong> ${SCAN_ICON} (pas visible ? ouvrez la flèche › du menu).</li>
+      <li>Visez la date sur l'emballage (« à consommer jusqu'au… »), puis validez.</li></ol>
+      <p class="muted">Sinon, tapez la date telle qu'imprimée (ex. 28/10/2026).</p>`}</div>
+    ${d.id ? '' : '</section>'}
     <label class="field">Produit<input type="text" name="name" required maxlength="80" value="${esc(d.name)}" data-i="wName" placeholder="Poulet, crème fraîche…"></label>
     ${names.length ? `<div class="chips" aria-label="Produits frais de vos courses">${names.map(n => `<button type="button" class="tag" data-a="wName" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-    <label class="field">Date imprimée<input type="text" name="printed" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(d.printed)}" data-i="wPrinted" data-c="wPrintedDone" placeholder="Touchez, puis « Scanner le texte »" aria-describedby="w-read w-how"></label>
-    <p id="w-read" class="small ${ok ? '' : 'muted'}" aria-live="polite">${esc(read)}</p>
-    <p id="w-how" class="small muted">Sur iPhone : touchez le champ, puis « Scanner le texte » et visez la date sur l'emballage (« à consommer jusqu'au… »). Ou tapez-la.</p>
     <details class="card" ${!ok && d.kind !== 'none' ? 'open' : ''}><summary>${ok ? 'Vérifier ou corriger' : 'Saisir la date à la main'}</summary>
     <fieldset><legend>Type de date</legend><div class="seg" role="radiogroup" aria-label="Type de date">
       ${['DLC', 'DDM', 'inconnu', 'none'].map(k => `<label><input type="radio" name="kind" value="${k}" data-c="wKind" ${d.kind === k ? 'checked' : ''}>${k === 'DLC' ? 'DLC' : k === 'DDM' ? 'DDM' : k === 'inconnu' ? 'Je ne sais pas' : 'Pas de date'}</label>`).join('')}</div>

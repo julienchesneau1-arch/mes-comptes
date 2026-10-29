@@ -65,6 +65,7 @@ export function loadDevice(newId) {
         mods: readChoices(d.mods),
         coince: d.coince !== false,
         restockHint: d.restockHint !== false,
+        scanOff: typeof d.scanOff === 'string' ? d.scanOff : '',
     };
     saveDevice(dev);
     return dev;

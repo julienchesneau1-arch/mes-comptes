@@ -40,7 +40,8 @@ const recipeOk = (id: string): boolean => !!S().recipes[id] && !S().recipes[id]?
 // Raccourcis d'Aujourd'hui : rien tant que rien n'est épinglé ni servi au moins 3 fois (aucune suggestion inventée).
 export function shortcutsHtml(): string {
   if (A.demo) return '';
-  const list = shortcuts(load(), clock().date, A.device.pins, recipeOk);
+  // « Scanner une date » a son bouton fixe en haut d'Aujourd'hui : pas de raccourci en double.
+  const list = shortcuts(load(), clock().date, A.device.pins, recipeOk).filter(x => x.key !== 'a:watchNew');
   if (!list.length) return '';
   const btn = (key: string): string => {
     if (key.startsWith('r:')) return `<button class="shortcut" data-a="recipe" data-id="${esc(key.slice(2))}">${esc(labelOf(key) ?? '')}</button>`;

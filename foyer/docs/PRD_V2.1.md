@@ -382,4 +382,13 @@ Sources : `docs/spec-file-exceptions.md` et `docs/spec-semaine-generee.md` (spec
 | Le gratuit ne compte pas | Eau du robinet, sel, poivre, épices : ni dans le montant, ni « sans prix » |
 | Mesurer | La couverture se mesure sans réseau (`scripts/couverture.mjs`) avant et après chaque changement de source |
 
-Fin du PRD V2.1 (révisions V2.2 à V3.15 incluses).
+## 32. V3.16 — le geste qu'on cherche est sous les yeux (29 octobre 2026)
+
+| Règle | Contenu |
+|---|---|
+| Visible sans chercher | Une action qui sert en rentrant des courses est en haut de l'écran d'accueil et des courses, pas en bas de page |
+| Au bon moment | Un produit frais coché propose de scanner sa date, une fois, écartable |
+| Le premier geste d'abord | Une feuille commence par ce que son titre promet (scanner), puis le reste |
+| Dire comment | Quand le geste dépend du téléphone (« Scanner le texte » de l'iPhone), les étapes sont écrites à côté, et disparaissent une fois le geste réussi |
+
+Fin du PRD V2.1 (révisions V2.2 à V3.16 incluses).

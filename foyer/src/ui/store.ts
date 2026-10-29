@@ -25,6 +25,7 @@ export interface Device {
   mods: ModChoices;          // fonctions avancées activées ou masquées sur ce téléphone (mode essentiel : rien de choisi)
   coince: boolean;           // bouton « Ça coince ? » en haut des écrans (l'essai fini, on peut le masquer)
   restockHint: boolean;      // proposition « Produits de la maison » dans les courses, tant qu'aucun n'est choisi
+  scanOff: string;           // semaine (lundi) où le rappel « scannez les dates des produits frais achetés » a été écarté
 }
 
 export function loadLog(): { log: AnyEv[]; dropped: number } {
@@ -68,6 +69,7 @@ export function loadDevice(newId: () => string): Device {
     mods: readChoices(d.mods),
     coince: d.coince !== false,
     restockHint: d.restockHint !== false,
+    scanOff: typeof d.scanOff === 'string' ? d.scanOff : '',
   };
   saveDevice(dev);
   return dev;

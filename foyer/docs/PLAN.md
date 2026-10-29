@@ -302,6 +302,21 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.16 (bouton de scan visible — retour de Julien du 29 octobre 2026)
+
+« On ne trouve pas le bouton scanner pour la DLC : il faut qu'il soit plus visible et accessible. » Avant : un seul bouton, après la
+liste et les autres actions, en bas de Courses (et « Ajouter » dans Maison › À surveiller) ; dans la feuille, le champ venait après
+le produit, et « Scanner le texte » de l'iPhone, caché dans le menu du champ, n'était décrit qu'en une phrase.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Bouton dans l'en-tête d'Aujourd'hui | **livré** | « 📷 Scanner une date » dans l'en-tête collant, à côté de « Ça coince ? » : à 0,08 écran, toujours visible en défilant. Pas de raccourci en double |
+| Bouton en haut de Courses | **livré** | « 📷 Scanner une date limite » sous le bouton du drive, avant la liste (0,29 écran dans le scénario `dates.mjs` ; contrôlé sous la moitié de l'écran) ; retiré du bas de page |
+| Rappel au bon moment | **livré** | Produit frais (boucherie, frais, crèmerie) coché et pas encore surveillé → « Poulet : acheté. Scannez la date limite » avec « 📷 Scanner » (nom repris) et « Plus tard » (écarté pour la semaine, sur ce téléphone) |
+| Zone de scan en premier | **livré** | La feuille commence par la zone « 📷 Scanner la date » (champ agrandi, pointillés, « 📷 Touchez ici pour scanner »), puis le produit ; étapes iPhone numérotées avec l'icône « Scanner le texte », masquées dès qu'une date est lue ; Maison › À surveiller : « 📷 Scanner une date » |
+| Accessibilité | **livré** | Libellés visibles = noms accessibles, cibles de 44 px au moins, étapes reliées au champ (`aria-describedby`), icône décorative masquée ; axe WCAG 2.2 AA sur le rappel, la zone de scan, la feuille et la carte (E2E `dates.mjs`) |
+| Ouvrir l'appareil photo de l'iPhone en un toucher | **non fait** | Aucune interface web ne déclenche « Scanner le texte » : il faut toucher le champ puis le menu. Chemin exact du menu selon la version d'iOS non vérifié sur iPhone : `[DONNÉE_MANQUANTE]` |
+
 ### V3.15 (couverture des prix sans rien aspirer — choix de Julien du 26 octobre 2026)
 
 « N'avoir que 17 € de certifié sur 90 € ne mène pas à grand-chose » (chiffres du scénario de test fictif). Aspirer les prix
@@ -562,6 +577,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-29 | V3.16 | Bouton de scan des dates limites visible : en-tête d'Aujourd'hui, haut de Courses, rappel après l'achat d'un produit frais ; zone de scan en premier dans la feuille, étapes iPhone affichées | livré | « Scanner le texte » reste à deux touchers dans le menu d'iOS (pas d'interface web pour l'ouvrir) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.15 | Couverture des prix sans rien aspirer : nom d'achat des ingrédients, eau du robinet non comptée, 21 groupes Open Prices de plus, contenances du quotidien, part payée dite en euros, ticket de caisse scanné ; mesuré sans facture : recettes 29 → 36 % des lignes chiffrées, quotidien 15 → 35 % | livré | 64 % des lignes de recettes et 65 % des produits du quotidien restent sans prix avant la première facture (ail, herbes, bouillons, poulet, vin, hygiène, entretien) ; tickets non vérifiés sur iPhone ni sur de vrais tickets |
 | 2026-10-26 | V3.14 | Dates limites lues (texte scanné par l'iPhone ou tapé : DLC, DDM, précision, année déduite) et utiles : avancer d'un toucher le plat prévu après la DLC, ou prévoir un plat qui l'utilise | livré | « Scanner le texte » non vérifié sur iPhone ; rapprochement par mots (« lait » pourrait désigner « lait de coco ») |
 | 2026-10-26 | V3.13 | Lisibilité mesurée : Courses avec la liste d'abord (premier rayon à 0,61 écran au lieu de 0,84), feuille du quotidien allégée (1 103 → 182 mots), dernier élément jamais caché par un message ; benchmark mis à jour (4,3 → 4,5, notes de l'auteur) | livré | Mesure en navigateur, pas sur iPhone ; aucune mesure équivalente des concurrents |
