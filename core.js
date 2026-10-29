@@ -39,6 +39,36 @@ const inAcc = (acc, id) => acc === 'all' || (Array.isArray(acc) ? acc.includes(i
 // Virement vers un compte hors de la vue (ex. de l'un vers l'autre) : vu d'un seul profil,
 // c'est une vraie sortie ou une vraie entrée, pas un simple déplacement.
 CAT.couple = { id: 'couple', name: 'Versé à l\'autre', emoji: '💞', color: '#db2777', kind: 'var' };
+// Les pôles : les familles regroupées en 7 grands postes, pour voir d'un coup d'œil où part l'argent (le camembert de l'accueil).
+// Ordre fixe : la place et la couleur suivent le pôle, jamais son rang du mois. Une famille non listée tombe dans « Autres ».
+const POLES = [
+  { id: 'logement', name: 'Logement & charges', emoji: '🏠', cats: ['logement', 'credit', 'assurances', 'abos', 'impots'] },
+  { id: 'manger', name: 'Courses & restos', emoji: '🛒', cats: ['courses', 'fastfood', 'restos'] },
+  { id: 'bouger', name: 'Transports', emoji: '🚗', cats: ['voiture', 'transport'] },
+  { id: 'sortir', name: 'Loisirs & vacances', emoji: '🎉', cats: ['loisirs', 'sport', 'vacances', 'cadeaux'] },
+  { id: 'achats', name: 'Shopping & maison', emoji: '🛍️', cats: ['shopping', 'maison'] },
+  { id: 'soin', name: 'Santé & famille', emoji: '🩺', cats: ['sante', 'enfants', 'animaux'] },
+  { id: 'autres', name: 'Autres', emoji: '❔', cats: ['autres', 'tabac', 'couple'] },
+];
+const poleOf = c => POLES.find(p => p.cats.includes(c)) || POLES[POLES.length - 1];
+// Dépenses par pôle (by = monthStats().by), dans l'ordre des pôles : total v et familles [[cat, montant]], de la plus grosse à la plus petite.
+// Une famille plus remboursée que dépensée (négative) ne retire rien aux autres : le camembert ne montre que ce qui est parti.
+function poleSplit(by) {
+  const P = POLES.map(p => ({ id: p.id, name: p.name, emoji: p.emoji, v: 0, fam: [] }));
+  for (const [c, v] of Object.entries(by || {})) if (v > 0.5) { const p = P[POLES.indexOf(poleOf(c))]; p.fam.push([c, v]); p.v += v; }
+  for (const p of P) p.fam.sort((a, b) => b[1] - a[1]);
+  return P;
+}
+// Écart à l'habitude par pôle, sur les seules dépenses variables (une charge fixe change de date, pas de montant) : { pôle: { d, usual } }.
+function poleDelta(now, usual) {
+  const out = {};
+  for (const c of new Set([...Object.keys(now || {}), ...Object.keys(usual || {})])) {
+    if (cat(c).kind !== 'var') continue;
+    const o = out[poleOf(c).id] ||= { d: 0, usual: 0 };
+    o.d += Math.max(0, (now || {})[c] || 0) - ((usual || {})[c] || 0); o.usual += (usual || {})[c] || 0;
+  }
+  return out;
+}
 
 // La correspondance la plus longue gagne (« UBER EATS » > « UBER », « ASSURANCE VIE » > « ASSURANCE »).
 // Enseignes françaises courantes + indices génériques (PHCIE, BOUL, STATIONNEMT…). Testé sur de vrais relevés Banque Populaire.
@@ -1465,6 +1495,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  CATS, cat, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  CATS, cat, POLES, poleOf, poleSplit, poleDelta, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

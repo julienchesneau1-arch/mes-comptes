@@ -818,3 +818,25 @@ console.log('OK — fichier de rappels publié');
   assert.deepStrictEqual(C.sanitizeState({ ...X, shared: { c1: 'due', c2: 'n\'importe quoi' } }).shared, { c1: 'due' });
   console.log('OK — file d\'exceptions : prévus échus, dépenses communes payées en perso');
 }
+
+{ // Pôles du camembert : chaque famille de dépense dans un seul pôle, ordre fixe, seulement ce qui est parti.
+  const spend = C.CATS.filter(c => c.kind === 'var' || c.kind === 'fixe').map(c => c.id).concat('couple');
+  for (const id of spend) assert.strictEqual(C.POLES.filter(p => p.cats.includes(id)).length, 1, id);
+  assert.strictEqual(C.poleOf('inconnue').id, 'autres');                                   // famille ajoutée plus tard : jamais perdue
+  const P = C.poleSplit({ logement: 800, credit: 300, courses: 320, restos: 60, shopping: -25, voiture: 0.2, nouvelle: 15 });
+  assert.deepStrictEqual(P.map(p => p.id), ['logement', 'manger', 'bouger', 'sortir', 'achats', 'soin', 'autres']); // couleur et place suivent le pôle
+  assert.strictEqual(P[0].v, 1100);
+  assert.deepStrictEqual(P[1].fam, [['courses', 320], ['restos', 60]]);
+  assert.strictEqual(P[4].v, 0);                                                           // plus remboursé que dépensé : rien, pas un négatif
+  assert.strictEqual(P[2].v, 0);                                                           // centimes ignorés
+  assert.deepStrictEqual(P[6].fam, [['nouvelle', 15]]);
+  const D = C.poleDelta({ courses: 400, restos: 20, logement: 900 }, { courses: 300, restos: 50, logement: 800, loisirs: 40 });
+  assert.deepStrictEqual(D.manger, { d: 70, usual: 350 });
+  assert.strictEqual(D.logement, undefined);                                               // charges fixes : pas comparées
+  assert.deepStrictEqual(D.sortir, { d: -40, usual: 40 });                                 // rien en loisirs ce mois-ci
+  // Sur l'exemple : la somme des parts = les dépenses du mois.
+  const X = C.demoState('2026-10-28'), by = C.monthStats(X, '2026-09').by;
+  const parts = C.poleSplit(by).reduce((a, p) => a + p.v, 0), pos = Object.values(by).filter(v => v > 0.5).reduce((a, v) => a + v, 0);
+  assert.ok(parts > 0 && Math.abs(parts - pos) < 0.01);
+  console.log('OK — pôles de dépenses (camembert)');
+}

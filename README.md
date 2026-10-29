@@ -9,6 +9,7 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Livrets** : autant que voulu (case « épargne »), soldes lus dans les relevés PDF/OFX ou saisis à la main.
 - **Synchro téléphone ↔ ordinateur** : Réglages → Exporter / Importer une sauvegarde.
 - **Tableur de suivi** (export CSV d'un tableau « postes × mois ») : importé comme historique, remplacé mois par mois par les vrais relevés ; ses annotations X / NEGO / PEUT DIMINUER / PEUT SE PASSER deviennent les leviers du plan d'épargne.
+- **Où va l'argent** (accueil, juste sous le grand chiffre) : un grand camembert des dépenses du mois en 7 pôles (Logement & charges, Courses & restos, Transports, Loisirs & vacances, Shopping & maison, Santé & famille, Autres). Toucher une part ouvre ses familles, puis une famille ses opérations ; ▲▼ par rapport à d'habitude (dépenses variables). Couleurs fixes par pôle, sans rouge, vérifiées pour les daltoniens, emoji sur chaque part. Dans Tendances, les mêmes pôles mois par mois sur 12 mois.
 - **Plan d'épargne** : ce que chaque levier libère par mois (−15 % / ~20 % / 100 %), relié aux objectifs et aux défis.
 - **Contrôle des relevés** : ancien solde + opérations lues = nouveau solde, sinon un écart est signalé.
 - **À faire** (accueil), deux cas de plus, réglés d'un toucher :
