@@ -840,3 +840,15 @@ console.log('OK — fichier de rappels publié');
   assert.ok(parts > 0 && Math.abs(parts - pos) < 0.01);
   console.log('OK — pôles de dépenses (camembert)');
 }
+
+{ // Filtre des opérations par pôle : seulement ses dépenses ; une opération répartie compte pour ses seules parts.
+  assert.ok(C.inFilter('pole:manger', 'restos') && C.inFilter('pole:manger', 'courses') && !C.inFilter('pole:manger', 'voiture'));
+  assert.ok(!C.inFilter('pole:autres', 'revenus') && !C.inFilter('pole:autres', 'interne') && !C.inFilter('pole:autres', 'epargne')); // « Autres » ne ramasse pas les entrées
+  assert.ok(C.inFilter('pole:autres', 'tabac') && C.inFilter('', 'revenus') && C.inFilter('courses', 'courses') && !C.inFilter('courses', 'restos'));
+  const sp = { amount: -100, cat: 'courses', splits: [{ cat: 'courses', amount: -70 }, { cat: 'maison', amount: -30 }] };
+  assert.ok(C.opMatches(sp, 'maison') && C.opMatches(sp, 'pole:achats') && !C.opMatches(sp, 'pole:bouger'));
+  assert.strictEqual(C.filterAmount(sp, 'pole:achats'), -30);
+  assert.strictEqual(C.filterAmount(sp, ''), -100);
+  assert.strictEqual(C.filterAmount({ amount: -12, cat: 'restos' }, 'pole:manger'), -12);
+  console.log('OK — filtre des opérations par pôle');
+}

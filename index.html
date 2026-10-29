@@ -461,7 +461,7 @@ async function boot(data) {
     if (/^\d{4}-\d{2}$/.test(resume.month || '')) ui.month = resume.month;
     if (resume.acc && S.accounts[resume.acc]) ui.acc = resume.acc;
     if (typeof resume.q === 'string') ui.q = resume.q.slice(0, 80);
-    if (typeof resume.cat === 'string' && (!resume.cat || CAT[resume.cat])) ui.cat = resume.cat;
+    if (typeof resume.cat === 'string' && (!resume.cat || CAT[resume.cat] || POLES.some(p => 'pole:' + p.id === resume.cat))) ui.cat = resume.cat;
     ui.showInt = !!resume.showInt; ui.sort = !!resume.sort;
   }
   booted = true;
@@ -517,6 +517,10 @@ const CLOUD = { ios: { name: 'iCloud', how: '« Enregistrer dans Fichiers » →
 const SPEND = CATS.filter(c => c.kind === 'var' || c.kind === 'fixe');
 const QUICK = ['courses', 'fastfood', 'restos', 'shopping', 'loisirs', 'voiture'];
 const catOpts = sel => CATS.map(x => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${x.emoji} ${x.name}</option>`).join('');
+// Filtre des opérations : chaque pôle (en entier, ou une de ses familles), puis les entrées et mouvements.
+const filterOpts = sel => { const o = (v, t) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${t}</option>`;
+  return o('', 'Toutes les familles') + POLES.map(p => `<optgroup label="${p.emoji} ${esc(p.name)}">${o('pole:' + p.id, `${p.emoji} Tout « ${esc(p.name)} »`)}${p.cats.filter(c => CAT[c] && c !== 'couple').map(c => o(c, `${cat(c).emoji} ${cat(c).name}`)).join('')}</optgroup>`).join('')
+    + `<optgroup label="Entrées et mouvements">${CATS.filter(c => c.kind !== 'var' && c.kind !== 'fixe').map(c => o(c.id, `${c.emoji} ${c.name}`)).join('')}</optgroup>`; };
 const btnDl = async (file, title) => {
   if (navigator.canShare && navigator.canShare({ files: [file] })) return navigator.share({ files: [file], title });
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click(); URL.revokeObjectURL(a.href);
@@ -1107,7 +1111,7 @@ function whereLegend() {
   const mx = p.fam[0][1], arrow = c => { if (!ref || ref[c] == null || cat(c).kind !== 'var') return ''; return dpill((pc ? pc.by[c] || 0 : st.by[c] || 0) - ref[c], ref[c]); };
   // Une famille habituelle absente ce mois-ci reste listée à 0 € : sa baisse explique l'écart affiché pour le pôle.
   const gone = ref ? POLES.find(x => x.id === p.id).cats.filter(c => cat(c).kind === 'var' && (ref[c] || 0) >= 15 && !p.fam.some(([k]) => k === c)).map(c => [c, 0]) : [];
-  return `<button class="btn sm ghost" data-a="pole" data-p="">‹ Tous les pôles</button>
+  return `<div class="chips" style="margin:0 0 6px"><button class="btn sm ghost" data-a="pole" data-p="">‹ Tous les pôles</button><button class="btn sm ghost" data-a="goCat" data-c="pole:${p.id}">Ses opérations →</button></div>
     ${p.fam.concat(gone).map(([c, v]) => `<div class="hb click" data-a="${c === 'autres' && toSort().length ? 'goSort' : 'goCat'}" data-c="${c}">${ico(cat(c))}<span class="ell">${famName(c)}</span><span><span class="mute sm">${pctTxt(v, p.v)} %</span> <b>${eur(v)}</b>${arrow(c)}</span>
       <div class="bar"><i style="width:${v / mx * 100}%;background:var(--pl-${p.id})"></i></div></div>`).join('')}`;
 }
@@ -1185,7 +1189,7 @@ function ops() {
       <button class="btn sm ${ui.sort ? 'ghost' : ''}" data-a="toggleSort">${ui.sort ? 'Revenir à la liste' : 'Les ranger par marchand'}</button></section>` : ''}
     <section class="card span">
     <input class="f" id="q" type="search" placeholder="🔎 Rechercher (ex : amazon)" value="${esc(ui.q)}">
-    <div class="filters"><select class="f" data-c="cat" aria-label="Famille"><option value="">Toutes les familles</option>${catOpts(ui.cat)}</select>
+    <div class="filters"><select class="f" data-c="cat" aria-label="Famille ou pôle">${filterOpts(ui.cat)}</select>
       ${accs.length > 1 ? `<select class="f" data-c="acc" aria-label="Compte"><option value="all">Tous les comptes</option>${accs.map(id => `<option value="${esc(id)}" ${ui.acc === id ? 'selected' : ''}>${esc(accName(id))}</option>`).join('')}</select>` : ''}
       <button class="btn sm ${ui.showInt ? '' : 'ghost'}" data-a="toggleInt">🔁 Virements internes</button></div>
     <p class="sm mute hint">Touchez une opération pour changer sa famille, la répartir ou voir son détail.</p>
@@ -1206,11 +1210,13 @@ function renderList() {
   }
   const q = norm(ui.q), multi = viewIds().length > 1;
   const list = S.tx.filter(t => t.date.startsWith(ui.month) && inAcc(V(), t.acc)
-      && (!ui.cat || t.cat === ui.cat) && (ui.showInt || ui.cat === 'interne' || t.cat !== 'interne')
+      && opMatches(t, ui.cat) && (ui.showInt || ui.cat === 'interne' || t.cat !== 'interne')
       && (!q || norm(t.label + ' ' + t.detail).includes(q)))
     .sort((a, b) => b.date.localeCompare(a.date) || a.amount - b.amount);
-  const total = list.reduce((a, t) => a + t.amount, 0);
-  let html = `<div class="row"><span class="grow mute sm">${plural(list.length, 'opération')}</span><b>${eur(total, 2)}</b></div>`, day = '';
+  // Le total suit le filtre (une opération répartie ne compte que pour ses parts concernées) ; dépensé et reçu à part quand il y a les deux.
+  const amts = list.map(t => filterAmount(t, ui.cat)), total = amts.reduce((a, v) => a + v, 0);
+  const out = -amts.filter(v => v < 0).reduce((a, v) => a + v, 0), inn = amts.filter(v => v > 0).reduce((a, v) => a + v, 0);
+  let html = `<div class="row"><span class="grow mute sm">${plural(list.length, 'opération')}${out && inn ? ` · −${eur(out, 2)} dépensés, +${eur(inn, 2)} reçus` : ''}</span><b>${eur(total, 2)}</b></div>`, day = '';
   for (const t of list) {
     if (t.date !== day) { day = t.date; html += `<div class="day">${new Date(day + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>`; }
     const c = cat(t.splits ? t.splits[0].cat : t.cat);

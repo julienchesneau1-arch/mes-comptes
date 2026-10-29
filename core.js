@@ -59,6 +59,11 @@ function poleSplit(by) {
   for (const p of P) p.fam.sort((a, b) => b[1] - a[1]);
   return P;
 }
+// Filtre des opérations : une famille (« courses ») ou tout un pôle (« pole:manger » : ses familles de dépense, jamais revenus ni virements).
+const inFilter = (f, c) => !f || (f.startsWith('pole:') ? (cat(c).kind === 'var' || cat(c).kind === 'fixe') && poleOf(c).id === f.slice(5) : c === f);
+// Une opération répartie (« splits ») est retenue si l'une de ses parts l'est, et ne compte alors que pour ces parts.
+const opMatches = (t, f) => !f || (t.splits ? t.splits.some(p => inFilter(f, p.cat)) : inFilter(f, t.cat));
+const filterAmount = (t, f) => (f && t.splits ? round2(t.splits.filter(p => inFilter(f, p.cat)).reduce((a, p) => a + p.amount, 0)) : t.amount);
 // Écart à l'habitude par pôle, sur les seules dépenses variables (une charge fixe change de date, pas de montant) : { pôle: { d, usual } }.
 function poleDelta(now, usual) {
   const out = {};
@@ -1495,6 +1500,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  CATS, cat, POLES, poleOf, poleSplit, poleDelta, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };
