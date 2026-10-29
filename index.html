@@ -236,6 +236,8 @@ nav#tabs button{font-size:12px;min-height:54px}
 .pl .v{display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap;font-family:var(--num)}
 .pl .v .d{margin:0}
 .dn-l .hb .bar{height:10px}
+.flexg{background:var(--soft);border-radius:16px;padding:12px 14px;margin:-4px 0 14px}
+.flexg .bar{height:10px;background:var(--card)}
 .fcc{width:100%;height:auto;display:block;margin:6px 0 2px;overflow:visible}
 .fcc text{font-size:11px;fill:var(--mute)}
 .fcc .hit{fill:transparent;cursor:pointer}
@@ -277,7 +279,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 const KEY = 'mescomptes-v1', VERSION = 41;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
-  levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {} });
+  levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
 // Rien n'est lu avant le code d'entrée : les données ne sont stockées que chiffrées (coffre), la clé ne vit qu'en mémoire.
 let S = blank();
 const VAULT = 'mescomptes-coffre', TRIES = 'mescomptes-essais';
@@ -1048,6 +1050,7 @@ function weather() {
   if (!pace && lastReal && dayNum(today()) - dayNum(lastReal) > 10) return { k: 'wait', why: [`Dernière opération connue : ${dayName(lastReal)}. Importez les relevés récents.`] };
   if (pace && pace.spent - pace.usual >= Math.max(30, pace.usual * 0.1)) why.push(`${eur(pace.spent - pace.usual)} de dépenses en plus que d'habitude à cette date.`);
   for (const r of engagementResults(S, ui.month, V(), B())) if (r.spent > r.target) why.push(`${cat(r.cat).name} : ${eur(r.spent - r.target)} au-delà de votre objectif.`);
+  const fx = flexNow(st, pace); if (fx && fx.spent > fx.envelope) why.push(`Vie courante : ${eur(fx.spent - fx.envelope)} au-delà de l'enveloppe.`);
   if (why.length) return { k: 'watch', why };
   return { k: 'good', why: [pace ? (pace.usual >= pace.spent ? `${eur(pace.usual - pace.spent)} de dépenses en moins que d'habitude à cette date.` : 'Dépenses dans vos habitudes.') : `Il reste ${signed(end)} pour finir le mois.`, 'Aucun prélèvement ne risque de passer à découvert.'] };
 }
@@ -1072,6 +1075,34 @@ function heroInfo() {
     ${n ? ` Dont ${plural(n, 'opération')} notée${n > 1 ? 's' : ''} ou prévue${n > 1 ? 's' : ''}, confirmée${n > 1 ? 's' : ''} par le prochain relevé.` : ''}</p>
     <div class="chips"><button class="btn ghost" style="flex:1" data-a="closeSheet">Fermer</button></div>`);
 }
+// Enveloppe « vie courante » (budget flexible) du profil affiché, au jour atteint par les relevés (fin du mois pour un mois passé).
+const FX = () => (S.flex || {})[ui.who] || 0;
+function flexNow(st, pc) {
+  const env = FX(); if (!env || ui.month > thisMonth()) return null;
+  const dim = new Date(Date.UTC(+ui.month.slice(0, 4), +ui.month.slice(5), 0)).getUTCDate();
+  return flexStatus(st.by, env, ui.month === thisMonth() ? (pc ? pc.day : +today().slice(8)) : dim, dim);
+}
+// La jauge : couleur et mot disent l'état (dans le rythme, en avance, dépassée) ; le trait, où l'on devrait en être à ce jour.
+function flexBar(f) {
+  const over = f.spent > f.envelope, ahead = !over && f.daysLeft > 0 && f.spent > f.expected + Math.max(15, f.envelope * 0.05), k = over ? 'tight' : ahead ? 'watch' : 'good';
+  return `<div class="flexg click" data-a="flexSheet" role="button" aria-label="Modifier l'enveloppe vie courante"><div class="row" style="padding:0"><b class="grow">🎯 Vie courante</b>
+    <b class="st-${k}">${over ? `${eur(-f.left)} au-delà` : `reste ${eur(f.left)}`}</b></div>
+    <div class="bar"><i style="width:${Math.min(100, f.spent / f.envelope * 100)}%;background:var(--${k})"></i>${f.daysLeft && f.expected < f.envelope ? `<span class="tick" style="left:${f.expected / f.envelope * 100}%"></span>` : ''}</div>
+    <div class="sm mute">${eur(f.spent)} sur ${eur(f.envelope)} · ${over ? '🌧️ enveloppe dépassée' : f.daysLeft ? `${f.perDay ? `≈ <b>${eur(f.perDay)}/jour</b> jusqu'au ${f.dim}` : ''}${ahead ? ' · ⛅ en avance sur le rythme' : ''}` : '☀️ mois tenu'}</div></div>`;
+}
+function flexSheet() {
+  const hb = habitBy(S, ui.month, V()), cur = FX();
+  const habit = Math.round(Object.entries(hb).filter(([c, v]) => cat(c).kind === 'var' && c !== 'couple' && v > 0).reduce((a, [, v]) => a + v, 0) / 10) * 10, less = Math.floor(habit * 0.9 / 10) * 10;
+  openSheet(`<h2 style="margin:0 0 4px">🎯 Vie courante · ${esc(whoName(ui.who))}</h2>
+    <p class="sm mute" style="margin:0 0 8px">Un seul montant par mois pour tout ce qui varie : courses, restos, transports, sorties, shopping, santé… Les charges fixes (loyer, prêts, assurances, abonnements, impôts) n'y entrent pas. Les engagements par famille restent possibles dans Épargner.</p>
+    <form data-f="flex"><input class="f amt-in" name="v" inputmode="decimal" value="${cur || habit || ''}" placeholder="0 €" aria-label="Montant par mois">
+    ${habit ? `<div class="chips"><button type="button" class="btn sm ghost" data-a="flexSet" data-v="${habit}">Votre habitude : ${eur(habit)}</button><button type="button" class="btn sm ghost" data-a="flexSet" data-v="${less}">−10 % : ${eur(less)}</button></div>` : ''}
+    <div class="chips"><button class="btn" style="flex:1">Enregistrer</button>${cur ? '<button type="button" class="btn ghost" data-a="flexSet" data-v="0">Désactiver</button>' : ''}</div></form>`);
+}
+function setFlex(v) {
+  v = Math.max(0, Math.round(v || 0)); (S.flex ||= {})[ui.who] = v; closeSheet(); save(); render();
+  toast(v ? `🎯 Vie courante : ${eur(v)} par mois (${whoName(ui.who)}).\nSuivi sur l'accueil, au-dessus du camembert.` : 'Enveloppe désactivée.');
+}
 // « Où va l'argent » : le grand camembert des pôles. Toucher une part (ou sa ligne) ouvre ses familles, sans redessiner l'écran.
 let WD = null; // les chiffres de la carte affichée, réutilisés à chaque toucher
 const pctTxt = (v, t) => { const x = v / (t || 1) * 100; return x > 0 && x < 1 ? '<1' : Math.round(x); };
@@ -1082,8 +1113,9 @@ function whereCard(st, full, pc) {
   const ref = pc ? pc.usualBy : full ? habitBy(S, ui.month, V()) : null;
   const P = poleSplit(st.by), tot = P.reduce((a, p) => a + p.v, 0);
   WD = { st, pc, ref, P, tot, delta: ref ? poleDelta(pc ? pc.by : st.by, ref) : {} };
+  const fx = flexNow(st, pc), env = fx ? flexBar(fx) : '';
   if (!P.some(p => p.id === ui.pole && p.v > 0)) ui.pole = '';
-  if (!tot) return `<section class="card span" id="where"><h2>Où va l'argent</h2><p class="mute" style="margin:0">Aucune dépense ce mois-ci pour l'instant.</p></section>`;
+  if (!tot) return `<section class="card span" id="where"><h2>Où va l'argent</h2>${env}<p class="mute" style="margin:0">Aucune dépense ce mois-ci pour l'instant.</p></section>`;
   // Anneau de rayon 96 (viewBox 240), départ à midi, sens horaire ; 2,5 d'espace entre deux parts.
   const R = 96, CI = 2 * Math.PI * R, shown = P.filter(p => p.v > 0), GAP = shown.length > 1 ? 2.5 : 0;
   let at = 0, arcs = '', marks = '';
@@ -1096,12 +1128,12 @@ function whereCard(st, full, pc) {
   }
   const label = 'Répartition des dépenses : ' + [...shown].sort((a, b) => b.v - a.v).map(p => `${p.name} ${pctTxt(p.v, tot)} %`).join(', ');
   const hasPill = shown.some(p => WD.delta[p.id] && dpill(WD.delta[p.id].d, WD.delta[p.id].usual));
-  return `<section class="card span" id="where"><h2>Où va l'argent</h2>
+  return `<section class="card span" id="where"><h2>Où va l'argent</h2>${env}
     <div class="dn"><div class="dn-w drawin${ui.pole ? ' sel' : ''}"><svg viewBox="0 0 240 240" role="img" aria-label="${esc(label)}"><g transform="rotate(-90 120 120)">${arcs}</g>${marks}</svg>
       <div class="dn-c" aria-live="polite">${whereCenter()}</div></div>
       <div class="dn-l">${whereLegend()}</div></div>
     <p class="sm mute hint">Les familles sont regroupées en 7 pôles. Touchez une part ou une ligne pour voir ce qu'elle contient, puis une famille pour ses opérations.${hasPill ? ` ▲ ambre : plus que d'habitude · ▼ vert : moins que d'habitude${WD.pc ? ` (à la même date, du 1er au ${WD.pc.day})` : ' (médiane des 3 derniers mois complets)'} ; les charges fixes ne sont pas comparées.` : ''}</p>
-    <div class="chips"><button class="btn sm ghost" data-a="tab" data-t="trends">Toutes les familles et l'évolution →</button></div></section>`;
+    <div class="chips"><button class="btn sm ghost" data-a="tab" data-t="trends">Toutes les familles et l'évolution →</button>${fx ? '' : '<button class="btn sm ghost" data-a="flexSheet">🎯 Fixer une enveloppe</button>'}</div></section>`;
 }
 function whereCenter() {
   const { st, P, tot } = WD, p = P.find(x => x.id === ui.pole), m = new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'long' });
@@ -1312,6 +1344,7 @@ function epargner() {
   };
   const gain = res.reduce((a, r) => a + r.gain, 0), claimed = S.claimed[ck(ui.month, 'total')];
   const step2 = `<section class="card span"><h2><span class="step">2</span>Nos engagements · ${monthName(ui.month)}</h2>
+    ${FX() ? flexBar(flexNow(st, isNow ? paceCompare(S, ui.month, V()) : null)) : `<div class="flexg click" data-a="flexSheet" role="button"><b>🎯 Plus simple : une seule enveloppe</b><div class="sm mute">Un montant par mois pour toute la vie courante (courses, sorties, shopping…), au lieu d'un objectif par famille.</div></div>`}
     ${res.length ? res.map(eRow).join('') : `<p class="mute">Aucun engagement pour l'instant. Appuyez sur « Je m'engage » à l'étape 1 : l'objectif proposé est votre habitude moins 15 %.</p>
       ${pl.items.some(i => i.kind === 'cat' && i.lever === 'diminuer') ? '<button class="btn sm" data-a="engageTop">M\'engager sur nos 2 plus gros postes</button>' : ''}`}
     ${isNow && res.length ? '<p class="sm mute hint">Le trait vertical montre où vous devriez en être à cette date du mois.</p>' : ''}
@@ -1788,6 +1821,8 @@ const A = {
   filterAcc: d => { ui.acc = d.id; ui.tab = 'ops'; ui.cat = ''; render(); scrollTo(0, 0); },
   goMonth: d => { ui.month = d.m; render(); },
   fcDay: d => { const p = FCP[d.i] && FCP[d.i].pts[+d.k], el = $('#fcd' + d.i); if (!p || !el) return; el.innerHTML = fcDayTxt(p); document.querySelectorAll(`#fcc${d.i} .mk`).forEach(m => m.classList.toggle('on', m.dataset.k === d.k)); },
+  flexSheet: () => flexSheet(),
+  flexSet: d => setFlex(+d.v),
   pole: d => { ui.pole = d.p && d.p !== ui.pole ? d.p : ''; paintWhere(); },
   goCat: d => { ui.tab = 'ops'; ui.cat = d.c === 'couple' ? 'interne' : d.c; render(); scrollTo(0, 0); },
   own: d => { S.accounts[d.id].owner = d.o; save(); render(); toast(`${S.accounts[d.id].name} → ${whoName(d.o)}. Renommez-le dans Réglages si besoin.`); },
@@ -1900,6 +1935,7 @@ document.addEventListener('click', e => { if (e.target.id === 'sheet') closeShee
 document.addEventListener('submit', e => {
   e.preventDefault();
   const f = new FormData(e.target);
+  if (e.target.dataset.f === 'flex') { const v = parseNumber(f.get('v') || ''); if (!(v >= 0)) return toast('Montant non compris'); return setFlex(v); }
   if (e.target.dataset.f === 'potMove') {
     const p = S.pots.find(x => x.id === e.target.dataset.id), v = Math.abs(parseNumber(f.get('amount'))), sign = +(e.submitter?.value || 1);
     if (!(v > 0)) return toast('Montant non compris');

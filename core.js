@@ -712,6 +712,15 @@ function engagementResults(state, month, acc, targets) {
   });
 }
 
+// Enveloppe « vie courante » (budget flexible) : toutes les dépenses variables du mois face à une seule enveloppe.
+// Les charges fixes n'y entrent pas, ni « Versé à l'autre ». day = jour atteint par les relevés, dim = jours du mois :
+// expected = où l'on devrait en être à ce jour, perDay = ce qu'on peut encore dépenser par jour restant.
+function flexStatus(by, envelope, day, dim) {
+  const spent = round2(Object.entries(by || {}).filter(([c, v]) => cat(c).kind === 'var' && c !== 'couple' && v > 0).reduce((a, [, v]) => a + v, 0));
+  const left = round2(envelope - spent), daysLeft = Math.max(0, dim - day);
+  return { envelope, spent, left, expected: Math.round(envelope * Math.min(day, dim) / dim), daysLeft, dim, perDay: daysLeft && left > 0 ? Math.floor(left / daysLeft) : 0 };
+}
+
 const dayNum = d => Date.parse(d + 'T00:00:00Z') / 864e5;
 
 // Un débit sur un compte + le même crédit sur un autre compte à ±3 jours = virement entre mes comptes.
@@ -1123,6 +1132,7 @@ function mergeStates(local, other) {
   out.histBal ||= o.histBal || null;
   out.reconciled = [...new Set([...(out.reconciled || []), ...(o.reconciled || [])])];
   out.tx = out.tx.filter(t => !(t.pending && out.reconciled.includes(t.id))); // saisie déjà remplacée sur l'autre téléphone
+  out.flex = { ...(o.flex || {}), ...(out.flex || {}) }; // enveloppe vie courante : celle de ce téléphone l'emporte (0 = désactivée)
   for (const k of ['budgets', 'challenges', 'checkins', 'noSpend', 'rit']) {
     out[k] ||= {};
     for (const [w, v] of Object.entries(o[k] || {})) out[k][w] = { ...v, ...(out[k][w] || {}) };
@@ -1312,6 +1322,7 @@ function sanitizeState(d) {
     ...(o.setup ? { setup: true } : {}), ...(['bp', 'ce', 'autre'].includes(o.bank) ? { bank: o.bank } : {}),
     accounts, tx,
     rules: Object.fromEntries(Object.entries(obj(o.rules)).map(([k, c]) => [str(k, 120), okCat(c)])),
+    flex: byWho(o.flex, v => Math.max(0, Math.round(num(v)))),
     budgets: byWho(o.budgets, v => Object.fromEntries(Object.entries(obj(v)).filter(([c]) => CAT[c]).map(([c, x]) => [c, Math.max(0, num(x))]))),
     pots: things(o.pots, p => ({ owner: owner(p.owner) || 'foyer', name: str(p.name, 60) || 'Objectif', emoji: str(p.emoji, 8) || '🎯', target: Math.max(1, num(p.target)),
       moves: arr(p.moves).filter(m => m && date(m.date)).map(m => ({ date: m.date, amount: round2(num(m.amount)), note: str(m.note, 40) })), ...(typeof p.acc === 'string' && accounts[safeKey(p.acc)] ? { acc: safeKey(p.acc) } : {}) })),
@@ -1496,7 +1507,7 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
     add('B', m, 17, -pick(25, 80), 'CB ZARA'); add('A', m, 22, -pick(20, 60), 'CB FNAC'); add('A', m, 24, -pick(35, 60), 'CB SNCF'); add('B', m, 13, -pick(8, 22), 'CB PHARMACIE');
     if (i % 2) add('C', m, 18, -pick(60, 140), 'CB IKEA');
   }
-  const S = { people, accounts: {}, tx: [], rules: {}, budgets: { foyer: { fastfood: 70 } }, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, shared: {}, loans: [],
+  const S = { people, accounts: {}, tx: [], rules: {}, budgets: { foyer: { fastfood: 70 } }, flex: { foyer: 900 }, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, shared: {}, loans: [],
     levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: { foyer: {} }, noSpend: {}, rit: { foyer: { ics: end } }, cv: 3 };
   const meta = { A: ['Compte de ' + people[0].name, 'p1', 1240.5], B: ['Compte de ' + people[1].name, 'p2', 980.2], C: ['Compte commun', 'commun', 1615.8], LA: ['Livret A', 'commun', 6320] };
   for (const id of Object.keys(R)) {
@@ -1512,6 +1523,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  forecastPath, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  forecastPath, flexStatus, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

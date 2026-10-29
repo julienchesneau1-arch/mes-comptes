@@ -866,3 +866,16 @@ console.log('OK — fichier de rappels publié');
   assert.strictEqual(C.forecastPath(null), null);
   console.log('OK — solde prévu jour par jour');
 }
+
+{ // Enveloppe « vie courante » : seulement les dépenses variables, repère du jour, reste par jour ; gardée à la relecture et à la synchro.
+  const by = { courses: 400, restos: 100, logement: 800, couple: 300, shopping: -20, sante: 40 };
+  const f = C.flexStatus(by, 900, 15, 30);
+  assert.deepStrictEqual([f.spent, f.left, f.expected, f.daysLeft, f.perDay], [540, 360, 450, 15, 24]); // ni loyer, ni versé à l'autre, ni remboursement net
+  assert.strictEqual(C.flexStatus(by, 500, 15, 30).perDay, 0);                                            // déjà dépassée : rien par jour, pas un négatif
+  assert.strictEqual(C.flexStatus(by, 900, 30, 30).expected, 900);
+  const St = C.sanitizeState({ people: [{ id: 'p1', name: 'A' }], flex: { foyer: 900.4, p1: -5, pirate: 1 } });
+  assert.deepStrictEqual(St.flex, { foyer: 900, p1: 0 });
+  const m = C.mergeStates({ ...St, flex: { foyer: 0 } }, { ...St, flex: { foyer: 900, p1: 300 } });
+  assert.deepStrictEqual(m.flex, { foyer: 0, p1: 300 });                                                   // désactivée ici : reste désactivée
+  console.log('OK — enveloppe vie courante (budget flexible)');
+}
