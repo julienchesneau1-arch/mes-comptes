@@ -56,7 +56,7 @@ export function search(s, cat, text, f) {
 }
 // Lignes lues une fois par recette (le classement est refait pour chaque créneau de la semaine).
 const LINES = new Map();
-function linesOf(r) {
+export function linesOf(r) {
     const k = `${r.id}:${r.rev}`;
     let v = LINES.get(k);
     if (!v) {

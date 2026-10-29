@@ -2,16 +2,21 @@
 // titre) change la présence de la personne dont c'est l'agenda. Rien n'est fait sans une première décision du foyer
 // (« appliquer », avec « pareil les prochaines fois »), puis les mêmes événements sont appliqués seuls. Un événement qui
 // disparaît ou se déplace : la présence posée d'après lui est retirée. Un réglage fait à la main l'emporte toujours.
-import { type LocalDate, type SlotKey, type SlotName, SLOTS, addDays, paris, parisToUtc, slotKey, parseSlot, nextSlot, fmtDayShort, daysBetween } from './dates.ts';
+import { type LocalDate, type SlotKey, type SlotName, SLOTS, addDays, paris, parisToUtc, slotKey, parseSlot, nextSlot, prevSlot, fmtDayShort, daysBetween } from './dates.ts';
 import type { MemberId, Presence, State } from './model.ts';
 import type { Draft } from './reduce.ts';
 import { type Occurrence, hash16 } from './ical.ts';
 import { presence, dependents } from './plan.ts';
 import { norm } from './text.ts';
+import { dishLimit, before } from './limits.ts';
 
 export interface Feed { cal: string; member: MemberId | null; label: string; occurrences: readonly Occurrence[] }
 export type AgendaKind = 'dehors' | 'maison' | 'invites' | 'deplacer';
-export interface Move { from: SlotKey; to: SlotKey; dish: string }
+export interface Move {
+  from: SlotKey; to: SlotKey; dish: string;
+  dlc?: { name: string; date: LocalDate; late: boolean };  // plat à DLC : décalé avant elle (late = aucun repas possible d'ici là)
+  room?: boolean;                                          // plat sans urgence décalé pour laisser sa place à un plat à DLC
+}
 export interface AgendaChange {
   occ: string; cal: string; label: string; title: string; when: string;
   kind: AgendaKind; sure: boolean;   // sure = le titre le dit (« resto », « télétravail »…) ; sinon : seulement occupé à l'heure du repas
@@ -141,37 +146,56 @@ export function planAgenda(s: State, feeds: readonly Feed[], now: Date, days = 3
     ch.auto = ch.kind !== 'invites' && s.agenda.rules[ch.rule] === 'auto' && !ch.manual;
   }
 
-  // 3. Plat prévu que plus personne ne mangerait : décalé au prochain repas à la maison sans plat, dans les 6 jours.
+  // 3. Plat prévu que plus personne ne mangerait : décalé au prochain repas à la maison sans plat, dans les 6 jours. S'il utilise un
+  // produit à DLC (core/limits.ts), jamais après elle : le repas libre le plus proche d'ici la date (après le repas perdu, sinon
+  // avant) ; sinon un plat sans urgence prévu d'ici là lui laisse sa place et part au repas libre suivant ; sinon il est décalé
+  // quand même, et le texte le dit (« après la DLC »).
   const taken = new Set<SlotKey>();
   const eaters = (k: SlotKey, own: Map<string, Presence>): number =>
     (s.slots[k]?.guests ?? 0) + members.filter(m => (own.get(`${k}|${m}`) ?? presence(s, k, m)) !== 'dehors').length;
-  const moveFor = (k: SlotKey, own: Map<string, Presence>): Move | null => {
-    const d = s.slots[k]?.dish;
-    if (d?.kind !== 'cook' || s.slots[k]?.eaten || eaters(k, own) > 0) return null;
-    const prep = s.preps[d.prep];
-    if (!prep || prep.status !== 'planned' || dependents(s, prep.id).length) return null;
-    let t = nextSlot(k);
-    for (let i = 0; i < 12; i++, t = nextSlot(t)) {
-      const p = parseSlot(t);
-      if (!p || daysBetween(today, p.date) > days) break;
-      if (!s.slots[t]?.dish && !s.slots[t]?.eaten && !taken.has(t) && eaters(t, own) > 0) { taken.add(t); return { from: k, to: t, dish: dishName(s, k) }; }
-    }
+  const coming = (k: SlotKey): boolean => { const p = parseSlot(k); return !!p && daysBetween(today, p.date) <= days && parisToUtc(p.date, MEAL_WINDOW[p.slot][0]).getTime() > now.getTime(); };
+  const free = (t: SlotKey, own: Map<string, Presence>): boolean => !s.slots[t]?.dish && !s.slots[t]?.eaten && !taken.has(t) && eaters(t, own) > 0;
+  const walk = (from: SlotKey, step: (k: SlotKey) => SlotKey, ok: (t: SlotKey) => boolean): SlotKey | null => {
+    let t = step(from);
+    for (let i = 0; i < 12 && coming(t); i++, t = step(t)) if (ok(t)) return t;
     return null;
   };
+  // Plat qu'on peut déplacer : à cuisiner ce jour-là, sans boîtes ni restes qui en dépendent, pas encore mangé.
+  const movable = (k: SlotKey): boolean => {
+    const d = s.slots[k]?.dish, prep = d?.kind === 'cook' ? s.preps[d.prep] : undefined;
+    return !!prep && prep.status === 'planned' && !s.slots[k]?.eaten && !dependents(s, prep.id).length;
+  };
+  const moveFor = (k: SlotKey, own: Map<string, Presence>): Move[] => {
+    if (!movable(k) || eaters(k, own) > 0) return [];
+    const dish = dishName(s, k), lim = dishLimit(s, k, today);
+    const take = (t: SlotKey): SlotKey => { taken.add(t); return t; };
+    if (!lim) { const t = walk(k, nextSlot, x => free(x, own)); return t ? [{ from: k, to: take(t), dish }] : []; }
+    const dlc = { name: lim.name, date: lim.date };
+    const ok = (x: SlotKey): boolean => before(x, lim) && free(x, own);
+    const inTime = walk(k, nextSlot, ok) ?? walk(k, prevSlot, ok);
+    if (inTime) return [{ from: k, to: take(inTime), dish, dlc: { ...dlc, late: false } }];
+    const swap = (x: SlotKey): boolean => before(x, lim) && !taken.has(x) && eaters(x, own) > 0 && movable(x) && !dishLimit(s, x, today);
+    const x = walk(k, nextSlot, swap) ?? walk(k, prevSlot, swap);
+    const room = x ? walk(x, nextSlot, y => free(y, own)) : null;
+    if (x && room) { take(x); return [{ from: x, to: take(room), dish: dishName(s, x), room: true }, { from: k, to: x, dish, dlc: { ...dlc, late: false } }]; }
+    const t = walk(k, nextSlot, y => free(y, own));
+    return t ? [{ from: k, to: take(t), dish, dlc: { ...dlc, late: true } }] : [];
+  };
+  const moveDrafts = (mvs: readonly Move[]): Draft[] => mvs.map(mv => ({ t: 'slot.move', p: { from: mv.from, to: mv.to, swap: false } }));
   for (const ch of kept) {
     if (ch.kind === 'invites') continue;
     const own = new Map(ch.drafts.flatMap(d => (d.t === 'agenda.mark' && d.p.presence ? [[`${d.p.slot}|${d.p.member}`, d.p.presence] as const] : [])));
-    for (const k of ch.slots) { const mv = moveFor(k, own); if (mv) { ch.moves.push(mv); ch.drafts.push({ t: 'slot.move', p: { from: mv.from, to: mv.to, swap: false } }); } }
+    for (const k of ch.slots) { const mvs = moveFor(k, own); ch.moves.push(...mvs); ch.drafts.push(...moveDrafts(mvs)); }
   }
   // Repas déjà vidé par l'agenda (plusieurs événements appliqués l'un après l'autre) : le plat suit, sans demander.
   const marked = new Set(Object.entries(s.agenda.marks).filter(([, mk]) => !mk.overridden && mk.presence === 'dehors').map(([key]) => key.slice(0, key.lastIndexOf('|'))));
   for (const k of [...marked].sort()) {
     const p = parseSlot(k);
     if (!p || p.date > last || parisToUtc(p.date, MEAL_WINDOW[p.slot][0]).getTime() <= now.getTime() || kept.some(ch => ch.slots.includes(k))) continue;
-    const mv = moveFor(k, new Map());
-    if (!mv) continue;
-    kept.push({ occ: hash16(`deplacer|${k}`), cal: '', label: '', title: mv.dish, when: `${fmtDayShort(p.date)} ${p.slot}`, kind: 'deplacer', sure: true,
-      who: [], slots: [k], drafts: [{ t: 'slot.move', p: { from: mv.from, to: mv.to, swap: false } }], moves: [mv], rule: '', auto: true, manual: false });
+    const mvs = moveFor(k, new Map()), main = mvs.find(mv => mv.from === k);
+    if (!main) continue;
+    kept.push({ occ: hash16(`deplacer|${k}`), cal: '', label: '', title: main.dish, when: `${fmtDayShort(p.date)} ${p.slot}`, kind: 'deplacer', sure: true,
+      who: [], slots: [k], drafts: moveDrafts(mvs), moves: mvs, rule: '', auto: true, manual: false });
   }
 
   // 4. Présences posées d'après l'agenda que plus rien ne justifie (événement supprimé, déplacé, ou « jamais » décidé depuis).
@@ -189,12 +213,15 @@ export function planAgenda(s: State, feeds: readonly Feed[], now: Date, days = 3
 }
 
 // Phrase d'un changement : « Alex absent·e mar. 6 oct. soir · Curry décalé à mer. 7 oct. soir ».
+// Avec un produit à DLC : « Curry décalé à mar. 6 oct. soir, avant la DLC (poulet, mer. 7 oct.) », ou « ⚠️ … après la DLC (…) ».
 export function changeText(s: State, c: AgendaChange): string {
   const names = c.who.map(m => s.members.find(x => x.id === m)?.name ?? '?').join(' et ');
   const slots = c.slots.map(k => { const p = parseSlot(k); return p ? `${fmtDayShort(p.date)} ${p.slot}` : k; });
   const list = slots.length > 4 ? `${slots.slice(0, 3).join(', ')} et ${slots.length - 3} autres repas` : slots.join(', ');
-  if (c.kind === 'deplacer') return c.moves.map(mv => { const p = parseSlot(mv.to); return `${mv.dish} : plus personne ${list} → décalé à ${p ? `${fmtDayShort(p.date)} ${p.slot}` : mv.to}`; }).join(' · ');
+  const at = (k: SlotKey): string => { const p = parseSlot(k); return p ? `${fmtDayShort(p.date)} ${p.slot}` : k; };
+  const note = (mv: Move): string => (mv.room ? ', pour laisser sa place' : mv.dlc ? `, ${mv.dlc.late ? 'après' : 'avant'} la DLC (${mv.dlc.name.toLowerCase()}, ${fmtDayShort(mv.dlc.date)})` : '');
+  const moved = (mv: Move): string => `${mv.dlc?.late ? '⚠️ ' : ''}${mv.dish} décalé à ${at(mv.to)}${note(mv)}`;
+  if (c.kind === 'deplacer') return c.moves.map(mv => (mv.from === c.slots[0] ? `${mv.dlc?.late ? '⚠️ ' : ''}${mv.dish} : plus personne ${list} → décalé à ${at(mv.to)}${note(mv)}` : moved(mv))).join(' · ');
   const main = c.kind === 'invites' ? `des invités ${list} ?` : c.kind === 'maison' ? `${names} à la maison ${list}` : `${names} absent${c.who.length > 1 ? 's' : '·e'} ${list}`;
-  const moves = c.moves.map(mv => { const p = parseSlot(mv.to); return `${mv.dish} décalé à ${p ? `${fmtDayShort(p.date)} ${p.slot}` : mv.to}`; });
-  return [main, ...moves].join(' · ');
+  return [main, ...c.moves.map(moved)].join(' · ');
 }

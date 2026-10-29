@@ -13,6 +13,7 @@ import { qStr } from './rational.js';
 import { showQty } from './units.js';
 import { dlcAdvice } from './dlc.js';
 import { setDish } from './commands.js';
+import { dishLimit, before } from './limits.js';
 export const MAX_SHOWN = 5; // au-delà : « + N autres », repliées ; une file de 12 cartes est une corvée
 export const RULE_AFTER = 3;
 const BASE = { conflit: 800, dlc: 650, personne: 600, cuisson: 500, surveille: 450, restes: 400, placard: 380, menu: 350, semaine: 300, avis: 250 };
@@ -74,10 +75,13 @@ export function exceptions(r, t, me, now) {
             continue;
         if (d.kind === 'cook' && (prep.done || portions(s, prep).planned > 0))
             continue; // cuisiné pour des boîtes ou « en plus » : voulu
-        const to = freeSlots(s, today, hour, () => true).slice(0, 2);
+        // Plat qui utilise un produit à DLC : seulement des repas d'ici la date, sinon dit.
+        const lim = dishLimit(s, k, today), all = freeSlots(s, today, hour, () => true), inTime = lim ? all.filter(x => before(x, lim)) : all;
+        const late = !!lim && !inTime.length, to = (late ? all : inTime).slice(0, 2), dlc = lim ? `la DLC (${lim.name.toLowerCase()}, ${fmtDayShort(lim.date)})` : '';
         add({ key: `personne:${k}`, code: 'personne', prio: BASE.personne + soon(k, today),
-            title: `Personne à la maison ${fmtSlot(k, today)}, mais ${prepTitle(s, prep)} est prévu`, sub: 'Le déplacer, le retirer, ou ajouter des invités.',
-            actions: [...to.map(x => ({ label: `Déplacer ${fmtSlot(x, today)}`, drafts: [{ t: 'slot.move', p: { from: k, to: x, swap: false } }] })),
+            title: `Personne à la maison ${fmtSlot(k, today)}, mais ${prepTitle(s, prep)} est prévu`,
+            sub: !lim ? 'Le déplacer, le retirer, ou ajouter des invités.' : late ? `Aucun repas libre d'ici ${dlc} : le déplacer quand même, le retirer, ou ajouter des invités.` : `Le déplacer avant ${dlc}, le retirer, ou ajouter des invités.`,
+            actions: [...to.map(x => ({ label: `Déplacer ${fmtSlot(x, today)}${late ? ' (après la DLC)' : ''}`, drafts: [{ t: 'slot.move', p: { from: k, to: x, swap: false } }] })),
                 { label: 'Retirer du menu', drafts: [{ t: 'slot.clear', p: { slot: k } }] }, { label: 'Des invités', open: 'slot', arg: k }] });
     }
     // Préparation commencée, jamais déclarée prête : un toucher avec les portions prévues.

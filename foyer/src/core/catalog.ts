@@ -64,7 +64,7 @@ export function search(s: State, cat: Catalog, text: string, f: Filter): Catalog
 
 // Lignes lues une fois par recette (le classement est refait pour chaque créneau de la semaine).
 const LINES = new Map<string, IngredientLine[]>();
-function linesOf(r: CatalogRecipe): IngredientLine[] {
+export function linesOf(r: CatalogRecipe): IngredientLine[] {
   const k = `${r.id}:${r.rev}`;
   let v = LINES.get(k);
   if (!v) { v = r.ingredients.map(l => parseIngredient(l).line); LINES.set(k, v); }

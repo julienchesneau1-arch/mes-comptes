@@ -302,6 +302,24 @@ La feuille devient « 🔁 Produits du quotidien » : petit-déjeuner, placard, 
 | Ketchup | Placard | Épicerie salée | 1 flacon | 50 j | flacon d'≈ 500 g : ≈ 5 g par jour |
 | Farine | Placard | Épicerie sucrée & petit-déj | 1 kg | 50 j | ≈ 10 g par jour hors recettes chiffrées (sauces, pâtisserie) |
 
+### V3.17 (dates limites, menus et agenda liés — demande de Julien du 29 octobre 2026)
+
+« En fonction de la date de péremption ou de la date limite recommandée, que l'application propose un menu plutôt qu'un autre ; et si
+l'emploi du temps décale des plats qui risquent d'arriver à péremption, qu'elle le dise tout de suite, et qu'elle l'impose ou propose
+le plat selon l'emploi du temps. » « Date limite de commande » compris comme date limite de consommation : à confirmer.
+Avant : seuls vos plats étaient mis en avant par une DLC (pas les recettes prêtes, proposées d'abord par défaut, ni la DDM) ; un plat
+que l'agenda vidait partait au repas libre suivant, même après la DLC.
+
+| Fonction | Statut | Preuve |
+|---|---|---|
+| Une seule notion des dates qui comptent | **livré** | `core/limits.ts` : produit surveillé fermé, DLC (impérative) ou DDM (« de préférence avant », indicative), au jour près ; DLC d'abord, puis la plus proche ; même rapprochement produit ↔ ingrédient que V3.14 (`tests/v317.test.ts`) |
+| Menu proposé selon les dates | **livré** | « Proposer le menu » réserve d'abord, sur le premier repas où quelqu'un mange d'ici la date, un plat qui utilise le produit : recette prête en « maximum de nouveautés » (défaut), vos plats sinon (« mes plats » : jamais une recette prête) ; rien si un plat prévu l'utilise déjà à temps ; jamais remplacé pour tenir le budget (jeter coûterait plus). Raison affichée : « ⏳ à utiliser : crème fraîche (DLC ven. 9 oct.) » (E2E `dates.mjs`, catalogue réel) |
+| Idées et choix d'un plat | **livré** | Bonus dans les 3 jours avant la date pour vos plats et, nouveau, pour les recettes prêtes : DLC +30, DDM +15, raison « utilise poulet (DLC mar. 6 oct.) » |
+| Agenda : plat décalé avant la DLC | **livré** | Plus personne au repas du plat : repas libre le plus proche d'ici la DLC (après, sinon avant) ; sinon un plat sans urgence lui laisse sa place et part au repas libre suivant ; sinon décalé quand même et dit « ⚠️ … après la DLC ». Appliqué seul quand l'événement est déjà décidé (« pareil les prochaines fois »), proposé sinon ; toujours dit dans le message ou la carte de l'agenda |
+| Carte « personne » et aperçu d'un déplacement | **livré** | Repas réglé à la main sans personne : seulement des repas d'ici la DLC, sinon « (après la DLC) » ; déplacer un plat après la DLC d'un produit qu'il utilise : « ⚠️ … après la DLC » dans l'aperçu, avant d'enregistrer |
+| DDM dans l'agenda | **non fait** | Volontairement : une DDM passée ne rend pas le produit dangereux (DGCCRF) ; elle oriente les menus, elle ne bloque aucun déplacement |
+| Non vérifié | — | Agenda réel (Google, iCloud, Outlook) et iPhone : scénarios unitaires seulement pour la partie agenda (`tests/v317.test.ts`) |
+
 ### V3.16 (bouton de scan visible — retour de Julien du 29 octobre 2026)
 
 « On ne trouve pas le bouton scanner pour la DLC : il faut qu'il soit plus visible et accessible. » Avant : un seul bouton, après la
@@ -577,6 +595,7 @@ Gestes pour prévoir un plat qu'on n'a jamais saisi (d'après le code, avant →
 | 2026-10-23 | V3.4 | Reprises Pimzi (PR D de 4) : allergies et refus, estimations calées sur les factures, budget et allergies à l'accueil, « déjà au placard ? » | livré | Lecture du nom de l'ingrédient seulement (un produit transformé peut contenir un allergène non signalé : l'étiquette fait foi) ; calage inactif tant que moins de 5 articles payés comparables |
 | 2026-10-25 | V3.5 | Retours de Julien : portions en plus reprises par un repas suivant (défaut corrigé : 6 → 4), fiche recette en lecture, usage compté sur le téléphone et raccourcis à navigation fixe (split menu, épinglables) | livré | Mesure locale à un téléphone (pas de cumul à deux) ; seuils (3 fois, 30 jours, 4 raccourcis) choisis, pas mesurés |
 | 2026-10-25 | V3.6 | Demande de Julien : recettes prêtes comme chez Jow, dans le choix d'un plat, les idées d'Aujourd'hui et Nos plats ; lecture Wikilivres élargie (181 plats sur 424 avec nombre de personnes) | livré | Catalogue limité à Wikilivres (424 plats contre plus de 5 000 chez Jow) ; 243 pages demandent le nombre de personnes ; pas de photos |
+| 2026-10-29 | V3.17 | Dates limites, menus et agenda liés : menu proposé qui utilise d'abord les produits à DLC ou DDM (recettes prêtes comprises, raison affichée), plat décalé par l'agenda gardé avant la DLC (repas libre, sinon échange, sinon ⚠️), carte « personne » et aperçu de déplacement qui le disent | livré | Agenda réel et iPhone non vérifiés ; « date limite de commande » comprise comme DLC, à confirmer |
 | 2026-10-29 | V3.16 | Bouton de scan des dates limites visible : en-tête d'Aujourd'hui, haut de Courses, rappel après l'achat d'un produit frais ; zone de scan en premier dans la feuille, étapes iPhone affichées | livré | « Scanner le texte » reste à deux touchers dans le menu d'iOS (pas d'interface web pour l'ouvrir) ; non vérifié sur iPhone |
 | 2026-10-26 | V3.15 | Couverture des prix sans rien aspirer : nom d'achat des ingrédients, eau du robinet non comptée, 21 groupes Open Prices de plus, contenances du quotidien, part payée dite en euros, ticket de caisse scanné ; mesuré sans facture : recettes 29 → 36 % des lignes chiffrées, quotidien 15 → 35 % | livré | 64 % des lignes de recettes et 65 % des produits du quotidien restent sans prix avant la première facture (ail, herbes, bouillons, poulet, vin, hygiène, entretien) ; tickets non vérifiés sur iPhone ni sur de vrais tickets |
 | 2026-10-26 | V3.14 | Dates limites lues (texte scanné par l'iPhone ou tapé : DLC, DDM, précision, année déduite) et utiles : avancer d'un toucher le plat prévu après la DLC, ou prévoir un plat qui l'utilise | livré | « Scanner le texte » non vérifié sur iPhone ; rapprochement par mots (« lait » pourrait désigner « lait de coco ») |

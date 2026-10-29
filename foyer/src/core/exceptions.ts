@@ -15,6 +15,7 @@ import { qStr } from './rational.ts';
 import { showQty } from './units.ts';
 import { dlcAdvice } from './dlc.ts';
 import { setDish } from './commands.ts';
+import { dishLimit, before } from './limits.ts';
 
 export type ExcCode = 'conflit' | 'dlc' | 'personne' | 'cuisson' | 'surveille' | 'restes' | 'placard' | 'menu' | 'semaine' | 'avis';
 export type ExcAction =
@@ -88,10 +89,13 @@ export function exceptions(r: Replay, t: Today, me: MemberId | null, now: Date):
     const prep = s.preps[d.prep];
     if (!prep) continue;
     if (d.kind === 'cook' && (prep.done || portions(s, prep).planned > 0)) continue; // cuisiné pour des boîtes ou « en plus » : voulu
-    const to = freeSlots(s, today, hour, () => true).slice(0, 2);
+    // Plat qui utilise un produit à DLC : seulement des repas d'ici la date, sinon dit.
+    const lim = dishLimit(s, k, today), all = freeSlots(s, today, hour, () => true), inTime = lim ? all.filter(x => before(x, lim)) : all;
+    const late = !!lim && !inTime.length, to = (late ? all : inTime).slice(0, 2), dlc = lim ? `la DLC (${lim.name.toLowerCase()}, ${fmtDayShort(lim.date)})` : '';
     add({ key: `personne:${k}`, code: 'personne', prio: BASE.personne + soon(k, today),
-      title: `Personne à la maison ${fmtSlot(k, today)}, mais ${prepTitle(s, prep)} est prévu`, sub: 'Le déplacer, le retirer, ou ajouter des invités.',
-      actions: [...to.map(x => ({ label: `Déplacer ${fmtSlot(x, today)}`, drafts: [{ t: 'slot.move', p: { from: k, to: x, swap: false } }] as Draft[] })),
+      title: `Personne à la maison ${fmtSlot(k, today)}, mais ${prepTitle(s, prep)} est prévu`,
+      sub: !lim ? 'Le déplacer, le retirer, ou ajouter des invités.' : late ? `Aucun repas libre d'ici ${dlc} : le déplacer quand même, le retirer, ou ajouter des invités.` : `Le déplacer avant ${dlc}, le retirer, ou ajouter des invités.`,
+      actions: [...to.map(x => ({ label: `Déplacer ${fmtSlot(x, today)}${late ? ' (après la DLC)' : ''}`, drafts: [{ t: 'slot.move', p: { from: k, to: x, swap: false } }] as Draft[] })),
         { label: 'Retirer du menu', drafts: [{ t: 'slot.clear', p: { slot: k } }] }, { label: 'Des invités', open: 'slot', arg: k }] });
   }
 

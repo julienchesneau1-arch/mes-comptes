@@ -147,8 +147,9 @@ function summaryHtml(): string {
     const info = cardInfo(p, d.props), c = cooks(p) ? propCost(s, d.props, p) : null, when = capital(fmtSlot(p.slot, today));
     // Coût par portion seulement s'il est fiable (80 % des ingrédients chiffrés) : un minimum très partiel tromperait.
     const price = p.dish?.kind === 'from' ? 'restes : rien à acheter' : c?.reliable && c.perPortion ? `≈ ${eur(c.perPortion)} la portion` : '';
+    const use = p.reason.split(' · ').find(x => x.startsWith('à utiliser : ')); // produit à DLC ou DDM : dit pourquoi ce plat, ce jour-là
     return `<li class="plan-row"><div class="item"><span class="look t-${info.look.theme}" aria-hidden="true">${info.look.emoji}${photoImg(info.look)}</span>
-      <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(when)}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}${price ? ` · ${esc(price)}` : ''}${d.swapped.includes(p.slot) ? ' · 💶 moins cher, pour tenir le budget' : ''}</span></span></div>
+      <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(when)}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}${use ? ` · ⏳ ${esc(use)}` : ''}${price ? ` · ${esc(price)}` : ''}${d.swapped.includes(p.slot) ? ' · 💶 moins cher, pour tenir le budget' : ''}</span></span></div>
       <div class="row-actions">${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${d.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}
       ${cooks(p) ? `<button class="btn small-btn ghost" data-a="listOther" data-k="${p.slot}" aria-label="Autre idée pour ${esc(when.toLowerCase())}">↻ Autre idée</button>` : ''}
       <button class="btn small-btn quiet" data-a="listSkip" data-k="${p.slot}" aria-label="Pas de plat ${esc(when.toLowerCase())}">✕ Retirer</button></div></li>`;

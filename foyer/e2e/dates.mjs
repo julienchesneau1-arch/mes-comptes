@@ -1,9 +1,10 @@
-// V3.14–V3.16, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : dates limites lues et utiles. Curry de poulet prévu samedi ;
+// V3.14–V3.17, horloge fixée au lundi 5 octobre 2026, 12 h à Paris : dates limites lues et utiles. Curry de poulet prévu samedi ;
 // Courses : bouton « 📷 Scanner une date limite » en haut ; poulet coché → rappel « acheté, scannez la date » (« 📷 Scanner » avec le
 // nom repris, « Plus tard ») ; feuille : zone de scan en premier avec les étapes iPhone, le poulet de la liste en un toucher, la date
 // « scannée » (le texte que l'iPhone insère avec « Scanner le texte » est simulé en le tapant dans le champ), lue DLC mer. 7 oct. ;
 // Aujourd'hui propose d'avancer le curry avant la DLC, un toucher ; depuis l'en-tête d'Aujourd'hui (« 📷 Scanner une date ») : texte
-// sans date, rien deviné ; année absente : déduite et signalée ; « Enregistrer et scanner un autre ». axe WCAG 2.2 AA.
+// sans date, rien deviné ; année absente : déduite et signalée ; « Enregistrer et scanner un autre » ; menu proposé (V3.17) : un plat
+// qui utilise la crème fraîche avant sa DLC, la raison affichée. axe WCAG 2.2 AA.
 // Lancer : voir e2e/README.md
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'node:fs';
@@ -126,6 +127,15 @@ await step('en-tête d\'Aujourd\'hui ; texte sans date : rien deviné ; année a
   await page.getByText('Crème fraîche surveillé (DLC ven. 9 oct. 2026)').first().waitFor();
   await dlg.getByRole('heading', { name: /Scanner une date limite/ }).waitFor();
   if (await dlg.getByLabel('Produit', { exact: true }).inputValue()) throw new Error('feuille suivante non vide');
+  await page.keyboard.press('Escape');
+});
+await step('menu proposé : un plat (recette prête du catalogue réel) qui utilise la crème fraîche avant sa DLC, et dit pourquoi', async () => {
+  await tab('Semaine');
+  await page.getByRole('button', { name: /Proposer le menu/ }).click();
+  await dlg.getByText('Tout est prêt : approuvez, ou changez un repas.').waitFor({ timeout: 15000 });
+  await dlg.getByText(/à utiliser : crème fraîche \(DLC ven\. 9 oct\.\)/).first().waitFor();
+  if (await dlg.getByText(/à utiliser : poulet/).count()) throw new Error('poulet déjà utilisé à temps par le curry : rien à ajouter');
+  await page.screenshot({ path: `${SHOTS}/dates-menu.png`, fullPage: true });
   await page.keyboard.press('Escape');
 });
 

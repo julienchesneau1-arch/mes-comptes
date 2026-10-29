@@ -4,13 +4,13 @@
 import { slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.js';
 import { current } from './model.js';
 import { eaters, servings, portions, presence as presenceOf } from './plan.js';
-import { matchesProduct } from './printed.js';
 import { nameKey } from './text.js';
 import { aisleOf } from './ingredients.js';
 import { newId } from './reduce.js';
 import { wholeExtra } from './commands.js';
 import { prepTitle } from './status.js';
-import { discover, familiesOf, toContent } from './catalog.js';
+import { discover, familiesOf, toContent, linesOf } from './catalog.js';
+import { pressing, limitFor, usesLimit, limitText, before } from './limits.js';
 import { defaultIn, lastWeekday } from './batch.js';
 import { dishType } from './visual.js';
 import { weekBalance, running, balanceBonus, addToRunning } from './balance.js';
@@ -75,17 +75,20 @@ function around(s, day, extra) {
         m.set(d, [...(m.get(d) ?? []), ...rs]);
     return m;
 }
-// Produits surveillés fermés dont la DLC tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en avant.
-function expiring(s, day) {
-    const out = [];
-    for (const w of Object.values(s.watch)) {
-        if (w.closed || !w.date || w.date.kind !== 'DLC' || w.state !== 'ferme')
-            continue;
-        const delta = daysBetween(day, w.date.value);
-        if (delta >= 0 && delta <= 3)
-            out.push({ key: nameKey(w.name), name: w.name, date: w.date.value });
-    }
-    return out;
+// Produits surveillés fermés dont la DLC ou la DDM tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en
+// avant (DLC : +30, DDM : +15), qu'il soit l'un de vos plats ou une recette prête.
+const expiring = (s, day) => pressing(s, day, addDays(day, 3));
+function useBonus(ls, names) {
+    const l = limitFor(ls, names);
+    return l ? { score: l.kind === 'DLC' ? 30 : 15, why: `utilise ${l.name.toLowerCase()} (${limitText(l)})` } : null;
+}
+// Bonus d'une recette prête : repères d'équilibre de la semaine et produits à utiliser avant leur date.
+function catalogBonus(s, slot, run) {
+    const exp = expiring(s, parseSlot(slot)?.date ?? '');
+    return r => {
+        const bs = [balanceBonus(run, r.ingredients), exp.length ? useBonus(exp, linesOf(r).map(l => l.name)) : null].filter((b) => !!b);
+        return bs.length ? { score: bs.reduce((n, b) => n + b.score, 0), why: bs.map(b => b.why).filter(Boolean).join(' · ') } : null;
+    };
 }
 export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opts = {}) {
     const p = parseSlot(slot);
@@ -120,10 +123,10 @@ export function rank(s, slot, today, exclude = new Set(), extra = new Map(), opt
         const since = seen ? daysBetween(seen, today) : null;
         let score = since === null ? 40 : Math.min(Math.max(since, 0), 45);
         const why = [];
-        const used = c.ingredients.map(l => exp.find(x => matchesProduct(nameKey(l.name), x.key))).find(Boolean); // « Poulet » ↔ « blanc de poulet »
-        if (used) {
-            score += 30;
-            why.push(`utilise ${used.name.toLowerCase()} (DLC ${fmtDayShort(used.date)})`);
+        const use = useBonus(exp, c.ingredients.map(l => l.name)); // « Poulet » ↔ « blanc de poulet »
+        if (use) {
+            score += use.score;
+            why.push(use.why);
         }
         // Durées déclarées (préparation + cuisson) : mêmes règles que pour les découvertes du catalogue.
         const minutes = c.prepMin != null || c.cookMin != null ? (c.prepMin ?? 0) + (c.cookMin ?? 0) : null;
@@ -220,7 +223,7 @@ function weekTypes(s, week) {
 export function nextDiscovery(s, cat, slot, week, exclude, seen = new Set()) {
     const run = running(weekBalance(s, week));
     return discover(s, cat, { ...discoveryContext(s, slot, week, new Map(), new Map(), exclude), types: weekTypes(s, week), seen,
-        noYield: (s.settings.variety ?? 'max') === 'max', bonus: r => balanceBonus(run, r.ingredients) })[0];
+        noYield: (s.settings.variety ?? 'max') === 'max', bonus: catalogBonus(s, slot, run) })[0];
 }
 // Recettes prêtes pour un repas (choix d'un plat, idées d'Aujourd'hui) : mêmes règles que la semaine générée — allergies et refus,
 // variété, repères d'équilibre — et seulement celles qui disent pour combien de personnes (prévues sans question).
@@ -230,7 +233,7 @@ export function discoveriesFor(s, cat, slot, n = 4, seen = new Set()) {
         return [];
     const week = weekOf(d, s.settings.weekStart), run = running(weekBalance(s, week));
     return discover(s, cat, { ...discoveryContext(s, slot, week, new Map(), new Map(), new Set()), types: weekTypes(s, week), seen, noYield: false,
-        bonus: r => balanceBonus(run, r.ingredients) }).slice(0, n);
+        bonus: catalogBonus(s, slot, run) }).slice(0, n);
 }
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
 // Selon le réglage « Nouveautés » : « max » (défaut) = une recette nouvelle à chaque repas tant que le catalogue en a, vos plats ensuite ;
@@ -249,9 +252,9 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
     const types = weekTypes(s, week), run = running(weekBalance(s, week));
     const addType = (t) => { if (t)
         types.set(t, (types.get(t) ?? 0) + 1); };
-    const pickNew = (k) => {
+    const pickNew = (k, only) => {
         const best = cat ? discover(s, cat, { ...discoveryContext(s, k, week, proposed, newFamilies, usedNew), types, seen, noYield: mode === 'max',
-            bonus: r => balanceBonus(run, r.ingredients) })[0] : undefined;
+            bonus: catalogBonus(s, k, run) }).find(d => !only || only(d.recipe)) : undefined;
         if (!best)
             return null;
         usedNew.add(best.recipe.id);
@@ -262,8 +265,8 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
         addToRunning(run, best.recipe.ingredients);
         return best;
     };
-    const pickOwn = (k, noRepeat) => {
-        const best = rank(s, k, today, used, proposed, { noRepeat, types, run })[0];
+    const pickOwn = (k, noRepeat, only) => {
+        const best = rank(s, k, today, used, proposed, { noRepeat, types, run }).find(x => !only || (!x.blocked && only(x.recipe)));
         if (!best)
             return null;
         const d = parseSlot(k)?.date, r = s.recipes[best.recipe];
@@ -274,8 +277,10 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
             addToRunning(run, current(r).ingredients.map(l => l.name));
         return best;
     };
-    const pushNew = (k, fresh) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 }); };
-    const pushOwn = (k, best) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason: best.reason, presence: {}, guests: 0 }); };
+    const pushNew = (k, fresh, reason = fresh.reason) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
+    const pushOwn = (k, best, reason = best.reason) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
+    const open = (k) => isUpcoming(k, today, hour) && !s.slots[k]?.dish && servings(s, k) > 0 && !out.some(p => p.slot === k)
+        && !(parseSlot(k)?.slot === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner);
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
             const k = slotKey(addDays(week, i), sl);
@@ -288,10 +293,34 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
                 }
             }
         }
+    // Produits à utiliser avant leur date (DLC d'abord, puis DDM) : un plat qui les contient est réservé sur le premier repas libre
+    // d'ici la date, avant de remplir le reste de la semaine ; rien si un plat déjà prévu (ou déjà réservé) les utilise à temps,
+    // ni si aucun plat ne les contient (la carte « à consommer avant » d'Aujourd'hui le dit).
+    const end = addDays(week, 6);
+    for (const l of pressing(s, today > week ? today : week, end)) {
+        if (usedInTime(s, l, today) || out.some(p => before(p.slot, l) && usesLimit(propNames(s, p), l)))
+            continue;
+        const k = [...Array(7).keys()].flatMap(i => SLOTS.map(sl => slotKey(addDays(week, i), sl))).find(x => before(x, l) && open(x));
+        if (!k)
+            continue;
+        const why = `à utiliser : ${l.name.toLowerCase()} (${limitText(l)})`;
+        const reasonOf = (r) => [why, ...r.split(' · ').filter(x => !x.startsWith('utilise '))].join(' · ');
+        const ownUses = (id) => usesLimit(current(s.recipes[id]).ingredients.map(x => x.name), l);
+        const own = () => { const b = pickOwn(k, true, ownUses) ?? pickOwn(k, false, ownUses); if (b)
+            pushOwn(k, b, reasonOf(b.reason)); return !!b; };
+        const neu = () => { const f = pickNew(k, r => usesLimit(linesOf(r).map(x => x.name), l)); if (f)
+            pushNew(k, f, reasonOf(f.reason)); return !!f; };
+        if (mode === 'max') {
+            if (!neu())
+                own();
+        }
+        else if (!own() && mode === 'equilibre' && usedNew.size < MAX_NEW)
+            neu(); // « mes plats » : vos plats seulement
+    }
     for (let i = 0; i < 7; i++)
         for (const sl of SLOTS) {
             const k = slotKey(addDays(week, i), sl);
-            if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0)
+            if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0 || out.some(p => p.slot === k))
                 continue;
             if (sl === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner) {
                 const src = prevSlot(k);
@@ -325,13 +354,29 @@ export function proposeWeek(s, week, today, hour, cat = null, seen = new Set()) 
                 pushOwn(k, again);
         }
     if (mode === 'equilibre' && cat && !out.some(p => p.dish?.kind === 'new')) {
-        const weakest = out.filter(p => p.dish?.kind === 'cook' && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
+        const weakest = out.filter(p => p.dish?.kind === 'cook' && !p.reason.startsWith('à utiliser : ') && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
             .sort((a, b) => (scores.get(a.slot) ?? 0) - (scores.get(b.slot) ?? 0) || (a.slot < b.slot ? -1 : 1))[0];
         const fresh = weakest ? pickNew(weakest.slot) : null;
         if (weakest && fresh)
             out[out.indexOf(weakest)] = { ...weakest, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason };
     }
-    return out;
+    return out.sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0)); // ordre des repas (« midi » < « soir »)
+}
+// Ingrédients d'une proposition (vos plats ou recette prête) ; aucun pour des restes.
+function propNames(s, p) {
+    const d = p.dish;
+    if (d?.kind === 'cook') {
+        const r = s.recipes[d.recipe];
+        return r ? current(r).ingredients.map(l => l.name) : [];
+    }
+    return d?.kind === 'new' ? linesOf(d.catalog).map(l => l.name) : [];
+}
+// Un plat déjà prévu l'utilise-t-il à temps (cuisiné au plus tard le jour de la date, batch compris) ?
+function usedInTime(s, l, today) {
+    return Object.values(s.preps).some(p => {
+        const day = p.batch ?? (p.slot ? parseSlot(p.slot)?.date : undefined), r = s.recipes[p.recipe];
+        return !p.done && !!day && day >= today && day <= l.date && !!r && usesLimit(current(r).ingredients.map(x => x.name), l);
+    });
 }
 // Reprendre une autre semaine comme brouillon : plats, présences et invités ; jamais les états, coches, vérifications ni dates.
 export function copyWeek(s, from, to) {

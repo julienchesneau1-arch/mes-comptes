@@ -4,13 +4,13 @@
 import { type LocalDate, type SlotKey, slotKey, parseSlot, addDays, weekday, daysBetween, prevSlot, slotOrder, SLOTS, fmtDayShort, paris } from './dates.ts';
 import { type State, type Presence, current } from './model.ts';
 import { eaters, servings, portions, presence as presenceOf } from './plan.ts';
-import { matchesProduct } from './printed.ts';
 import { nameKey } from './text.ts';
 import { aisleOf } from './ingredients.ts';
 import { type Draft, newId } from './reduce.ts';
 import { wholeExtra } from './commands.ts';
 import { prepTitle } from './status.ts';
-import { type Catalog, discover, familiesOf, toContent } from './catalog.ts';
+import { type Catalog, discover, familiesOf, toContent, linesOf } from './catalog.ts';
+import { type Limit, pressing, limitFor, usesLimit, limitText, before } from './limits.ts';
 import type { CatalogRecipe } from './wikibook.ts';
 import { defaultIn, lastWeekday } from './batch.ts';
 import { dishType } from './visual.ts';
@@ -89,15 +89,20 @@ function around(s: State, day: LocalDate, extra: Around): Around {
   return m;
 }
 
-// Produits surveillés fermés dont la DLC tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en avant.
-function expiring(s: State, day: LocalDate): { key: string; name: string; date: LocalDate }[] {
-  const out: { key: string; name: string; date: LocalDate }[] = [];
-  for (const w of Object.values(s.watch)) {
-    if (w.closed || !w.date || w.date.kind !== 'DLC' || w.state !== 'ferme') continue;
-    const delta = daysBetween(day, w.date.value);
-    if (delta >= 0 && delta <= 3) out.push({ key: nameKey(w.name), name: w.name, date: w.date.value });
-  }
-  return out;
+// Produits surveillés fermés dont la DLC ou la DDM tombe dans les 3 jours suivant le créneau : un plat qui les utilise est mis en
+// avant (DLC : +30, DDM : +15), qu'il soit l'un de vos plats ou une recette prête.
+const expiring = (s: State, day: LocalDate): Limit[] => pressing(s, day, addDays(day, 3));
+function useBonus(ls: readonly Limit[], names: readonly string[]): { score: number; why: string } | null {
+  const l = limitFor(ls, names);
+  return l ? { score: l.kind === 'DLC' ? 30 : 15, why: `utilise ${l.name.toLowerCase()} (${limitText(l)})` } : null;
+}
+// Bonus d'une recette prête : repères d'équilibre de la semaine et produits à utiliser avant leur date.
+function catalogBonus(s: State, slot: SlotKey, run: Running): (r: CatalogRecipe) => { score: number; why: string } | null {
+  const exp = expiring(s, parseSlot(slot)?.date ?? '');
+  return r => {
+    const bs = [balanceBonus(run, r.ingredients), exp.length ? useBonus(exp, linesOf(r).map(l => l.name)) : null].filter((b): b is { score: number; why: string } => !!b);
+    return bs.length ? { score: bs.reduce((n, b) => n + b.score, 0), why: bs.map(b => b.why).filter(Boolean).join(' · ') } : null;
+  };
 }
 
 export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: ReadonlySet<string> = new Set(), extra: Around = new Map(), opts: RankOpts = {}): Ranked[] {
@@ -126,8 +131,8 @@ export function rank(s: State, slot: SlotKey, today: LocalDate, exclude: Readonl
     const since = seen ? daysBetween(seen, today) : null;
     let score = since === null ? 40 : Math.min(Math.max(since, 0), 45);
     const why: string[] = [];
-    const used = c.ingredients.map(l => exp.find(x => matchesProduct(nameKey(l.name), x.key))).find(Boolean); // « Poulet » ↔ « blanc de poulet »
-    if (used) { score += 30; why.push(`utilise ${used.name.toLowerCase()} (DLC ${fmtDayShort(used.date)})`); }
+    const use = useBonus(exp, c.ingredients.map(l => l.name)); // « Poulet » ↔ « blanc de poulet »
+    if (use) { score += use.score; why.push(use.why); }
     // Durées déclarées (préparation + cuisson) : mêmes règles que pour les découvertes du catalogue.
     const minutes = c.prepMin != null || c.cookMin != null ? (c.prepMin ?? 0) + (c.cookMin ?? 0) : null;
     if (!weekend && evening) {
@@ -194,7 +199,7 @@ function weekTypes(s: State, week: LocalDate): Map<string, number> {
 export function nextDiscovery(s: State, cat: Catalog, slot: SlotKey, week: LocalDate, exclude: ReadonlySet<string>, seen: ReadonlySet<string> = new Set()) {
   const run = running(weekBalance(s, week));
   return discover(s, cat, { ...discoveryContext(s, slot, week, new Map(), new Map(), exclude), types: weekTypes(s, week), seen,
-    noYield: (s.settings.variety ?? 'max') === 'max', bonus: r => balanceBonus(run, r.ingredients) })[0];
+    noYield: (s.settings.variety ?? 'max') === 'max', bonus: catalogBonus(s, slot, run) })[0];
 }
 
 // Recettes prêtes pour un repas (choix d'un plat, idées d'Aujourd'hui) : mêmes règles que la semaine générée — allergies et refus,
@@ -204,7 +209,7 @@ export function discoveriesFor(s: State, cat: Catalog, slot: SlotKey, n = 4, see
   if (!d) return [];
   const week = weekOf(d, s.settings.weekStart), run = running(weekBalance(s, week));
   return discover(s, cat, { ...discoveryContext(s, slot, week, new Map(), new Map(), new Set()), types: weekTypes(s, week), seen, noYield: false,
-    bonus: r => balanceBonus(run, r.ingredients) }).slice(0, n);
+    bonus: catalogBonus(s, slot, run) }).slice(0, n);
 }
 
 // Remplit les créneaux vides de la semaine où quelqu'un mange. Les créneaux déjà prévus ne bougent pas.
@@ -223,9 +228,9 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
   const proposed: Around = new Map();
   const types = weekTypes(s, week), run = running(weekBalance(s, week));
   const addType = (t: string | null) => { if (t) types.set(t, (types.get(t) ?? 0) + 1); };
-  const pickNew = (k: SlotKey) => {
+  const pickNew = (k: SlotKey, only?: (r: CatalogRecipe) => boolean) => {
     const best = cat ? discover(s, cat, { ...discoveryContext(s, k, week, proposed, newFamilies, usedNew), types, seen, noYield: mode === 'max',
-      bonus: r => balanceBonus(run, r.ingredients) })[0] : undefined;
+      bonus: catalogBonus(s, k, run) }).find(d => !only || only(d.recipe)) : undefined;
     if (!best) return null;
     usedNew.add(best.recipe.id);
     const d = parseSlot(k)?.date as LocalDate;
@@ -233,8 +238,8 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
     addType(dishType(best.recipe.title, best.recipe.ingredients)); addToRunning(run, best.recipe.ingredients);
     return best;
   };
-  const pickOwn = (k: SlotKey, noRepeat: boolean) => {
-    const best = rank(s, k, today, used, proposed, { noRepeat, types, run })[0];
+  const pickOwn = (k: SlotKey, noRepeat: boolean, only?: (recipe: string) => boolean) => {
+    const best = rank(s, k, today, used, proposed, { noRepeat, types, run }).find(x => !only || (!x.blocked && only(x.recipe)));
     if (!best) return null;
     const d = parseSlot(k)?.date as LocalDate, r = s.recipes[best.recipe];
     used.add(best.recipe);
@@ -242,16 +247,33 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
     addType(typeOfRecipe(s, best.recipe)); if (r) addToRunning(run, current(r).ingredients.map(l => l.name));
     return best;
   };
-  const pushNew = (k: SlotKey, fresh: NonNullable<ReturnType<typeof pickNew>>) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason, presence: {}, guests: 0 }); };
-  const pushOwn = (k: SlotKey, best: Ranked) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason: best.reason, presence: {}, guests: 0 }); };
+  const pushNew = (k: SlotKey, fresh: NonNullable<ReturnType<typeof pickNew>>, reason = fresh.reason) => { cooks.set(k, null); out.push({ slot: k, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
+  const pushOwn = (k: SlotKey, best: Ranked, reason = best.reason) => { cooks.set(k, null); scores.set(k, best.score); out.push({ slot: k, dish: { kind: 'cook', recipe: best.recipe, extra: 0 }, reason, presence: {}, guests: 0 }); };
+  const open = (k: SlotKey): boolean => isUpcoming(k, today, hour) && !s.slots[k]?.dish && servings(s, k) > 0 && !out.some(p => p.slot === k)
+    && !(parseSlot(k)?.slot === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner);
   for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
     const k = slotKey(addDays(week, i), sl);
     const d = s.slots[k]?.dish;
     if (d?.kind === 'cook') { const p = s.preps[d.prep]; if (p) { used.add(p.recipe); cooks.set(k, p.id); } }
   }
+  // Produits à utiliser avant leur date (DLC d'abord, puis DDM) : un plat qui les contient est réservé sur le premier repas libre
+  // d'ici la date, avant de remplir le reste de la semaine ; rien si un plat déjà prévu (ou déjà réservé) les utilise à temps,
+  // ni si aucun plat ne les contient (la carte « à consommer avant » d'Aujourd'hui le dit).
+  const end = addDays(week, 6);
+  for (const l of pressing(s, today > week ? today : week, end)) {
+    if (usedInTime(s, l, today) || out.some(p => before(p.slot, l) && usesLimit(propNames(s, p), l))) continue;
+    const k = [...Array(7).keys()].flatMap(i => SLOTS.map(sl => slotKey(addDays(week, i), sl))).find(x => before(x, l) && open(x));
+    if (!k) continue;
+    const why = `à utiliser : ${l.name.toLowerCase()} (${limitText(l)})`;
+    const reasonOf = (r: string): string => [why, ...r.split(' · ').filter(x => !x.startsWith('utilise '))].join(' · ');
+    const ownUses = (id: string): boolean => usesLimit(current(s.recipes[id]!).ingredients.map(x => x.name), l);
+    const own = (): boolean => { const b = pickOwn(k, true, ownUses) ?? pickOwn(k, false, ownUses); if (b) pushOwn(k, b, reasonOf(b.reason)); return !!b; };
+    const neu = (): boolean => { const f = pickNew(k, r => usesLimit(linesOf(r).map(x => x.name), l)); if (f) pushNew(k, f, reasonOf(f.reason)); return !!f; };
+    if (mode === 'max') { if (!neu()) own(); } else if (!own() && mode === 'equilibre' && usedNew.size < MAX_NEW) neu(); // « mes plats » : vos plats seulement
+  }
   for (let i = 0; i < 7; i++) for (const sl of SLOTS) {
     const k = slotKey(addDays(week, i), sl);
-    if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0) continue;
+    if (!isUpcoming(k, today, hour) || s.slots[k]?.dish || servings(s, k) === 0 || out.some(p => p.slot === k)) continue;
     if (sl === 'midi' && onlyBoxes(s, k) && s.settings.boxesFromDinner) {
       const src = prevSlot(k);
       if (cooks.has(src)) out.push({ slot: k, dish: { kind: 'from', source: src, prep: cooks.get(src) ?? null }, reason: 'boîte : restes du dîner de la veille', presence: {}, guests: 0 });
@@ -272,12 +294,26 @@ export function proposeWeek(s: State, week: LocalDate, today: LocalDate, hour: n
     if (again) pushOwn(k, again);
   }
   if (mode === 'equilibre' && cat && !out.some(p => p.dish?.kind === 'new')) {
-    const weakest = out.filter(p => p.dish?.kind === 'cook' && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
+    const weakest = out.filter(p => p.dish?.kind === 'cook' && !p.reason.startsWith('à utiliser : ') && !out.some(x => x.dish?.kind === 'from' && x.dish.source === p.slot))
       .sort((a, b) => (scores.get(a.slot) ?? 0) - (scores.get(b.slot) ?? 0) || (a.slot < b.slot ? -1 : 1))[0];
     const fresh = weakest ? pickNew(weakest.slot) : null;
     if (weakest && fresh) out[out.indexOf(weakest)] = { ...weakest, dish: { kind: 'new', catalog: fresh.recipe, extra: 0 }, reason: fresh.reason };
   }
-  return out;
+  return out.sort((a, b) => (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0)); // ordre des repas (« midi » < « soir »)
+}
+
+// Ingrédients d'une proposition (vos plats ou recette prête) ; aucun pour des restes.
+function propNames(s: State, p: Proposal): string[] {
+  const d = p.dish;
+  if (d?.kind === 'cook') { const r = s.recipes[d.recipe]; return r ? current(r).ingredients.map(l => l.name) : []; }
+  return d?.kind === 'new' ? linesOf(d.catalog).map(l => l.name) : [];
+}
+// Un plat déjà prévu l'utilise-t-il à temps (cuisiné au plus tard le jour de la date, batch compris) ?
+function usedInTime(s: State, l: Limit, today: LocalDate): boolean {
+  return Object.values(s.preps).some(p => {
+    const day = p.batch ?? (p.slot ? parseSlot(p.slot)?.date : undefined), r = s.recipes[p.recipe];
+    return !p.done && !!day && day >= today && day <= l.date && !!r && usesLimit(current(r).ingredients.map(x => x.name), l);
+  });
 }
 
 // Reprendre une autre semaine comme brouillon : plats, présences et invités ; jamais les états, coches, vérifications ni dates.

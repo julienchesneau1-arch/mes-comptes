@@ -69,7 +69,8 @@ export function fitBudget(s: State, props: readonly Proposal[], budget: number, 
   const total = (): number => fixed + cur.reduce((n, p) => n + (propCost(s, cur, p)?.cents ?? 0), 0);
   const tried = new Set<SlotKey>(), swapped: SlotKey[] = [];
   for (let guard = 0; guard < 14 && total() > budget; guard++) {
-    const victim = cur.filter(p => cooks(p) && !tried.has(p.slot) && propCost(s, cur, p)?.reliable)
+    // Un plat qui utilise un produit avant sa date n'est pas remplacé pour économiser : le jeter coûterait plus.
+    const victim = cur.filter(p => cooks(p) && !tried.has(p.slot) && !p.reason.startsWith('à utiliser : ') && propCost(s, cur, p)?.reliable)
       .sort((a, b) => (propCost(s, cur, b)?.cents ?? 0) - (propCost(s, cur, a)?.cents ?? 0) || (a.slot < b.slot ? -1 : 1))[0];
     if (!victim) break;
     tried.add(victim.slot);
