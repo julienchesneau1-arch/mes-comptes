@@ -10,6 +10,10 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Synchro téléphone ↔ ordinateur** : Réglages → Exporter / Importer une sauvegarde.
 - **Tableur de suivi** (export CSV d'un tableau « postes × mois ») : importé comme historique, remplacé mois par mois par les vrais relevés ; ses annotations X / NEGO / PEUT DIMINUER / PEUT SE PASSER deviennent les leviers du plan d'épargne.
 - **Où va l'argent** (accueil, juste sous le grand chiffre) : un grand camembert des dépenses du mois en 7 pôles (Logement & charges, Courses & restos, Transports, Loisirs & vacances, Shopping & maison, Santé & famille, Autres). Toucher une part ouvre ses familles, puis une famille ses opérations ; ▲▼ par rapport à d'habitude (dépenses variables). Couleurs fixes par pôle, sans rouge, vérifiées pour les daltoniens, emoji sur chaque part. Dans Tendances, les mêmes pôles mois par mois sur 12 mois.
+- **Enveloppe « vie courante »** (budget flexible) : un seul montant par mois et par profil pour toutes les dépenses variables (les charges fixes n'y entrent pas), proposé d'après l'habitude. Jauge au-dessus du camembert : repère du jour, reste, ≈ € par jour jusqu'à la fin du mois ; dépassée, elle met la météo « à surveiller ».
+- **Solde prévu jour par jour** (Comptes › À venir) : une courbe en marches par compte, un pas par prélèvement fixe ou rentrée habituelle, zéro toujours visible, point le plus bas nommé ; toucher un point donne le détail du jour.
+- **Filtre par pôle** (Opérations) : un pôle entier ou une de ses familles ; une opération répartie ne compte que pour ses parts concernées ; total dépensé / reçu.
+- **Accueil allégé** : le rendez-vous du mois tient en une ligne par étape ; quand il est affiché, « À faire » se replie en une ligne, sauf urgence (découvert, relevé manquant, sauvegarde…).
 - **Plan d'épargne** : ce que chaque levier libère par mois (−15 % / ~20 % / 100 %), relié aux objectifs et aux défis.
 - **Contrôle des relevés** : ancien solde + opérations lues = nouveau solde, sinon un écart est signalé.
 - **À faire** (accueil), deux cas de plus, réglés d'un toucher :
