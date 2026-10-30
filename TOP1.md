@@ -33,6 +33,7 @@ Mesures du 30 octobre 2026 : Pixel 7 émulé, processeur ralenti ×4 (téléphon
 
 ## Limites connues (dites, pas cachées)
 
+- Tests sur WebKit : ils tournent dans un profil sur disque, comme un vrai téléphone. En profil privé, WebKit perdait le cache à la coupure réseau simulée, une fois sur deux (constaté, puis écarté). Pendant une capture d'écran, Playwright injecte un style que la CSP stricte de Foyer refuse : ce seul cas est ignoré (prouvé par l'étape et l'absence de fichier source), toute autre erreur reste bloquante.
 - WebKit sous Linux n'est pas l'iPhone : rien n'a été vérifié sur un vrai iPhone ni avec VoiceOver ou TalkBack. axe ne détecte qu'une partie des défauts d'accessibilité : un passage au lecteur d'écran reste à faire.
 - Foyer pèse 1,5 Mo au premier chargement (catalogue de recettes). Ensuite il sert depuis le téléphone.
 - Mes Comptes reste au-dessus des 100 ms visés pour un changement d'onglet sur un téléphone milieu de gamme. Le temps restant est surtout la mise en page (jusqu'à 849 éléments sur Tendances), pas le calcul.
