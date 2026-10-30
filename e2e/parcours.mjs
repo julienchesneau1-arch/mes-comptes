@@ -52,6 +52,8 @@ async function bio(engine, device) {
   await page.click('[data-a="bioSheet"]');
   await page.fill('form[data-f="bioOn"] [name="pin"]', PIN);
   await page.click('form[data-f="bioOn"] button:not([type])');
+  await page.click('[data-a="bioCreate"]');                                   // un toucher par étape, comme Safari l'exige
+  if (await page.locator('[data-a="bioConfirm"]').count()) await page.click('[data-a="bioConfirm"]');
   await page.waitForFunction(() => !!localStorage.getItem('mescomptes-bio'), null, { timeout: 20000 }).catch(() => {});
   const stored = await page.evaluate(() => localStorage.getItem('mescomptes-bio') || '');
   ok(!!stored && !stored.includes(PIN), 'activée : code gardé chiffré, jamais en clair');
@@ -118,8 +120,17 @@ async function demo(engine, device) {
 
   await page.click('#tabs [data-t="accounts"]');
   ok(await page.locator('svg.fcc').count() >= 1, 'comptes : courbe du solde prévu');
-  await page.locator('svg.fcc .hit').first().click();
-  ok(/solde/.test(await page.locator('.fcd').first().innerText()), 'point de la courbe touché : détail du jour');
+  const hit = await page.locator('svg.fcc .hit').first().boundingBox();
+  await page.touchscreen.tap(hit.x + hit.width / 2, hit.y + hit.height / 2);
+  await page.waitForFunction(() => /solde/.test(document.querySelector('.fcd').textContent), null, { timeout: 2000 }).catch(() => {});
+  ok(/solde/.test(await page.locator('.fcd').first().innerText()), 'point de la courbe touché du doigt : détail du jour');
+  // Un seul toucher = une seule action (pas de double bascule si un clic suit le doigt levé).
+  await page.evaluate(() => { ui.pole = ''; ui.tab = 'home'; render(); });
+  await page.waitForTimeout(1200);                                            // fin du tracé animé du camembert
+  const p2 = await slicePoint(page, 'manger'), states = [];
+  for (let i = 0; i < 2; i++) { await page.touchscreen.tap(p2.x, p2.y); await page.waitForTimeout(400); states.push(await page.evaluate(() => ui.pole)); }
+  ok(states.join(',') === 'manger,', `un toucher = une action : sélection puis désélection (${states.map(x => x || '—').join(' → ')})`);
+  await page.click('#tabs [data-t="accounts"]');
   await page.click('[data-a="tab"][data-t="trends"]');
   ok(await page.locator('.stk .stack').count() === 12, 'tendances : 12 mois par pôle');
 

@@ -521,25 +521,48 @@ async function bioPrf(id, salt) {
   return r && r.results && r.results.first ? new Uint8Array(r.results.first) : null;
 }
 const BIO_NO = 'Ce téléphone ne permet pas encore Face ID / empreinte pour une app web : le code reste l\'entrée. (iPhone : iOS 18 ou plus récent ; Android : Chrome à jour.)';
+// Activation en étapes, chacune lancée par son propre toucher : Safari n'ouvre Face ID que juste après un geste.
+// ① code vérifié (gardé en mémoire le temps de l'activation) → ② « Activer » crée la clé d'accès → ③ si besoin, « Confirmer » la lit.
+let BIO_PENDING = null;
 async function bioOn(pin) {
   const m = vaultMeta();
   if (!m) return;
   try { await vaultOpen(m.data, await vaultKey(pin, m.salt, m.iter || VAULT_ITER)); } catch { return toast('Code incorrect'); }
   try { const caps = await PublicKeyCredential.getClientCapabilities?.(); if (caps && caps['extension:prf'] === false) return toast(BIO_NO); } catch {}
-  const salt = crypto.getRandomValues(new Uint8Array(32));
+  BIO_PENDING = { pin, salt: crypto.getRandomValues(new Uint8Array(32)), at: Date.now() };
+  openSheet(`<h2 style="margin-top:0">${BIO_LABEL}</h2><p class="sm">Code vérifié. Touchez le bouton : le téléphone demande ${OS === 'ios' ? 'Face ID ou Touch ID' : 'votre empreinte ou votre visage'}.</p>
+    <div class="chips"><button class="btn" style="flex:1" data-a="bioCreate">${BIO_LABEL} : activer</button><button type="button" class="btn ghost" data-a="closeSheet">Annuler</button></div>`);
+}
+const bioPending = () => (BIO_PENDING && Date.now() - BIO_PENDING.at < 3 * 60e3 ? BIO_PENDING : (BIO_PENDING = null));
+async function bioCreate() {
+  const p = bioPending(); if (!p) return toast('Recommencez : Réglages › Sécurité.');
+  const salt = p.salt;
   let cred;
   try {
     cred = await navigator.credentials.create({ publicKey: { rp: { name: 'Mes Comptes', id: location.hostname }, user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'Mes Comptes', displayName: 'Mes Comptes' },
       challenge: crypto.getRandomValues(new Uint8Array(32)), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], timeout: 60000,
       authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', userVerification: 'required' }, extensions: { prf: { eval: { first: salt } } } } });
-  } catch (e) { jlog('Face ID : création refusée (' + (e && e.name) + ')'); return toast(e && e.name === 'NotAllowedError' ? 'Annulé.' : BIO_NO); }
+  } catch (e) { jlog('Face ID : création refusée (' + (e && e.name) + ')'); BIO_PENDING = null; closeSheet(); return toast(e && e.name === 'NotAllowedError' ? 'Annulé.' : BIO_NO); }
   const ext = (cred && cred.getClientExtensionResults().prf) || {};
-  if (!ext.enabled && !ext.results) return toast(BIO_NO);
-  let prf = ext.results && ext.results.first ? new Uint8Array(ext.results.first) : null;
-  if (!prf) try { prf = await bioPrf(new Uint8Array(cred.rawId), salt); } catch { prf = null; } // certains téléphones ne la rendent qu'au premier usage
-  if (!prf) return toast(BIO_NO);
-  try { localStorage.setItem(BIO, JSON.stringify({ v: 1, id: b64u.enc(new Uint8Array(cred.rawId)), salt: b64u.enc(salt), data: await vaultSeal(pin, await bioKey(prf)) })); }
-  catch (e) { return toast('Impossible : ' + e.message); }
+  if (!ext.enabled && !ext.results) { BIO_PENDING = null; closeSheet(); return toast(BIO_NO); }
+  p.id = new Uint8Array(cred.rawId);
+  if (ext.results && ext.results.first) return bioSave(new Uint8Array(ext.results.first));
+  // Certains téléphones ne rendent la clé qu'au premier usage : un second toucher la lit.
+  openSheet(`<h2 style="margin-top:0">${BIO_LABEL}</h2><p class="sm">Presque fini : une dernière confirmation.</p>
+    <div class="chips"><button class="btn" style="flex:1" data-a="bioConfirm">${BIO_LABEL} : confirmer</button><button type="button" class="btn ghost" data-a="closeSheet">Annuler</button></div>`);
+}
+async function bioConfirm() {
+  const p = bioPending(); if (!p || !p.id) return toast('Recommencez : Réglages › Sécurité.');
+  let prf = null;
+  try { prf = await bioPrf(p.id, p.salt); } catch (e) { jlog('Face ID : lecture refusée (' + (e && e.name) + ')'); }
+  if (!prf) { BIO_PENDING = null; closeSheet(); return toast(BIO_NO); }
+  return bioSave(prf);
+}
+async function bioSave(prf) {
+  const p = bioPending(); if (!p) return;
+  try { localStorage.setItem(BIO, JSON.stringify({ v: 1, id: b64u.enc(p.id), salt: b64u.enc(p.salt), data: await vaultSeal(p.pin, await bioKey(prf)) })); }
+  catch (e) { BIO_PENDING = null; return toast('Impossible : ' + e.message); }
+  BIO_PENDING = null;
   jlog('Face ID : activé'); closeSheet(); render(); toast(`✔ ${BIO_LABEL} activé : au prochain verrouillage, un regard ou un doigt suffit.`);
 }
 async function bioUnlock() {
@@ -1686,7 +1709,7 @@ function settings() {
         <b>Ce qui en sort</b> (synchro, sauvegardes) est chiffré par le <b>code du foyer</b>. L'app n'envoie rien ailleurs : personne d'autre ne voit vos chiffres.</p>
       <div class="chips"><button class="btn sm" data-a="lockNow">🔒 Verrouiller maintenant</button><button class="btn sm ghost" data-a="pinChange">Changer mon code d'entrée</button></div>
       ${bioMeta() ? `<div class="chips"><span>✔ ${BIO_LABEL} activé</span><button class="btn sm ghost" data-a="bioOffAsk">Désactiver</button></div>`
-        : bioCan() ? `<div class="chips"><button class="btn sm ghost" data-a="bioSheet">${BIO_LABEL} : l'activer</button></div>` : ''}
+        : bioCan() && !ui.demo ? `<div class="chips"><button class="btn sm ghost" data-a="bioSheet">${BIO_LABEL} : l'activer</button></div>` : ''}
       <div class="chips"><button class="btn sm ghost" data-a="codeShow">🔐 Voir mon code du foyer</button><button class="btn sm ghost" data-a="codeNew">Changer le code du foyer</button></div>
       <p class="sm mute hint">Le code est le même sur vos deux téléphones (l'autre le tape une fois). Gardez-le dans un endroit sûr : sans lui, une sauvegarde chiffrée ne peut pas être relue. Les données sur ce téléphone restent protégées par son code de verrouillage.</p></section>
     <section class="card span"><h2>Rappels</h2><p class="sm">Un rappel le soir, le dimanche et le 6 du mois, dans l'agenda du téléphone. En ouvrant l'app, la bonne carte vous attend en haut de l'accueil.</p>
@@ -1861,6 +1884,8 @@ const A = {
   lockBack: () => showLock(),
   lockNow: () => lockNow(),
   bioUnlock: () => bioUnlock(),
+  bioCreate: () => bioCreate(),
+  bioConfirm: () => bioConfirm(),
   bioSheet: () => openSheet(`<h2 style="margin-top:0">${BIO_LABEL}</h2>
     <p class="sm">Ouvrir l'app d'un regard ou d'un doigt. Le téléphone garde votre code d'entrée, chiffré par une clé qu'il ne rend qu'après ${OS === 'ios' ? 'Face ID ou Touch ID' : 'votre empreinte ou votre visage'}. Rien ne quitte le téléphone ; le code reste toujours accepté.</p>
     <form data-f="bioOn" style="display:grid;gap:10px"><input class="f" name="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Votre code d'entrée, pour confirmer">
@@ -2021,9 +2046,20 @@ const C = {
   },
 };
 
+// Toucher un élément SVG (part du camembert, point de la courbe) : sur iPhone, aucun « clic » ne suit toujours le doigt levé.
+// On agit donc au doigt levé (un défilement, lui, est annulé par le navigateur : rien ne se passe), et on ignore le clic qui suivrait.
+let svgTap = null;
+document.addEventListener('pointerup', e => {
+  if (e.pointerType === 'mouse') return;
+  const b = e.target.closest && e.target.closest('svg [data-a]');
+  if (!b || !A[b.dataset.a]) return;
+  svgTap = { el: b, at: Date.now() };
+  try { A[b.dataset.a](b.dataset, b); } catch (err) { console.error(err); }
+});
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-a]');
   if (!b || e.target.closest('select,input') || !A[b.dataset.a]) return;
+  if (svgTap && svgTap.el === b && Date.now() - svgTap.at < 1000) return; // déjà fait au doigt levé
   try { const r = A[b.dataset.a](b.dataset, b); if (r && r.catch) r.catch(err => { console.error(err); toast('Petit souci : ' + err.message + '. Rien n\'est perdu.'); }); }
   catch (err) { console.error(err); toast('Petit souci : ' + err.message + '. Rien n\'est perdu.'); render(); }
 });
