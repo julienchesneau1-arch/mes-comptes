@@ -276,9 +276,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=43"></script>
+<script src="core.js?v=44"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 43;
+const KEY = 'mescomptes-v1', VERSION = 44;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
@@ -1193,7 +1193,7 @@ function whereCard(st, full, pc) {
     const L = p.v / tot * CI, mid = (at + L / 2) / CI * 2 * Math.PI - Math.PI / 2, on = p.id === ui.pole ? ' class="on"' : '';
     arcs += `<circle${on} data-a="pole" data-p="${p.id}" cx="120" cy="120" r="${R}" stroke="var(--pl-${p.id})" stroke-width="34" stroke-dasharray="${Math.max(0.8, L - GAP).toFixed(2)} ${CI.toFixed(2)}" stroke-dashoffset="${(-at).toFixed(2)}"><title>${esc(p.name)} · ${eur(p.v)} · ${pctTxt(p.v, tot)} %</title></circle>`;
     const x = (120 + R * Math.cos(mid)).toFixed(1), y = (120 + R * Math.sin(mid)).toFixed(1); // l'emoji sur sa pastille : le pôle se lit sans la couleur
-    if (L / CI >= 0.06) marks += `<circle class="bg${p.id === ui.pole ? ' on' : ''}" data-p="${p.id}" cx="${x}" cy="${y}" r="12.5"/><text${on} data-p="${p.id}" x="${x}" y="${y}">${p.emoji}</text>`;
+    if (L / CI >= 0.06) marks += `<circle class="bg${p.id === ui.pole ? ' on' : ''}" data-p="${p.id}" cx="${x}" cy="${y}" r="12.5"/><text${on} data-p="${p.id}" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${p.emoji}</text>`;
     at += L;
   }
   const label = 'Répartition des dépenses : ' + [...shown].sort((a, b) => b.v - a.v).map(p => `${p.name} ${pctTxt(p.v, tot)} %`).join(', ');
@@ -1661,6 +1661,7 @@ function settings() {
       <div class="act"><span class="em" style="--c:var(--acc)">📥</span><div class="grow"><b>Chaque mois (le 5)</b><div class="sm mute">${bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) + ' → enregistrer les PDF' : 'Sur ' + bank().site + ' : export des opérations en CSV ou OFX'}. Puis ＋ Importer, depuis votre profil.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">✅</span><div class="grow"><b>Ensuite</b><div class="sm mute">Suivez « Vos actions » sur l'accueil : ranger, s'engager, mettre de côté. Tout le reste se calcule seul.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">🥧</span><div class="grow"><b>Voir où part l'argent</b><div class="sm mute">Le camembert sous le grand chiffre : 7 pôles. Touchez une part pour ses familles, puis une famille pour ses opérations. Tendances › « Par pôle » pour les 12 derniers mois. 🎯 « Fixer une enveloppe » : un seul budget pour toute la vie courante, suivi au jour le jour.</div></div></div>
+      <div class="act"><span class="em" style="--c:var(--acc)">🙂</span><div class="grow"><b>Ouvrir d'un regard ou d'un doigt</b><div class="sm mute">Réglages › Sécurité › ${BIO_LABEL} (iPhone : iOS 18 ou plus récent ; Android : Chrome à jour). Le code reste toujours accepté.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">🔄</span><div class="grow"><b>Rester synchronisés</b><div class="sm mute">Celui qui a importé : ＋ → Synchro → Envoyer (un lien par message). L'autre touche le lien (Android) ou le copie puis ＋ → Synchro → Coller (iPhone). Rien n'est effacé, aucun doublon.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">🛟</span><div class="grow"><b>En cas d'erreur</b><div class="sm mute">Versions précédentes (plus bas) : revenir en arrière en un appui. Téléphone perdu : réinstaller, puis Importer / fusionner la dernière sauvegarde.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">⚡</span><div class="grow"><b>Être à jour au jour le jour</b><div class="sm mute">Prélèvements, salaires et virements réguliers s'inscrivent tout seuls le jour J (🔁 prévu). Il ne reste que les achats : ＋ → un favori en un appui, ou Apple Pay / notifications Android automatiques. Le relevé du mois confirme tout.</div></div></div>

@@ -15,6 +15,8 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Filtre par pôle** (Opérations) : un pôle entier ou une de ses familles ; une opération répartie ne compte que pour ses parts concernées ; total dépensé / reçu.
 - **Recherche dans tout l'historique** (Opérations) : un mot ou un montant (« 54 » trouve 54,20 €) ; dans le mois affiché, puis « Chercher dans tout l'historique » : regroupé par mois, total et moyenne par mois.
 - **Chez ce marchand** (fiche d'une opération) : 12 mois en barres, nombre de passages, total, moyenne des mois où l'on y est passé, « Toutes ses opérations ».
+- **Face ID / empreinte** (Réglages › Sécurité, optionnel) : une clé d'accès du téléphone (extension PRF) rend, après la biométrie seulement, la clé qui chiffre le code d'entrée gardé sur le téléphone. Aucun serveur ; le code reste accepté ; code changé ou oublié → biométrie désactivée. iPhone : iOS 18 ou plus récent ; Android : Chrome à jour.
+- **Testé sur téléphone à chaque publication** : `e2e/parcours.mjs` (exemple, vrai parcours code → import → rechargement → déverrouillage, biométrie simulée) sur iPhone 13 (WebKit) et Pixel 7 (Chromium), dans la CI GitHub (gratuite pour un dépôt public). En local : `node e2e/parcours.mjs` (Playwright installé).
 - **Rapide avec un gros historique** : chaque calcul n'est fait qu'une fois par affichage (accueil ~2× plus rapide, Tendances ~6× sur 6 000 opérations).
 - **Accueil allégé** : le rendez-vous du mois tient en une ligne par étape ; quand il est affiché, « À faire » se replie en une ligne, sauf urgence (découvert, relevé manquant, sauvegarde…).
 - **Plan d'épargne** : ce que chaque levier libère par mois (−15 % / ~20 % / 100 %), relié aux objectifs et aux défis.
