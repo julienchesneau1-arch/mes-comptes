@@ -46,6 +46,8 @@ async function phone(engine, device) {
   page.setDefaultTimeout(15000);
   page.on('pageerror', e => errs.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) errs.push(m.text()); });
+  // Violation de CSP : d'où vient-elle (extrait du style ou du script refusé, fichier, ligne) ?
+  await page.addInitScript(() => document.addEventListener('securitypolicyviolation', e => console.error(`CSP ${e.violatedDirective} ${e.sourceFile || '-'}:${e.lineNumber} « ${e.sample} »`)));
   await page.clock.setFixedTime(NOW);
   return { ctx, page, errs, outside };
 }
@@ -127,7 +129,7 @@ async function run(engine, device) {
   OFF = false;
 
   ok(!outside.length, `aucun appel hors de l'app${outside.length ? ' : ' + outside.slice(0, 3).join(' | ') : ''}`);
-  ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
+  ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 6).join(' | ') : ''}`);
   await ctx.close();
 }
 
