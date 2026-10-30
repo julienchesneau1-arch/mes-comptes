@@ -242,7 +242,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 .flexg .bar{height:10px;background:var(--card)}
 .fcc{width:100%;height:auto;display:block;margin:6px 0 2px;overflow:visible}
 .fcc text{font-size:11px;fill:var(--mute)}
-.fcc .hit{fill:transparent;cursor:pointer}
+.fcc .hit{fill:transparent;pointer-events:all;cursor:pointer} /* transparent mais touchable : WebKit ne « voit » pas sous le doigt une forme sans peinture */
 .fcc .mk{stroke:var(--card);stroke-width:2;pointer-events:none}
 .fcc .mk.on{stroke:var(--acc);stroke-width:3}
 .fcd{min-height:22px;margin:0 0 6px;line-height:1.4}

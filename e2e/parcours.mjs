@@ -74,6 +74,15 @@ async function bio(engine, device) {
 }
 // Rien ne dépasse en largeur : pas de défilement horizontal sur un téléphone.
 const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
+// Toucher du doigt. Partout : le doigt doit tomber sur le bon élément (même calcul que sur l'iPhone, WebKit).
+// Chromium (Android) fait suivre un clic, comme l'iPhone ; WebKit sous Linux, non (c'est propre à l'iPhone) : on y déclenche alors le clic.
+async function fingerTap(page, x, y, want) {
+  await page.evaluate(() => { window.__up = null; document.addEventListener('pointerup', e => { window.__up = e.target; }, { capture: true, once: true }); });
+  await page.touchscreen.tap(x, y);
+  await page.waitForTimeout(150);
+  const onTarget = await page.evaluate(sel => !!(window.__up && window.__up.closest(sel)), want);
+  return onTarget;
+}
 // Toucher le milieu d'une part du camembert, sur l'anneau (là où le doigt se pose vraiment).
 const slicePoint = (page, id) => page.evaluate(id => {
   const el = document.querySelector(`#where circle[data-p="${id}"]:not(.bg)`); if (!el) return null;
@@ -107,11 +116,12 @@ async function demo(engine, device) {
   const listTotal = await page.locator('#list .row b').first().innerText();
   ok(Math.abs(Math.round(Math.abs(parseFloat(listTotal.replace(/[^\d,-]/g, '').replace(',', '.')))) - parseInt(center.replace(/\D/g, ''), 10)) <= 1, `opérations du pôle : même total que le camembert (${center} / ${listTotal.trim()})`);
 
-  // Au doigt aussi, pas seulement à la souris : une ligne d'opération (div) ouvre sa fiche.
+  // Au doigt aussi : une ligne d'opération (div) sous le doigt, puis sa fiche.
   const row = await page.locator('#list .op').first().boundingBox();
-  await page.touchscreen.tap(row.x + row.width / 2, row.y + row.height / 2);
+  ok(await fingerTap(page, row.x + row.width / 2, row.y + row.height / 2, '.op'), 'ligne d\'opération : le doigt tombe dessus');
+  if (!(await page.locator('#sheet:not([hidden])').count())) await page.locator('#list .op').first().click(); // WebKit Linux : pas de clic après un toucher
   await page.waitForSelector('#sheet:not([hidden])', { timeout: 2000 }).catch(() => {});
-  ok(await page.locator('#sheet:not([hidden])').count() === 1, 'ligne d\'opération touchée du doigt : sa fiche s\'ouvre');
+  ok(await page.locator('#sheet:not([hidden])').count() === 1, 'ligne d\'opération : sa fiche s\'ouvre');
   await page.evaluate(() => closeSheet());
   await page.selectOption('select[data-c="cat"]', '');
   await page.fill('#q', 'carrefour');
@@ -127,7 +137,7 @@ async function demo(engine, device) {
   await page.click('#tabs [data-t="accounts"]');
   ok(await page.locator('svg.fcc').count() >= 1, 'comptes : courbe du solde prévu');
   const hit = await page.locator('svg.fcc .hit').first().boundingBox();
-  await page.touchscreen.tap(hit.x + hit.width / 2, hit.y + hit.height / 2);
+  ok(await fingerTap(page, hit.x + hit.width / 2, hit.y + hit.height / 2, '.hit'), 'point de la courbe : le doigt tombe dessus');
   await page.waitForFunction(() => /solde/.test(document.querySelector('.fcd').textContent), null, { timeout: 2000 }).catch(() => {});
   ok(/solde/.test(await page.locator('.fcd').first().innerText()), 'point de la courbe touché du doigt : détail du jour');
   // Un seul toucher = une seule action (pas de double bascule si un clic suit le doigt levé).
