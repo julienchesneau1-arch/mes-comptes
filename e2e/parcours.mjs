@@ -223,10 +223,11 @@ async function real(engine, device) {
   await page.screenshot({ path: join(SHOTS, `${tag}-reel.png`) });
   // Hors ligne : l'app s'ouvre, le code ouvre le coffre, les opérations sont là.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
+  const before = await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return `sw=${r?.active?.state || '-'} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')}`; }).catch(e => e.message);
   try {
     OFF = true;
     await page.reload();
-    if (!(await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).then(() => true, () => false))) ok(false, `hors ligne : écran du code absent (${await page.evaluate(async () => `${location.href} · contrôlée=${!!navigator.serviceWorker?.controller} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')} · « ${(document.body?.innerText || '').slice(0, 120).replace(/\s+/g, ' ')} »`).catch(e => e.message)})`);
+    if (!(await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).then(() => true, () => false))) ok(false, `hors ligne : écran du code absent (avant : ${before} ; après : ${await page.evaluate(async () => `${location.href} · contrôlée=${!!navigator.serviceWorker?.controller} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')} · « ${(document.body?.innerText || '').slice(0, 120).replace(/\s+/g, ' ')} »`).catch(e => e.message)})`);
     else {
       await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
       await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
