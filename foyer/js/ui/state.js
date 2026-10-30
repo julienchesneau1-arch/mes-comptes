@@ -1,5 +1,6 @@
 // État de l'application côté interface : journal, rejeu courant, préférences de ce téléphone, et l'envoi des actions.
 import { paris, weekOf } from '../core/dates.js';
+import { validEvent } from '../core/model.js';
 import { replay, stamp, newId } from '../core/reduce.js';
 import { describe } from '../core/describe.js';
 import { loadDevice, saveDevice, saveLog } from './store.js';
@@ -55,6 +56,11 @@ export function dispatch(drafts, opts = {}) {
     if (!drafts.length)
         return [];
     const events = stamp({ dev: A.device.dev, by: A.device.me, lc: A.r.maxLc, now: A.now() }, drafts);
+    // Ce que le rechargement ou l'autre téléphone écarterait n'est jamais montré comme fait : tout ou rien, et on le dit.
+    if (events.some(e => !validEvent(e))) {
+        toast('Non enregistré : une information dépasse les limites (texte trop long ?). Rien n\'a changé.');
+        return [];
+    }
     setLog([...A.log, ...events]);
     persist();
     A.render();

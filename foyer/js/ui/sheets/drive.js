@@ -83,7 +83,7 @@ const openLink = (it, cls = 'btn block') => `<a class="${cls}" href="${esc(it.ur
 // Un toucher pour retenir le produit : l'adresse copiée sur Auchan (Partager › Copier) est lue dans le presse-papiers.
 const pasteBtn = (productKey, name) => `<button class="btn ghost block" type="button" data-a="productPaste" data-key="${esc(productKey)}" data-name="${esc(name)}">📋 Retenir le produit copié</button>`;
 // Commande guidée : ouvrir la page de l'article (bouton principal tant qu'elle n'a pas été ouverte, puis « Rouvrir »).
-const driveOpen = (it, seen) => `<a class="btn ${seen ? 'ghost ' : ''}block" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" data-a="driveOpen" data-id="${esc(it.id)}" aria-label="${esc(`${seen ? 'Rouvrir' : it.product ? 'Ouvrir le produit' : 'Chercher'} ${it.name} chez Auchan (nouvelle page)`)}">${seen ? 'Rouvrir chez Auchan' : it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}</a>`;
+const driveOpen = (it, seen) => `<a class="btn ${seen ? 'ghost ' : ''}block" href="${esc(it.url)}" target="_blank" rel="noopener noreferrer" data-a="driveOpen" data-id="${esc(it.id)}">${seen ? 'Rouvrir chez Auchan' : it.product ? 'Ouvrir le produit chez Auchan' : 'Chercher chez Auchan'}<span class="sr-only"> : ${esc(it.name)} (nouvelle page)</span></a>`; // nom lu = texte affiché, puis l'article
 // Bloc « produit retenu » : partagé par la commande guidée et le détail d'une ligne de courses.
 export function productForm(productKey, name, product) {
     const size = product ? sizeText(product) : '';

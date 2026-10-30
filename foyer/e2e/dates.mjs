@@ -59,7 +59,7 @@ await step('foyer neuf ; Curry de poulet prévu samedi soir', async () => {
   await dlg.getByLabel(/pour combien de portions/).fill('4');
   await dlg.getByLabel(/^Ingrédients/).fill('600 g de poulet\n300 g de riz\n40 cl de lait de coco');
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
-  await (await slotIn('samedi 10 octobre', '2026-10-10|soir')).click();
+  await (await slotIn('sam\\. 10\\b', '2026-10-10|soir')).click();
   await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
   await dlg.getByRole('button', { name: /Curry de poulet/ }).first().click();
   await page.keyboard.press('Escape');
@@ -110,7 +110,7 @@ await step('Aujourd\'hui : « Avancer » le curry avant la DLC, un toucher ; la 
   await card.getByRole('button', { name: /^Avancer/ }).first().click();
   await page.getByText(/Poulet : avancer/).first().waitFor();
   if (await page.locator('li', { hasText: /Poulet : à consommer avant/ }).count()) throw new Error('carte encore affichée');
-  const wed = await slotIn('mercredi 7 octobre', '2026-10-07|soir');
+  const wed = await slotIn('mer\\. 7\\b', '2026-10-07|soir');
   if (!/Curry de poulet/.test(await wed.innerText())) throw new Error('curry non avancé au mercredi soir : ' + await wed.innerText());
 });
 await step('en-tête d\'Aujourd\'hui ; texte sans date : rien deviné ; année absente : déduite et signalée ; enregistrer et scanner un autre', async () => {

@@ -57,7 +57,7 @@ await step('foyer neuf, aucun plat : les idées du repas viennent des recettes p
 await step('choix d\'un plat : « Recettes prêtes » pour ce repas, et la recherche', async () => {
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   const slot = page.locator('[data-a="slot"][data-k="2026-10-06|soir"]');
-  if (!(await slot.count())) await page.getByRole('button', { name: /mardi/i }).first().click();
+  if (!(await slot.count())) await page.getByRole('button', { name: /^mar\. 6\b/ }).first().click(); // jour de la semaine : nom lu = texte affiché (« mar. 6, … »)
   await slot.first().click();
   await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
   await dlg.getByRole('heading', { name: 'Recettes prêtes' }).waitFor();

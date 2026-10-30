@@ -85,6 +85,38 @@ export function validContent(v) {
         && Array.isArray(v['tags']) && v['tags'].length <= 10 && v['tags'].every(t => str(t, 24, 1))
         && str(v['note'], 1000) && optMin(v['prepMin']) && optMin(v['cookMin']);
 }
+// Ramène une recette dans les limites de validContent : sinon elle s'afficherait, puis disparaîtrait au rechargement et n'irait
+// jamais sur l'autre téléphone (loadLog et la synchro écartent un événement hors limites). Texte coupé à un mot, suite en note.
+const clip = (t, n) => {
+    if (t.length <= n)
+        return t;
+    const cut = t.slice(0, n - 1), sp = cut.lastIndexOf(' ');
+    return `${(sp > n * 0.6 ? cut.slice(0, sp) : cut).trimEnd()}…`;
+};
+export function fitIngredient(l) {
+    let name = l.name.trim(), note = l.note.trim();
+    if (!name) {
+        name = note;
+        note = '';
+    }
+    if (!name)
+        return null;
+    if (name.length > 80) {
+        const head = clip(name, 80);
+        note = [name.slice(head.length - 1).trim(), note].filter(Boolean).join(' ; ');
+        name = head;
+    }
+    const qty = l.qty !== null && isQty(l.qty) && typeof l.unit === 'string' && UNIT[l.unit] ? l.qty : null;
+    const form = l.form ? clip(l.form, 20) : null;
+    return { name, qty, unit: qty === null ? null : l.unit, form, note: clip(note, 120) };
+}
+export function fitContent(c) {
+    return { ...c, name: clip(c.name.trim(), 80) || 'Plat', yield: c.yield !== null && int(c.yield, 1, 50) ? c.yield : null,
+        ingredients: c.ingredients.map(fitIngredient).filter((l) => l !== null).slice(0, 60),
+        steps: c.steps.map(t => t.trim()).filter(Boolean).slice(0, 40).map(t => clip(t, 500)),
+        ahead: c.ahead.filter(a => a.label.trim()).slice(0, 10).map(a => ({ ...a, label: clip(a.label.trim(), 120) })),
+        tags: c.tags.filter(t => t && t.length <= 24).slice(0, 10), note: clip(c.note, 1000) };
+}
 const DRAFT_KINDS = new Set(['cook', 'new', 'from']);
 function validDraftItems(week, items) {
     const seen = new Set(), end = addDays(week, 6);

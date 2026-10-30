@@ -1,6 +1,6 @@
 // État de l'application côté interface : journal, rejeu courant, préférences de ce téléphone, et l'envoi des actions.
 import { type LocalDate, paris, weekOf } from '../core/dates.ts';
-import type { AnyEv, State } from '../core/model.ts';
+import { type AnyEv, type State, validEvent } from '../core/model.ts';
 import { type Draft, type Replay, replay, stamp, newId } from '../core/reduce.ts';
 import { describe } from '../core/describe.ts';
 import { type Device, loadDevice, saveDevice, saveLog } from './store.ts';
@@ -68,6 +68,8 @@ export interface DispatchOpts { toast?: string | (() => string); undo?: boolean 
 export function dispatch(drafts: readonly Draft[], opts: DispatchOpts = {}): AnyEv[] {
   if (!drafts.length) return [];
   const events = stamp({ dev: A.device.dev, by: A.device.me, lc: A.r.maxLc, now: A.now() }, drafts);
+  // Ce que le rechargement ou l'autre téléphone écarterait n'est jamais montré comme fait : tout ou rien, et on le dit.
+  if (events.some(e => !validEvent(e))) { toast('Non enregistré : une information dépasse les limites (texte trop long ?). Rien n\'a changé.'); return []; }
   setLog([...A.log, ...events]);
   persist();
   A.render();

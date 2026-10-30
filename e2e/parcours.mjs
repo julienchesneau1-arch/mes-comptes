@@ -8,6 +8,8 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 const require = createRequire(import.meta.url);
 const { chromium, webkit, devices } = require('playwright');
+let AxeBuilder = null;
+try { AxeBuilder = require('@axe-core/playwright').default; } catch { /* facultatif en local, exigé par STRICT */ }
 
 const ROOT = new URL('..', import.meta.url).pathname, SHOTS = process.env.SHOTS || join(ROOT, 'captures');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css' };
@@ -72,6 +74,14 @@ async function bio(engine, device) {
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
   await ctx.close();
 }
+// WCAG 2.2 A et AA (axe-core), une fois les animations finies (tracé du camembert, message éphémère).
+async function a11y(page, where) {
+  if (!AxeBuilder) { if (process.env.STRICT) ok(false, `accessibilité (${where}) : @axe-core/playwright absent`); return; }
+  await page.evaluate(() => document.querySelector('#toast')?.classList.remove('on'));
+  await page.waitForTimeout(1100);
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')}`).join(' | ') : ''}`);
+}
 // Rien ne dépasse en largeur : pas de défilement horizontal sur un téléphone.
 const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 // Toucher du doigt. Partout : le doigt doit tomber sur le bon élément (même calcul que sur l'iPhone, WebKit).
@@ -102,6 +112,15 @@ async function demo(engine, device) {
   ok(await page.locator('#where .pl').count() >= 5, 'accueil : légende chiffrée');
   ok(await noOverflow(page), 'accueil : rien ne dépasse en largeur');
   await page.screenshot({ path: join(SHOTS, `${tag}-accueil.png`) });
+  for (const scheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const t of ['home', 'ops', 'save', 'accounts', 'trends', 'set']) {
+      await page.evaluate(t => { ui.tab = t; render(); }, t);
+      await a11y(page, `${t} (${scheme === 'light' ? 'clair' : 'sombre'})`);
+    }
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.evaluate(() => { ui.tab = 'home'; render(); });
 
   await page.click('.pl[data-p="manger"]');
   ok(/Courses & restos/.test(await page.locator('.dn-c').innerText()), 'ligne touchée : le centre montre le pôle');
@@ -181,6 +200,8 @@ async function newVault(page) {
 // Le vrai parcours : code d'entrée, prénoms, import d'un relevé, rechargement, mauvais code, bon code, données intactes.
 async function real(engine, device) {
   const { ctx, page, errs } = await phone(engine, device);
+  await page.goto(URL0);
+  await a11y(page, 'premier écran (code d\'entrée)');
   const n = await newVault(page);
   ok(n === 3, `import de « ${FILE.name} » : ${n} opérations lues`);
   await page.evaluate(() => saving);
@@ -195,6 +216,15 @@ async function real(engine, device) {
   ok(await page.evaluate(() => S.tx.length) === n, 'après rechargement et bon code : les opérations sont là');
   ok(await page.locator('#where').count() === 1 && await noOverflow(page), 'accueil réel : camembert, rien ne dépasse');
   await page.screenshot({ path: join(SHOTS, `${tag}-reel.png`) });
+  // Hors ligne : l'app s'ouvre, le code ouvre le coffre, les opérations sont là.
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).catch(() => {});
+  await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
+  await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
+  ok(await page.evaluate(() => S.tx.length) === n, 'hors ligne : l\'app s\'ouvre, opérations intactes');
+  await ctx.setOffline(false);
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
   await ctx.close();
 }

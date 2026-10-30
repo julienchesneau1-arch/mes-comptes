@@ -3,7 +3,7 @@
 // Rien n'entre dans « Nos plats » sans votre accord, et chaque recette garde sa source et sa licence.
 import { validPhoto } from './photos.ts';
 import type { LocalDate } from './dates.ts';
-import { type State, type RecipeContent, current } from './model.ts';
+import { type State, type RecipeContent, current, fitContent } from './model.ts';
 import { type IngredientLine, parseIngredient, aisleOf } from './ingredients.ts';
 import type { ParsedRecipe } from './recipe-text.ts';
 import { type CatalogRecipe, familyOf } from './wikibook.ts';
@@ -45,8 +45,8 @@ export function toParsed(r: CatalogRecipe): ParsedRecipe {
 }
 // yieldN : nombre de personnes choisi par le foyer quand la page ne le dit pas (jamais deviné).
 export function toContent(r: CatalogRecipe, yieldN: number | null = null): RecipeContent {
-  return { name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
-    tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r).slice(0, 1000) };
+  return fitContent({ name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
+    tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r) });
 }
 
 const ownedNames = (s: State): Set<string> => new Set(Object.values(s.recipes).map(r => nameKey(current(r).name)));

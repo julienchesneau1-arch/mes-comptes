@@ -17,9 +17,10 @@
 /* Direction artistique « calme et premium » : fond chaud, cartes sans bordure, jamais de rouge (on ne juge pas).
    Code couleur, le même partout : vert = ça roule · ambre = à surveiller · orange brûlé = serré · gris = pas encore connu. */
 :root{
-  --bg:#f4f2ee;--card:#fff;--soft:#f0eee9;--ink:#101413;--mute:#6b736f;--line:#e9e6df;
-  --acc:#0e9f6e;--acc-ink:#fff;--accs:#e2f4eb;--warm:#b7700a;--warms:#fbf0dc;
-  --good:#0e9f6e;--goods:#e2f4eb;--watch:#b7700a;--watchs:#fbf0dc;--tight:#c2410c;--tights:#fde8dc;--unk:#8a948f;--unks:#eceae5;
+  /* Contrastes WCAG 2.2 AA (4,5:1) vérifiés sur chaque fond où ces couleurs portent du texte (tests axe à chaque publication). */
+  --bg:#f4f2ee;--card:#fff;--soft:#f0eee9;--ink:#101413;--mute:#656c68;--line:#e9e6df;
+  --acc:#0b7a55;--acc-ink:#fff;--accs:#e2f4eb;--warm:#985d08;--warms:#fbf0dc;
+  --good:#0b7a55;--goods:#e2f4eb;--watch:#985d08;--watchs:#fbf0dc;--tight:#bc3f0c;--tights:#fde8dc;--unk:#8a948f;--unks:#eceae5;
   --hero1:#0d1513;--hero2:#123028;--hero-ink:#f3f7f5;--hero-mute:#9db3a9;--hero-pos:#86efc0;
   --r:24px;--shadow:0 1px 2px rgba(16,24,20,.04),0 10px 30px -8px rgba(16,24,20,.10);
   --num:ui-rounded,"SF Pro Rounded","SF Pro Display",system-ui,sans-serif;
@@ -151,7 +152,7 @@ body.locked>header,body.locked>main,body.locked>nav{display:none}
 .hero.w-tight .pos,.hero.w-tight .big{color:#fdba74}
 .hero.w-wait{background:radial-gradient(110% 130% at 100% 0%,rgba(148,163,184,.35) 0%,transparent 55%),linear-gradient(160deg,#121517,#273036)}
 .hero.w-wait .pos,.hero.w-wait .big{color:#e2e8f0}
-.wx{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:99px;padding:6px 12px;min-height:36px;margin:0 0 8px -2px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.12);color:var(--hero-ink)}
+.wx{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:99px;padding:6px 12px;min-height:44px;margin:0 0 8px -2px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.12);color:var(--hero-ink)}
 .lg{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .lg i{width:14px;height:14px;border-radius:50%;flex:none}
 .d{font-size:13px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;white-space:nowrap}
@@ -162,7 +163,7 @@ body.locked>header,body.locked>main,body.locked>nav{display:none}
 .coach p{margin:0 0 10px}
 .btn.warnbtn{background:var(--warm);color:#fff}
 .scroller{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-right:-16px;padding-right:16px;-webkit-overflow-scrolling:touch} .scroller::-webkit-scrollbar{display:none} .scroller>*{flex:none} section.hints .hint{display:block}
-.info{border:0;background:var(--soft);color:var(--mute);border-radius:99px;min-width:44px;min-height:32px;font-size:16px;margin:-6px 0 -6px 4px;vertical-align:middle;cursor:pointer}
+.info{border:0;background:var(--soft);color:var(--mute);border-radius:99px;min-width:44px;min-height:44px;font-size:16px;margin:-10px 0 -10px 4px;vertical-align:middle;cursor:pointer}
 section.hints .info{background:var(--acc);color:#fff}
 .hsub{border:0;background:none;color:var(--hero-mute);font:inherit;font-size:16px;padding:4px 0;min-height:44px;cursor:pointer}
 .hsub .i{opacity:.8}
@@ -259,7 +260,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 <div id="lock" hidden></div>
 <div id="saveWarn" hidden data-a="diag"></div>
 <header>
-  <button class="whobtn" id="whoBtn" data-a="whoSheet" aria-label="Changer de profil"></button>
+  <button class="whobtn" id="whoBtn" data-a="whoSheet"></button>
   <div class="month"><button class="ib" data-a="prev" aria-label="Mois précédent">‹</button><b id="mlabel"></b><button class="ib" data-a="next" aria-label="Mois suivant">›</button></div>
   <button class="accchip" id="accChip" data-a="clearAcc" hidden></button>
   <button class="gear" data-a="tab" data-t="set" aria-label="Réglages">⚙︎</button>
@@ -276,9 +277,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=44"></script>
+<script src="core.js?v=45"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 44;
+const KEY = 'mescomptes-v1', VERSION = 45;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
@@ -580,7 +581,12 @@ async function bioUnlock() {
 
 /* ---------- Outils ---------- */
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const eur = (n, d = 0) => (n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: d, maximumFractionDigits: d });
+// Formats créés une fois (toLocale… en recrée un à chaque appel : c'était le premier coût d'un rendu) ; dates déjà mises en forme gardées.
+const EUR = new Map(), NUM = new Intl.NumberFormat('fr-FR');
+const eur = (n, d = 0) => { let f = EUR.get(d); if (!f) EUR.set(d, f = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: d, maximumFractionDigits: d })); return f.format(n || 0); };
+const dateFmt = (o, at) => { const f = new Intl.DateTimeFormat('fr-FR', o), seen = new Map(); return d => { let x = seen.get(d); if (x === undefined) seen.set(d, x = f.format(new Date(d + at))); return x; }; };
+const longDay = dateFmt({ weekday: 'long', day: 'numeric', month: 'long' }, 'T12:00'), frDate = dateFmt({}, 'T12:00');
+const monthOnly = dateFmt({ month: 'long' }, '-15'), monthNarrow = dateFmt({ month: 'narrow' }, '-15'), monthShortYY = dateFmt({ month: 'short', year: '2-digit' }, '-15'), monthShortY = dateFmt({ month: 'short', year: 'numeric' }, '-15');
 const signed = n => (n > 0 ? '+' : '') + eur(n);
 const thisMonth = () => today().slice(0, 7);
 // Date locale (et non UTC : une dépense notée à 0 h 30 en France est bien du jour même).
@@ -588,8 +594,8 @@ const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).
 const latestMonth = () => S.tx.filter(t => !t.auto).reduce((a, t) => (t.date > a ? t.date : a), '').slice(0, 7) || thisMonth();
 // À l'ouverture : le mois en cours s'il a des opérations ; sinon le dernier mois complet (des chiffres qui veulent dire quelque chose).
 const landingMonth = () => { const lm = latestMonth(); if (lm === thisMonth() || fullMonth(S, lm, V())) return lm; const p = shiftMonth(lm, -1); return fullMonth(S, p, V()) ? p : lm; };
-const monthName = m => new Date(m + '-15').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-const dayName = d => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+const monthName = dateFmt({ month: 'long', year: 'numeric' }, '-15');
+const dayName = dateFmt({ day: 'numeric', month: 'long' }, 'T12:00');
 const accName = a => (S.accounts[a] && S.accounts[a].name) || a;
 const nice = s => s.charAt(0) + s.slice(1).toLowerCase();
 const elide = w => (/^[aeiouyéèêh]/i.test(w) ? 'd\'' : 'de ') + w; // « d'alimentation », « de logement »
@@ -625,7 +631,7 @@ const B = () => (S.budgets[ui.who] ||= {});
 const myPots = () => S.pots.filter(p => ui.who === 'foyer' || p.owner === ui.who);
 const ck = (m, c) => `${ui.who}|${m}|${c}`;
 const firstWord = name => norm(name).split(' ').find(w => w.length > 2) || norm(name);
-const shortDate = d => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const shortDate = dateFmt({ day: 'numeric', month: 'short' }, 'T12:00');
 // Prévision fiable seulement si le dernier relevé est récent (sinon on prévoirait un passé déjà passé).
 const liveForecast = id => { const f = forecast(S, id); return f && f.items.length && dayNum(today()) - dayNum(f.from) <= 31 ? f : null; };
 const myAssets = () => (S.assets || []).filter(a => ui.who === 'foyer' || a.owner === ui.who);
@@ -769,7 +775,7 @@ function opSheetHtml(t, splitting) {
   const status = t.auto ? '🔁 Prévu : sera remplacé par l\'opération du relevé.' : t.pending ? '⏳ Saisie : sera remplacée par l\'opération du relevé.'
     : t.refunded ? `↩ Remboursé ${eur(t.refunded, 2)} : coût réel ${eur(-t.amount - t.refunded, 2)}.` : t.refundOf ? '↩ Remboursement d\'une dépense.' : '';
   return `<div class="row" style="padding:0 0 10px;border:0">${ico(cat(t.splits ? t.splits[0].cat : t.cat))}<div class="grow"><b>${esc(t.label)}</b>
-      <div class="sm mute">${new Date(t.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${esc(accName(t.acc))}</div></div>
+      <div class="sm mute">${longDay(t.date)} · ${esc(accName(t.acc))}</div></div>
       <b class="amt ${t.amount > 0 ? 'pos' : ''}" style="font-size:20px">${t.amount > 0 ? '+' : ''}${eur(t.amount, 2)}</b></div>
     ${t.detail ? `<div class="sm mute">${esc(t.detail)}</div>` : ''}${status ? `<div class="sm" style="margin-top:6px">${status}</div>` : ''}
     ${t.splits ? `<div class="note" style="margin-top:10px">✂︎ ${t.splits.map(p => `${cat(p.cat).emoji} ${cat(p.cat).name} ${eur(-p.amount, 2)}`).join(' + ')}<div class="chips"><button class="btn sm ghost" data-a="unsplit" data-id="${esc(t.id)}">Ne plus répartir</button></div></div>` : ''}
@@ -972,7 +978,7 @@ function ritualCard() {
     const st = full ? monthStats(S, prevM, V()) : null, hab = full ? Object.entries(habitBy(S, prevM, V())).filter(([c]) => cat(c).kind !== 'in').reduce((a, [, v]) => a + v, 0) : 0; // médiane : un mois exceptionnel ne fabrique pas une « économie »
     // Une ligne par étape, le bouton au bout : la carte reste courte même si elle attend tout le mois.
     const stp = (k, ok, title, sub, btn) => `<div class="rstep"><span class="em" style="--c:var(--acc)">${ok ? '✔' : k}</span><span class="grow"><b>${title}</b>${sub ? `<span class="sm mute" style="display:block">${sub}</span>` : ''}</span>${btn}</div>`;
-    const mo = new Date(prevM + '-15').toLocaleDateString('fr-FR', { month: 'long' });
+    const mo = monthOnly(prevM);
     ritualCard.big = true;
     return `<section class="card span ritual"><h2>📥 Le rendez-vous du mois · 5 min</h2>
       ${stp(1, full, full ? `Relevés de ${mo} importés` : `Importer ${mo}`, full ? '' : bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) : 'Export CSV ou OFX de ' + bank().site, full ? '' : '<button class="btn sm" data-a="import">Importer</button>')}
@@ -1033,7 +1039,7 @@ function actionList(st) {
     sub: `Dernière opération connue : ${dayName(lastAny)}`,
     body: '<button class="btn sm" data-a="maj">Mettre à jour</button><button class="btn sm ghost" data-a="snooze" data-k="maj">Plus tard</button>' });
   for (const id of realIds()) for (const g of S.accounts[id].gaps || []) L.push({ pri: 850, icon: '📄', title: `Il manque un relevé : ${esc(accName(id))}`,
-    sub: `Du ${new Date(g.from + 'T12:00').toLocaleDateString('fr-FR')} au ${new Date(g.to + 'T12:00').toLocaleDateString('fr-FR')}. Sans lui, ces semaines-là manquent dans vos chiffres.`,
+    sub: `Du ${frDate(g.from)} au ${frDate(g.to)}. Sans lui, ces semaines-là manquent dans vos chiffres.`,
     body: '<button class="btn sm" data-a="import">Importer ce relevé</button>' });
 
   const todo = st.tx.filter(t => t.conf === 'guess' && t.amount < 0), t0 = todo[0];
@@ -1092,7 +1098,7 @@ function actionList(st) {
 
   for (const x of annualCharges(S, ui.month, V())) {
     const n = (+x.next.slice(0, 4) - +ui.month.slice(0, 4)) * 12 + (+x.next.slice(5) - +ui.month.slice(5));
-    if (n <= 2) L.push({ pri: 60, icon: '📅', title: `${esc(nice(x.name))} : ${eur(x.total)} en ${new Date(x.next + '-15').toLocaleDateString('fr-FR', { month: 'long' })}`, sub: `Dans ${plural(n, 'mois')}. Vérifiez que l'argent est prêt sur le bon compte.` });
+    if (n <= 2) L.push({ pri: 60, icon: '📅', title: `${esc(nice(x.name))} : ${eur(x.total)} en ${monthOnly(x.next)}`, sub: `Dans ${plural(n, 'mois')}. Vérifiez que l'argent est prêt sur le bon compte.` });
   }
   for (const x of insights(S, V())) {
     const k = `${ui.who}|tip-${x.kind}${x.id || ''}`, later = `<button class="btn sm ghost" data-a="snooze" data-k="tip-${x.kind}${esc(x.id || '')}">Plus tard</button>`;
@@ -1178,7 +1184,7 @@ function flexNow(st, pc) {
 // La jauge : couleur et mot disent l'état (dans le rythme, en avance, dépassée) ; le trait, où l'on devrait en être à ce jour.
 function flexBar(f) {
   const over = f.spent > f.envelope, ahead = !over && f.daysLeft > 0 && f.spent > f.expected + Math.max(15, f.envelope * 0.05), k = over ? 'tight' : ahead ? 'watch' : 'good';
-  return `<div class="flexg click" data-a="flexSheet" role="button" aria-label="Modifier l'enveloppe vie courante"><div class="row" style="padding:0"><b class="grow">🎯 Vie courante</b>
+  return `<div class="flexg click" data-a="flexSheet" role="button" tabindex="0"><div class="row" style="padding:0"><b class="grow">🎯 Vie courante</b>
     <b class="st-${k}">${over ? `${eur(-f.left)} au-delà` : `reste ${eur(f.left)}`}</b></div>
     <div class="bar"><i style="width:${Math.min(100, f.spent / f.envelope * 100)}%;background:var(--${k})"></i>${f.daysLeft && f.expected < f.envelope ? `<span class="tick" style="left:${f.expected / f.envelope * 100}%"></span>` : ''}</div>
     <div class="sm mute">${eur(f.spent)} sur ${eur(f.envelope)} · ${over ? '🌧️ enveloppe dépassée' : f.daysLeft ? `${f.perDay ? `≈ <b>${eur(f.perDay)}/jour</b> jusqu'au ${f.dim}` : ''}${ahead ? ' · ⛅ en avance sur le rythme' : ''}` : '☀️ mois tenu'}</div></div>`;
@@ -1229,7 +1235,7 @@ function whereCard(st, full, pc) {
     <div class="chips"><button class="btn sm ghost" data-a="tab" data-t="trends">Toutes les familles et l'évolution →</button>${fx ? '' : '<button class="btn sm ghost" data-a="flexSheet">🎯 Fixer une enveloppe</button>'}</div></section>`;
 }
 function whereCenter() {
-  const { st, P, tot } = WD, p = P.find(x => x.id === ui.pole), m = new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'long' });
+  const { st, P, tot } = WD, p = P.find(x => x.id === ui.pole), m = monthOnly(ui.month);
   return p ? `<span class="sm">${p.emoji} ${esc(p.name)}</span><b>${eur(p.v)}</b><span class="sm mute">${pctTxt(p.v, tot)} % des dépenses</span>`
     : `<span class="sm mute">Dépensé en ${m}</span><b>${eur(st.spent)}</b>${st.income > 0 ? `<span class="sm mute">${pctTxt(st.spent, st.income)} % des entrées</span>` : ''}`;
 }
@@ -1283,7 +1289,7 @@ function home() {
   if (!viewIds().length) return emptyProfile();
   const { st, isNow, end, lastReal, full } = heroData();
   const pace = isNow ? paceCompare(S, ui.month, V()) : null, diff = pace ? pace.usual - pace.spent : 0;
-  const mShort = new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'long' });
+  const mShort = monthOnly(ui.month);
   const w = weather();
   const hero = `<section class="card span hero w-${w.k}">${lastReal ? `<span class="fresh">à jour au ${shortDate(lastReal)}</span>` : ''}
     <button class="wx" data-a="wx">${WX[w.k][0]} ${WX[w.k][1]}</button>
@@ -1375,7 +1381,7 @@ function renderList() {
   // Le total suit le filtre (une opération répartie ne compte que pour ses parts concernées) ; dépensé et reçu à part quand il y a les deux.
   const amts = found.map(t => filterAmount(t, ui.cat)), total = amts.reduce((a, v) => a + v, 0);
   const out = -amts.filter(v => v < 0).reduce((a, v) => a + v, 0), inn = amts.filter(v => v > 0).reduce((a, v) => a + v, 0);
-  const mName = new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'long' });
+  const mName = monthOnly(ui.month);
   let html = ui.mk ? `<div class="chips" style="margin:0 0 6px"><button class="btn sm" data-a="mkClear">🏪 ${esc(nice(ui.mk.slice(1)))} ✕</button></div>` : '', day = '';
   if (all) {
     const span = found.length ? Math.max(1, Math.round((dayNum(found[0].date.slice(0, 7) + '-15') - dayNum(found.at(-1).date.slice(0, 7) + '-15')) / 30.44) + 1) : 1;
@@ -1388,12 +1394,12 @@ function renderList() {
   let mon = '';
   for (const t of list) {
     if (all && t.date.slice(0, 7) !== mon) { mon = t.date.slice(0, 7); const sub = found.filter(x => x.date.startsWith(mon)).reduce((a, x) => a + filterAmount(x, ui.cat), 0); html += `<div class="day">${monthName(mon)} · ${eur(sub, 2)}</div>`; }
-    if (!all && t.date !== day) { day = t.date; html += `<div class="day">${new Date(day + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>`; }
+    if (!all && t.date !== day) { day = t.date; html += `<div class="day">${longDay(day)}</div>`; }
     const c = cat(t.splits ? t.splits[0].cat : t.cat);
     const extra = t.splits ? `✂︎ ${t.splits.map(p => `${cat(p.cat).name} ${eur(-p.amount)}`).join(' + ')}`
       : t.refunded ? `<span class="pos">↩ remboursé ${eur(t.refunded, 2)} · coût réel ${eur(-t.amount - t.refunded, 2)}</span>`
       : t.refundOf ? '↩ remboursement d\'une dépense' : t.auto ? '🔁 prévu · remplacé par le relevé' : t.pending ? '⏳ saisie · en attente du relevé' : esc(t.detail || c.name);
-    html += `<div class="op" data-a="opSheet" data-id="${esc(t.id)}" role="button">${ico(c)}
+    html += `<div class="op" data-a="opSheet" data-id="${esc(t.id)}" role="button" tabindex="0">${ico(c)}
       <div class="grow"><div class="ell">${esc(t.label)}</div><div class="sm mute ell">${all ? shortDate(t.date) + ' · ' : ''}${extra}${multi ? ' · ' + esc(accName(t.acc)) : ''}</div></div>
       <span class="amt ${t.amount > 0 ? 'pos' : ''}">${t.amount > 0 ? '+' : ''}${eur(t.amount, 2)}</span></div>`;
   }
@@ -1506,7 +1512,7 @@ function accounts() {
     ${myAssets().map(x => `<div class="row"><span class="em" style="--c:#0284c7">📈</span><span class="grow ell">${esc(x.name)} <span class="tag">placement</span></span><b>${eur(x.value)}</b></div>`).join('')}
     ${loans.map(l => `<div class="row"><span class="em" style="--c:#8b5cf6">🏠</span><span class="grow ell">${esc(l.name)} <span class="tag">reste dû</span></span><b>−${eur(l.remaining)}</b></div>`).join('')}
     <div class="chips">${sav ? `<span>dont épargne <b class="pos">${eur(sav)}</b></span>` : ''}${(loans.length || myAssets().length) && known.length ? `<span>Patrimoine net <b>${eur(tot + myAssets().reduce((a, x) => a + x.value, 0) - debt)}</b></span>` : ''}</div>
-    ${bal.flatMap(b => (b.a.gaps || []).map(g => `<p class="sm warm">⚠ ${esc(b.a.name)} : il manque le relevé du ${new Date(g.from + 'T12:00').toLocaleDateString('fr-FR')} au ${new Date(g.to + 'T12:00').toLocaleDateString('fr-FR')}.</p>`)).join('')}
+    ${bal.flatMap(b => (b.a.gaps || []).map(g => `<p class="sm warm">⚠ ${esc(b.a.name)} : il manque le relevé du ${frDate(g.from)} au ${frDate(g.to)}.</p>`)).join('')}
     ${bal.some(b => b.a.check && Math.abs(b.a.check.diff) >= 0.01) ? '<p class="sm warm">⚠ Un relevé ne tombe pas juste (départ + opérations ≠ fin) : une ligne n\'a pas été lue. Envoyez-le moi pour que j\'adapte la lecture.</p>' : ''}
     ${known.length < bal.length ? '<p class="sm mute hint">« solde ? » : il sera lu dans le prochain relevé PDF, ou saisissez-le dans Réglages (pratique pour un livret).</p>' : '<p class="sm mute hint">Touchez un compte pour voir ses opérations.</p>'}</section>`;
   else {
@@ -1537,7 +1543,7 @@ function accounts() {
 
   const ann = annualCharges(S, ui.month, V());
   const annCard = ann.length ? `<section class="card span"><h2>Charges annuelles · ${eur(ann.reduce((a, x) => a + x.perMonth, 0))} à prévoir par mois</h2>
-    ${ann.map(x => `<div class="row">${ico(cat(x.cat))}<span class="grow ell">${esc(nice(x.name))}<div class="sm mute">${eur(x.total)} en ${new Date(x.next + '-15').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div></span>
+    ${ann.map(x => `<div class="row">${ico(cat(x.cat))}<span class="grow ell">${esc(nice(x.name))}<div class="sm mute">${eur(x.total)} en ${monthName(x.next)}</div></span>
       <b>${eur(x.perMonth)}/mois</b><button class="ib" data-a="annHide" data-k="${esc(x.key)}" title="Ce n'est pas une charge annuelle" aria-label="Masquer">×</button></div>`).join('')}
     <p class="sm mute hint">Mettre ce montant de côté chaque mois évite la mauvaise surprise le jour J.</p></section>` : '';
   const fc = realIds().map(id => [id, forecast(S, id)]).filter(([, f]) => f && f.items.length);
@@ -1564,7 +1570,7 @@ function trends() {
   const mean = f => ok.reduce((a, d) => a + f(d), 0) / ok.length;
   const withInc = ok.filter(d => d.income > 0);
   const rate = withInc.length ? withInc.reduce((a, d) => a + (d.income - d.spent) / d.income, 0) / withInc.length : null;
-  const short = m => new Date(m + '-15').toLocaleDateString('fr-FR', { month: 'narrow' });
+  const short = monthNarrow;
 
   const prev = avgBy(S, ui.month, V()), cur = monthStats(S, ui.month, V());
   const deltas = [...new Set([...Object.keys(prev), ...Object.keys(cur.by)])].filter(c => cat(c).kind === 'var')
@@ -1631,9 +1637,9 @@ function trends() {
     <p class="sm mute hint">Barres : les 12 derniers mois. Flèche : les 3 derniers mois comparés aux 3 d'avant.</p></section>`;
 
   const tb = tableData(ms);
-  const table = `<section class="card span"><h2>Tableau mensuel</h2><div class="tblw"><table class="tbl">
+  const table = `<section class="card span"><h2>Tableau mensuel</h2><div class="tblw" tabindex="0" role="region" aria-label="Tableau mensuel, défilant"><table class="tbl">
     <thead><tr>${tb.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-    <tbody>${tb.rows.map(r => `<tr class="${r.sec ? 'sec' : ''}"><td title="${esc(r.label)}">${esc(r.label)}</td>${r.vals.map(v => `<td>${v ? Math.round(v).toLocaleString('fr-FR') : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <tbody>${tb.rows.map(r => `<tr class="${r.sec ? 'sec' : ''}"><td title="${esc(r.label)}">${esc(r.label)}</td>${r.vals.map(v => `<td>${v ? NUM.format(Math.round(v)) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <div class="chips"><button class="btn sm" data-a="csv">Exporter pour Excel</button><span class="sm mute">moyenne et total sur 12 mois, comme le tableur</span></div></section>`;
   // Bilan de l'année (celle du mois affiché) : en tête en décembre et janvier, sinon en fin d'écran.
   const yr = ui.month.slice(0, 4), yms = Array.from({ length: 12 }, (_, i) => `${yr}-${String(i + 1).padStart(2, '0')}`).filter(m => fullMonth(S, m, V()));
@@ -1666,7 +1672,7 @@ function tableData(ms) {
   rows.push(line('Dépenses', st.map(x => x.spent), true));
   for (const c of SPEND.concat(cat('couple'))) { const v = st.map(x => Math.max(0, x.by[c.id] || 0)); if (v.some(Boolean)) rows.push(line(`${c.emoji} ${c.name}`, v)); }
   rows.push(line('Épargné', st.map(x => x.saved), true), line('Solde du mois', st.map(x => x.rest), true));
-  return { head: ['', ...ms.map(m => new Date(m + '-15').toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })), 'Moy.', 'Total'], rows };
+  return { head: ['', ...ms.map(m => monthShortYY(m)), 'Moy.', 'Total'], rows };
 }
 
 /* ---------- Réglages ---------- */
@@ -1678,7 +1684,7 @@ function settings() {
       <select class="f" style="width:auto" data-c="owner" data-id="${esc(id)}" aria-label="Titulaire">${a.owner ? '' : '<option value="">À qui ?</option>'}${owners.map(([v, n]) => `<option value="${v}" ${a.owner === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       <label class="sm"><input type="checkbox" data-c="accSav" data-id="${esc(id)}" ${a.savings ? 'checked' : ''}> livret / épargne</label>
       <input class="f" style="width:130px" inputmode="decimal" placeholder="Solde actuel" value="${balanceOf(S, id) === null ? '' : String(balanceOf(S, id)).replace('.', ',')}" data-c="balance" data-id="${esc(id)}" aria-label="Solde actuel">
-      <span class="sm mute" style="width:100%">n° ${esc(id)} · ${S.tx.filter(t => t.acc === id).length} op.${a.balance ? ` · solde connu au ${new Date(a.balance.date + 'T12:00').toLocaleDateString('fr-FR')}` : ''}
+      <span class="sm mute" style="width:100%">n° ${esc(id)} · ${S.tx.filter(t => t.acc === id).length} op.${a.balance ? ` · solde connu au ${frDate(a.balance.date)}` : ''}
       <button class="btn sm ghost" style="margin-left:6px" data-a="accDel" data-id="${esc(id)}">Retirer</button></span></div>`).join('');
   return `<section class="card span"><h2>Mode d'emploi</h2>
       <div class="act"><span class="em" style="--c:var(--acc)">📥</span><div class="grow"><b>Chaque mois (le 5)</b><div class="sm mute">${bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) + ' → enregistrer les PDF' : 'Sur ' + bank().site + ' : export des opérations en CSV ou OFX'}. Puis ＋ Importer, depuis votre profil.</div></div></div>
@@ -1723,14 +1729,14 @@ function settings() {
     <section class="card span"><h2>Prêts en cours</h2>
       ${(S.loans || []).map(l => `<div class="row" style="flex-wrap:wrap"><span class="grow">${esc(l.name)} <span class="tag">${esc(whoName(l.owner))}</span></span>
         <input class="f" style="width:130px" inputmode="decimal" value="${String(l.remaining).replace('.', ',')}" data-c="loan" data-id="${l.id}" aria-label="Capital restant dû">
-        <span class="sm mute">au ${new Date(l.date + 'T12:00').toLocaleDateString('fr-FR')}</span><button class="btn sm ghost" data-a="loanDel" data-id="${l.id}">Retirer</button></div>`).join('')}
+        <span class="sm mute">au ${frDate(l.date)}</span><button class="btn sm ghost" data-a="loanDel" data-id="${l.id}">Retirer</button></div>`).join('')}
       <form data-f="newLoan" class="grid2" style="margin-top:8px"><input class="f" name="name" placeholder="Prêt immo, auto…" required>
         <input class="f" name="remaining" inputmode="decimal" placeholder="Capital restant dû (€)" required><button class="btn">Ajouter</button></form>
       <p class="sm mute hint">Le capital restant dû figure sur le tableau d'amortissement. Il sert au patrimoine net (écran Comptes).</p></section>
     <section class="card span"><h2>Autres placements</h2>
       ${myAssets().map(x => `<div class="row" style="flex-wrap:wrap"><span class="grow">${esc(x.name)} <span class="tag">${esc(whoName(x.owner))}</span></span>
         <input class="f" style="width:130px" inputmode="decimal" value="${String(x.value).replace('.', ',')}" data-c="asset" data-id="${x.id}" aria-label="Valeur">
-        <span class="sm mute">au ${new Date(x.date + 'T12:00').toLocaleDateString('fr-FR')}</span><button class="btn sm ghost" data-a="assetDel" data-id="${x.id}">Retirer</button></div>`).join('')}
+        <span class="sm mute">au ${frDate(x.date)}</span><button class="btn sm ghost" data-a="assetDel" data-id="${x.id}">Retirer</button></div>`).join('')}
       <form data-f="newAsset" class="grid2" style="margin-top:8px"><input class="f" name="name" placeholder="Assurance-vie, PEA, épargne salariale…" required>
         <input class="f" name="value" inputmode="decimal" placeholder="Valeur actuelle (€)" required><button class="btn">Ajouter</button></form>
       <p class="sm mute hint">Ce qui n'est pas sur vos comptes importés. Mettez la valeur à jour de temps en temps : elle compte dans le patrimoine net (écran Comptes).</p></section>
@@ -1768,10 +1774,10 @@ function render0() {
 }
 function drawHeader() {
   ui.month ||= landingMonth();
-  const ml = innerWidth < 420 ? new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : monthName(ui.month);
+  const ml = innerWidth < 420 ? monthShortY(ui.month) : monthName(ui.month);
   $('#mlabel').textContent = ml.charAt(0).toUpperCase() + ml.slice(1);
   if (!profiles().includes(ui.who)) ui.who = 'foyer';
-  $('#whoBtn').textContent = `${whoName(ui.who)} ▾`;
+  $('#whoBtn').textContent = `${whoName(ui.who)} ▾`; $('#whoBtn').title = 'Changer de profil';
   $('#accChip').hidden = ui.acc === 'all' || !S.accounts[ui.acc];
   $('#accChip').textContent = `${accName(ui.acc)} ✕`;
   document.querySelectorAll('#tabs [data-t]').forEach(b => b.toggleAttribute('aria-current', b.dataset.t === (ui.tab === 'trends' ? 'accounts' : ui.tab)));
@@ -2064,6 +2070,10 @@ document.addEventListener('click', e => {
   catch (err) { console.error(err); toast('Petit souci : ' + err.message + '. Rien n\'est perdu.'); render(); }
 });
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el) C[el.dataset.c](el.value, el); });
+// Clavier : Entrée ou Espace sur un élément « bouton » qui n'en est pas un (ligne d'opération, jauge…) agit comme un toucher.
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[role="button"][data-a]:not(button)')) { e.preventDefault(); e.target.click(); }
+});
 document.addEventListener('input', e => {
   if (e.target.id === 'q') { ui.q = e.target.value; ui.lim = 0; renderList(); }
   if (e.target.id === 'qLabel' && !$('#qCat').dataset.touched) $('#qCat').value = classify({ label: e.target.value, amount: -1 }).cat;

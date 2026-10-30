@@ -1,5 +1,5 @@
 // Nos plats : saisie minimale (un nom suffit), ingrédients en texte libre analysé en direct, collage d'une recette entière.
-import { type RecipeContent, type AheadTask, current } from '../../core/model.ts';
+import { type RecipeContent, type AheadTask, current, fitContent } from '../../core/model.ts';
 import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredients.ts';
 import { parseRecipeText, lineText, fromWeb, type ParsedRecipe } from '../../core/recipe-text.ts';
 import type { WebRecipe } from '../../core/recipe-web.ts';
@@ -104,8 +104,8 @@ function content(d: Draft): RecipeContent | string {
   if (prepMin === 'bad' || cookMin === 'bad') return 'Les durées sont en minutes entières, de 0 à 1440.';
   const lines = (t: string) => t.split('\n').map(l => l.trim()).filter(Boolean);
   const ahead: AheadTask[] = [...lines(d.veille).map(label => ({ label: label.slice(0, 120), when: 'veille' as const })), ...lines(d.matin).map(label => ({ label: label.slice(0, 120), when: 'matin' as const }))];
-  return { name: name.slice(0, 80), yield: y, ingredients: ingredients.slice(0, 60), steps: lines(d.steps).slice(0, 40).map(s => s.slice(0, 500)), ahead: ahead.slice(0, 10),
-    tags: [...d.tags].slice(0, 10), note: d.note.slice(0, 1000), ...(prepMin !== null ? { prepMin } : {}), ...(cookMin !== null ? { cookMin } : {}) };
+  return fitContent({ name, yield: y, ingredients, steps: lines(d.steps), ahead, tags: [...d.tags], note: d.note,
+    ...(prepMin !== null ? { prepMin } : {}), ...(cookMin !== null ? { cookMin } : {}) });
 }
 
 SUBMIT['recipeSave'] = () => {

@@ -144,12 +144,14 @@ function slotButton(k, label) {
     const c = clock();
     const v = slotView(S(), k, c.date, c.hour);
     const title = v.title || (v.status === 'personne' ? 'Personne' : '+ Ajouter');
-    const aria = `${capital(fmtSlot(k, c.date))} : ${title}${v.servings ? `, ${v.servings} portions` : ''}, ${STATUS_LABEL[v.status]}`;
-    return `<button class="slot s-${v.status}" data-a="slot" data-k="${k}" aria-label="${esc(aria)}">${lookTile(slotLook(v))}
+    // Le nom lu = le texte affiché, précédé du jour et suivi de l'état quand il n'est pas écrit (WCAG 2.5.3 : jamais une étiquette différente).
+    const sr = `<span class="sr-only">${esc(capital(fmtSlot(k, c.date)))} : </span>`;
+    const srEnd = v.status === 'vide' || v.status === 'personne' ? `<span class="sr-only">, ${esc(STATUS_LABEL[v.status])}</span>` : '';
+    return `<button class="slot s-${v.status}" data-a="slot" data-k="${k}">${sr}${lookTile(slotLook(v))}
     <span class="lbl">${label}</span><span class="t">${esc(title)}</span>
     ${v.status !== 'personne' && v.status !== 'vide' ? `<span class="p">${v.servings} portion${v.servings > 1 ? 's' : ''}${v.sub ? ` · ${esc(v.sub)}` : ''}</span>` : v.status === 'vide' ? `<span class="p">${esc(v.sub)}</span>` : ''}
     ${v.link ? `<span class="p">${esc(v.link)}</span>` : ''}
-    ${v.status !== 'vide' && v.status !== 'personne' ? `<span class="chip s-${v.status}">${esc(statusText(v))}</span>` : ''}</button>`;
+    ${v.status !== 'vide' && v.status !== 'personne' ? `<span class="chip s-${v.status}">${esc(statusText(v))}</span>` : ''}${srEnd}</button>`;
 }
 export function weekView() {
     const s = S(), c = clock();
@@ -175,8 +177,8 @@ export function weekView() {
     }
     else {
         const sel = days[A.ui.day] ?? days[0];
-        body = `<div class="ribbon" role="group" aria-label="Jours de la semaine">${days.map((d, i) => `<button data-a="day" data-n="${i}" aria-pressed="${i === A.ui.day}" aria-label="${esc(fmtDay(d))}, ${count(d)} repas prévus">
-      <span class="d ${d === c.date ? 'today' : ''}">${esc(dayShort(d))}</span><span class="n">${dayNumber(d)}</span><span class="dots" aria-hidden="true">${'●'.repeat(count(d))}${'○'.repeat(2 - count(d))}</span></button>`).join('')}</div>
+        body = `<div class="ribbon" role="group" aria-label="Jours de la semaine">${days.map((d, i) => `<button data-a="day" data-n="${i}" aria-pressed="${i === A.ui.day}" title="${esc(fmtDay(d))}">
+      <span class="d ${d === c.date ? 'today' : ''}">${esc(dayShort(d))}</span> <span class="n">${dayNumber(d)}</span><span class="sr-only">, ${count(d)} repas prévus</span><span class="dots" aria-hidden="true">${'●'.repeat(count(d))}${'○'.repeat(2 - count(d))}</span></button>`).join('')}</div>
       <h3 class="section-title">${esc(capital(fmtDay(sel)))}</h3>
       <div class="stack">${slotButton(slotKey(sel, 'midi'), 'Midi')}${slotButton(slotKey(sel, 'soir'), 'Soir')}</div>`;
     }

@@ -103,7 +103,8 @@ function boot(): void {
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !A.demo) { setLog(loadLog().log); render(); } });
   addEventListener('storage', e => { if (e.key === 'foyer:journal' && !A.demo) { setLog(loadLog().log); render(); } });
   void navigator.storage?.persist?.().catch(() => false);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => undefined);
+  // localhost est un contexte sûr : les tests téléphone y éprouvent le hors-ligne (les scénarios sur 127.0.0.1 restent sans service worker).
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => undefined);
   addEventListener('online', () => toast('Connexion retrouvée'));
 }
 

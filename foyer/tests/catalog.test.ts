@@ -6,7 +6,7 @@ import { type Catalog, readCatalog, search, toContent, planCatalog, addCatalog, 
 import type { CatalogRecipe } from '../src/core/wikibook.ts';
 import { proposeWeek, acceptDrafts, nextDiscovery, discoveriesFor } from '../src/core/propose.ts';
 import { deriveShopping } from '../src/core/shopping.ts';
-import { current } from '../src/core/model.ts';
+import { current, validContent } from '../src/core/model.ts';
 
 const rec = (id: number, title: string, main: CatalogRecipe['main'], over: Partial<CatalogRecipe> = {}): CatalogRecipe => ({
   id: `wb${id}`, title, yield: 4, minutes: null, ingredients: ['600 g de poulet', '2 oignons', '20 cl de crème fraîche'], steps: ['Couper.', 'Cuire.'],
@@ -88,4 +88,19 @@ test('recette prête prévue d\'un toucher : ajoutée à vos plats et cuisinée 
   assert.equal(current(a.s.recipes[ownedFor(a.s, rata)!]!).yield, 2);
   a.emit(...planCatalog(a.s, `${MON}|soir`, yassa));                                 // repas déjà prévu : remplacé
   assert.equal(prepOf(`${MON}|soir`)?.recipe, ownedFor(a.s, yassa));
+});
+
+test('recette du catalogue : toujours dans les limites, sinon perdue au rechargement et jamais synchronisée', async () => {
+  const { readFileSync } = await import('node:fs');
+  const real = JSON.parse(readFileSync(new URL('../catalogue.json', import.meta.url), 'utf8')) as { recipes: CatalogRecipe[] };
+  const bad = real.recipes.filter(r => !validContent(toContent(r, 4))).map(r => r.title);
+  assert.deepEqual(bad, []);
+  // Ligne d'ingrédient trop longue : nom coupé à un mot, la suite gardée en note ; ligne vide écartée.
+  const long = 'Deux cuisses et entrecuisses de confit de canard ou un talon de jambon, un petit suffit si la soupe accompagne';
+  const c = toContent(rec(8, 'Garbure', null, { ingredients: [`2 ${long}`, ' ', '1 chou'] }), 4);
+  assert.ok(validContent(c));
+  assert.equal(c.ingredients.length, 2);
+  assert.ok(c.ingredients[0]!.name.length <= 80 && c.ingredients[0]!.name.endsWith('…'));
+  assert.match(c.ingredients[0]!.note, /accompagne$/);
+  assert.equal(c.ingredients[0]!.qty, '2');
 });

@@ -1,6 +1,6 @@
 // Hors-ligne : réseau d'abord, sans cache HTTP intermédiaire (une mise à jour est vue tout de suite), cache si pas de connexion.
 // Android : reçoit aussi les fichiers « partagés » vers l'app (relevés depuis l'app de la banque, journal…).
-const C = 'mescomptes-v45', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
+const C = 'mescomptes-v46', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'core.js', 'manifest.json', 'icon.svg', 'icon.png', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs', 'vendor/pdfjs/polyfill-safari.mjs', 'vendor/pdfjs/worker-safari.mjs']))); });
 // Seulement nos propres caches : Foyer (dans foyer/) partage le même site et garde les siens.
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('mescomptes') && k !== C && k !== SHARE && k !== ETAT).map(k => caches.delete(k)))).then(() => self.clients.claim())));
@@ -20,7 +20,7 @@ self.addEventListener('fetch', e => {
   // Réseau d'abord ; une page d'erreur du site (404 pendant une mise à jour) ne remplace jamais la copie qui marche.
   e.respondWith(fetch(e.request.url, { cache: 'no-cache' })
     .then(r => { if (!r.ok) return caches.match(e.request).then(c => c || r); const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => caches.match(e.request)));
+    .catch(() => caches.match(e.request).then(c => c || caches.match(e.request, { ignoreSearch: true })))); // « core.js?v=… » : la copie mise de côté à l'installation
 });
 
 // Android (app installée) : notifications qui connaissent vos chiffres, calculées sur le téléphone à partir d'un petit résumé.

@@ -71,7 +71,7 @@ await step('lundi soir + 2 portions en plus, puis le même plat mardi midi : 4 p
   await dlg.getByRole('button', { name: 'Une portion en plus', exact: true }).click();
   await dlg.locator('output', { hasText: '2' }).waitFor();
   await page.keyboard.press('Escape');
-  await openSlot('2026-10-06|midi', /mardi/i);
+  await openSlot('2026-10-06|midi', /^mar\. 6\b/);
   await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
   const item = dlg.locator('li', { hasText: 'Spaghetti bolo' }).filter({ has: page.locator('[data-a="pickRecipe"]') });
   const sub = await text(item);

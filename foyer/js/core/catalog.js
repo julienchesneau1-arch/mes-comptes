@@ -2,7 +2,7 @@
 // Vos plats passent d'abord ; une découverte par semaine au plus (davantage tant que vous avez peu de plats).
 // Rien n'entre dans « Nos plats » sans votre accord, et chaque recette garde sa source et sa licence.
 import { validPhoto } from './photos.js';
-import { current } from './model.js';
+import { current, fitContent } from './model.js';
 import { parseIngredient, aisleOf } from './ingredients.js';
 import { familyOf } from './wikibook.js';
 import { nameKey, norm } from './text.js';
@@ -41,8 +41,8 @@ export function toParsed(r) {
 }
 // yieldN : nombre de personnes choisi par le foyer quand la page ne le dit pas (jamais deviné).
 export function toContent(r, yieldN = null) {
-    return { name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
-        tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r).slice(0, 1000) };
+    return fitContent({ name: r.title, yield: r.yield ?? yieldN, ingredients: r.ingredients.map(l => parseIngredient(l).line), steps: r.steps, ahead: [],
+        tags: r.tags.filter(t => t === 'rapide' || t === 'végétarien'), note: attribution(r) });
 }
 const ownedNames = (s) => new Set(Object.values(s.recipes).map(r => nameKey(current(r).name)));
 export const FILTERS = ['tout', 'rapide', 'volaille', 'viande', 'poisson', 'végétarien', 'soupe', 'pâtes'];

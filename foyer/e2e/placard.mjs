@@ -58,7 +58,7 @@ await step('semaine 1 : foyer d\'une personne, plat prévu mardi soir', async ()
   await dlg.getByLabel(/pour combien de portions/).fill('1');
   await dlg.getByLabel(/^Ingrédients/).fill('300 g de spaghetti');
   await dlg.getByRole('button', { name: 'Enregistrer' }).click();
-  await plan('2026-09-29|soir', /mardi/i);
+  await plan('2026-09-29|soir', /^mar\. 29\b/);
 });
 await step('semaine 1 : paquet de 500 g retenu au drive, pris pour 300 g', async () => {
   await page.getByRole('link', { name: 'Courses', exact: true }).click();
@@ -79,7 +79,7 @@ await step('semaine 2 : la liste redemande des spaghetti, « À régler » propo
   await page.getByRole('link', { name: 'Maison', exact: true }).click();          // mode essentiel : « Déjà au placard ? » s'active dans Réglages › Fonctions
   await page.getByRole('button', { name: 'Réglages', exact: true }).click();
   await page.getByRole('checkbox', { name: /Déjà au placard/ }).check();
-  await plan('2026-10-06|soir', /mardi/i);
+  await plan('2026-10-06|soir', /^mar\. 6\b/);
   await page.getByRole('link', { name: 'Aujourd\'hui', exact: true }).click();
   const card = page.locator('li.exc', { hasText: 'Spaghetti : il devrait en rester 200 g' });
   await card.waitFor();

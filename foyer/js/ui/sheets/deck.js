@@ -151,7 +151,7 @@ function summaryHtml() {
       <span class="grow"><span class="title">${esc(info.name)}</span><br><span class="sub">${esc(when)}${p.dish?.kind === 'new' ? ' · ✨ nouveau' : ''}${use ? ` · ⏳ ${esc(use)}` : ''}${price ? ` · ${esc(price)}` : ''}${d.swapped.includes(p.slot) ? ' · 💶 moins cher, pour tenir le budget' : ''}</span></span></div>
       <div class="row-actions">${canBatch(p) ? `<button class="tag" data-a="deckBatch" data-k="${p.slot}" aria-pressed="${d.batch.has(p.slot)}" aria-label="Cuisiner ${esc(info.name)} au batch">👩‍🍳 Batch</button>` : ''}
       ${cooks(p) ? `<button class="btn small-btn ghost" data-a="listOther" data-k="${p.slot}" aria-label="Autre idée pour ${esc(when.toLowerCase())}">↻ Autre idée</button>` : ''}
-      <button class="btn small-btn quiet" data-a="listSkip" data-k="${p.slot}" aria-label="Pas de plat ${esc(when.toLowerCase())}">✕ Retirer</button></div></li>`;
+      <button class="btn small-btn quiet" data-a="listSkip" data-k="${p.slot}" aria-label="Retirer : pas de plat ${esc(when.toLowerCase())}">✕ Retirer</button></div></li>`;
     };
     const head = list ? sheetHead(esc(d.title), d.by ? `Proposé par ${esc(d.by)} : approuvez, ou changez un repas.` : 'Tout est prêt : approuvez, ou changez un repas.') : sheetHead(esc(d.title));
     return `${head}
@@ -306,7 +306,11 @@ function finish() {
             if (x.t === 'slot.cook' && D.batch.has(x.p.slot) && inWindow(bd, parseSlot(x.p.slot)?.date ?? ''))
                 toBatch.push({ t: 'prep.batch', p: { prep: x.p.prep, day: bd } });
     const close = S().drafts[D.week] && !D.single ? [{ t: 'week.discard', p: { week: D.week } }] : []; // approuvé : plus de brouillon
-    dispatch([...drafts, ...toBatch, ...close], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0]).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
+    const done = dispatch([...drafts, ...toBatch, ...close], { toast: kept.length === 1 ? `C'est noté : ${cardInfo(kept[0]).name}` : `${kept.length} repas prévus${toBatch.length ? ` · ${toBatch.length} au batch` : ''} · courses à jour` });
+    if (!done.length) {
+        D = null;
+        return;
+    } // refusé (dit par un message) : ni fête ni panier
     confetti();
     const week = D.week, single = D.single;
     D = null;

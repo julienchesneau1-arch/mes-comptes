@@ -81,7 +81,7 @@ await step('« ♻️ Pâtes demain midi » : les portions en plus reprises d\'u
   await page.getByText(/Pâtes demain midi · encore 12 plats à cuisiner cette semaine/).first().waitFor();
   await card.getByText('Pas assez de plats : il manque 12 plats à cuisiner pour finir la semaine').waitFor();
   const midi = page.locator('[data-a="slot"][data-k="2026-10-06|midi"]');
-  if (!(await midi.count())) await page.getByRole('button', { name: /mardi/i }).first().click();
+  if (!(await midi.count())) await page.getByRole('button', { name: /^mar\. 6\b/ }).first().click();
   if (!/Pâtes/.test(await midi.first().innerText())) throw new Error('mardi midi : ' + await midi.first().innerText());
   await page.screenshot({ path: `${SHOTS}/bilan-repris.png` });
 });
@@ -95,7 +95,7 @@ await step('« 🥡 Oui : le midi = restes du dîner » : il manque 7 plats à c
   await axe('bilan-restes-midi');
 });
 await step('nom de plat tapé lettre par lettre : « Gratin », pas « nitarG » ; le dîner posé ajoute +2 portions pour le lendemain midi', async () => {
-  await openSlot('2026-10-06|soir', /mardi/i);
+  await openSlot('2026-10-06|soir', /^mar\. 6\b/);
   await dlg.getByRole('button', { name: 'Choisir un plat' }).click();
   const q = dlg.getByLabel('Chercher ou créer un plat');
   await q.click();
@@ -110,7 +110,7 @@ await step('nom de plat tapé lettre par lettre : « Gratin », pas « nitarG »
   await page.keyboard.press('Escape').catch(() => {});
   await page.getByRole('link', { name: 'Semaine', exact: true }).click();
   const midi = page.locator('[data-a="slot"][data-k="2026-10-07|midi"]');
-  if (!(await midi.count())) await page.getByRole('button', { name: /mercredi/i }).first().click();
+  if (!(await midi.count())) await page.getByRole('button', { name: /^mer\. 7\b/ }).first().click();
   if (!/Gratin/.test(await midi.first().innerText())) throw new Error('mercredi midi : ' + await midi.first().innerText());
   await card.getByText('Pas assez de plats : il manque 6 plats à cuisiner pour finir la semaine').waitFor();
   await page.screenshot({ path: `${SHOTS}/bilan-midi-relie.png` });

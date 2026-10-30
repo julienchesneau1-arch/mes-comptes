@@ -1,5 +1,5 @@
 // Nos plats : saisie minimale (un nom suffit), ingrédients en texte libre analysé en direct, collage d'une recette entière.
-import { current } from '../../core/model.js';
+import { current, fitContent } from '../../core/model.js';
 import { parseIngredient, lineLabel, aisleOf, AISLE } from '../../core/ingredients.js';
 import { parseRecipeText, lineText, fromWeb } from '../../core/recipe-text.js';
 import { RELAY } from '../config.js';
@@ -115,8 +115,8 @@ function content(d) {
         return 'Les durées sont en minutes entières, de 0 à 1440.';
     const lines = (t) => t.split('\n').map(l => l.trim()).filter(Boolean);
     const ahead = [...lines(d.veille).map(label => ({ label: label.slice(0, 120), when: 'veille' })), ...lines(d.matin).map(label => ({ label: label.slice(0, 120), when: 'matin' }))];
-    return { name: name.slice(0, 80), yield: y, ingredients: ingredients.slice(0, 60), steps: lines(d.steps).slice(0, 40).map(s => s.slice(0, 500)), ahead: ahead.slice(0, 10),
-        tags: [...d.tags].slice(0, 10), note: d.note.slice(0, 1000), ...(prepMin !== null ? { prepMin } : {}), ...(cookMin !== null ? { cookMin } : {}) };
+    return fitContent({ name, yield: y, ingredients, steps: lines(d.steps), ahead, tags: [...d.tags], note: d.note,
+        ...(prepMin !== null ? { prepMin } : {}), ...(cookMin !== null ? { cookMin } : {}) });
 }
 SUBMIT['recipeSave'] = () => {
     if (!draft)
