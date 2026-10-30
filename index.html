@@ -273,13 +273,13 @@ nav#tabs button{font-size:12px;min-height:54px}
   <button data-a="tab" data-t="save"><span>🎯</span>Épargner</button>
   <button data-a="tab" data-t="accounts"><span>🏦</span>Comptes</button>
 </nav>
-<input type="file" id="file" accept=".csv,.ofx,.pdf,.txt" multiple hidden>
+<input type="file" id="file" accept=".csv,.ofx,.qfx,.qif,.pdf,.txt" multiple hidden>
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=45"></script>
+<script src="core.js?v=46"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 45;
+const KEY = 'mescomptes-v1', VERSION = 46;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
@@ -683,7 +683,7 @@ const setupCard = () => `<section class="card span empty">
   <form data-f="setup" style="text-align:left;max-width:420px;margin:14px auto 0;display:grid;gap:10px">
     <label><b>Votre prénom</b><input class="f" name="p1" required maxlength="30" autocomplete="given-name" style="width:100%;margin-top:4px"></label>
     <label><b>Le prénom de votre conjoint</b> <span class="sm mute">si vous suivez vos comptes à deux</span><input class="f" name="p2" maxlength="30" style="width:100%;margin-top:4px"></label>
-    <label><b>Votre banque</b><select class="f" name="bank" style="width:100%;margin-top:4px"><option value="bp">Banque Populaire</option><option value="ce">Caisse d'Épargne</option><option value="autre">Une autre banque</option></select></label>
+    <label><b>Votre banque</b> <span class="sm mute">pour vous dire quoi télécharger</span><select class="f" name="bank" required style="width:100%;margin-top:4px"><option value="" disabled selected>Choisir…</option>${bankOptions('')}</select></label>
     <button class="btn" style="width:100%">Continuer</button></form>
   <div class="chips" style="justify-content:center;margin-top:14px"><button class="btn ghost" data-a="demo">👀 Découvrir d'abord avec un exemple</button><button class="btn ghost" data-a="pasteSync">J'ai un lien de synchro</button></div></section>`;
 const emptyStart = () => !S.setup && S.people.length < 2 && S.people[0]?.name === 'Moi' ? setupCard() : `<section class="card span empty">
@@ -724,6 +724,22 @@ function pickAccount(fname, accs) {
     <p class="sm mute" style="margin-top:0">« ${esc(fname)} » ne contient pas de numéro de compte, et aucune de ses opérations n'est déjà connue. Touchez le bon compte :</p>
     ${accs.map(([id, a]) => `<button class="choice" data-a="pickAcc" data-id="${esc(id)}"><span class="grow"><b>${esc(a.name)}</b><div class="sm mute">${a.owner && a.owner !== 'commun' ? esc(whoName(a.owner)) + ' · ' : a.owner === 'commun' ? 'Commun · ' : ''}${plural(S.tx.filter(t => t.acc === id).length, 'opération')}</div></span></button>`).join('')}
     <button class="choice" data-a="pickAcc" data-id=""><span class="grow"><b>➕ Un autre compte</b><div class="sm mute">nouveau sur ce téléphone</div></span></button>`); });
+}
+// CSV d'une banque encore inconnue : un aperçu, et le foyer dit où sont la date, le libellé et le montant (pré-rempli si deviné).
+let colsPv = null;
+function pickColumns(fname, pv) {
+  colsPv = pv;
+  const cell = (r, i) => esc(String(r[i] ?? '').slice(0, 24));
+  const name = i => `Colonne ${i + 1}${pv.head && pv.head[i] ? ` · ${String(pv.head[i]).slice(0, 20)}` : ''} (${cell(pv.rows[0], i) || 'vide'})`;
+  const sel = (n, label, cur) => `<label class="row" style="gap:10px;padding:4px 0"><span class="grow">${label}</span><select class="f" name="${n}" style="width:auto;max-width:62%"><option value="-1">—</option>${Array.from({ length: pv.cols }, (_, i) => `<option value="${i}" ${cur === i ? 'selected' : ''}>${name(i)}</option>`).join('')}</select></label>`;
+  const g = pv.guess;
+  return new Promise(res => { pickRes = res; openSheet(`<h2 style="margin-top:0">Quelles colonnes ?</h2>
+    <p class="sm mute" style="margin-top:0">« ${esc(fname)} » vient d'une banque que l'app ne connaît pas encore. Dites une fois où sont la date, le libellé et le montant : ce choix est retenu pour les prochains fichiers de cette banque.</p>
+    <div class="tblw" tabindex="0" role="region" aria-label="Aperçu du fichier, défilant"><table class="tbl"><thead><tr>${Array.from({ length: pv.cols }, (_, i) => `<th>${i + 1}</th>`).join('')}</tr></thead>
+      <tbody>${pv.rows.slice(0, 4).map(r => `<tr>${Array.from({ length: pv.cols }, (_, i) => `<td>${cell(r, i)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <form data-f="cols">${sel('iDate', '📅 Date', g.iDate)}${sel('iLabel', '🏷️ Libellé', g.iLabel)}${sel('iAmount', '💶 Montant (dépenses avec un −)', g.iAmount)}
+      <p class="sm mute" style="margin:6px 0 0">ou, si dépenses et entrées sont dans deux colonnes :</p>${sel('iDebit', '➖ Débit', g.iDebit)}${sel('iCredit', '➕ Crédit', g.iCredit)}
+      <div class="chips" style="margin-top:12px"><button class="btn" style="flex:1">Lire le fichier</button><button type="button" class="btn ghost" data-a="closeSheet">Laisser de côté</button></div></form>`); });
 }
 function closeSheet() {
   if (pickRes) { const r = pickRes; pickRes = null; r(null); } // fermée sans choisir : nouveau compte, l'import continue
@@ -852,14 +868,18 @@ async function diagSheet() {
     <div class="chips"><button class="btn" style="flex:1" data-a="diagCopy">Copier pour l'envoyer</button><button class="btn ghost" data-a="closeSheet">Fermer</button></div>`);
 }
 
-/* ---------- Votre banque : les explications s'adaptent (relevés PDF lus pour la Banque Populaire et la Caisse d'Épargne ;
-   pour toutes les banques, l'export des opérations en CSV ou OFX) ---------- */
-const BANKS = {
-  bp: { name: 'Banque Populaire', pdf: 'appli Banque Populaire → e-Documents → Relevés', site: 'le site Banque Populaire', how: 'sur le compte : <b>Gérer</b> → <b>Télécharger les opérations</b>', fmt: 'CSV</b>, séparateur <b>« ; »', bpce: true },
-  ce: { name: 'Caisse d\'Épargne', pdf: 'appli Caisse d\'Épargne → e-Documents → Relevés', site: 'le site Caisse d\'Épargne', how: 'sur le compte : <b>Gérer</b> → <b>Télécharger les opérations</b>', fmt: 'CSV</b>, séparateur <b>« ; »', bpce: true },
-  autre: { name: 'votre banque', pdf: '', site: 'le site de votre banque', how: 'cherchez <b>Exporter</b> ou <b>Télécharger les opérations</b>', fmt: 'CSV</b> ou <b>OFX', bpce: false },
+/* ---------- Votre banque (liste BANKS de core.js) : les explications s'adaptent. Relevés PDF lus pour la Banque Populaire et la
+   Caisse d'Épargne ; pour toutes : OFX ou QIF (formats standards), ou CSV (colonnes reconnues, sinon choisies une fois) ---------- */
+const bank = () => {
+  const k = BANKS[S.bank] ? S.bank : 'bp', b = BANKS[k];
+  if (k === 'bp' || k === 'ce') return { name: b.name, pdf: `appli ${b.name} → e-Documents → Relevés`, site: `le site ${b.name}`,
+    how: 'sur le compte : <b>Gérer</b> → <b>Télécharger les opérations</b>', fmt: 'CSV</b>, séparateur <b>« ; »', bpce: true };
+  return { name: k === 'autre' ? 'votre banque' : b.name, pdf: '', site: k === 'autre' ? 'le site de votre banque' : `le site de ${b.name}`,
+    how: 'cherchez <b>Exporter</b> ou <b>Télécharger mes opérations</b>', fmt: b.csv ? 'CSV' : 'OFX</b> si proposé, sinon <b>QIF</b> ou <b>CSV', bpce: false };
 };
-const bank = () => BANKS[S.bank] || BANKS.bp;
+// Liste triée (« Une autre banque » en dernier) pour l'accueil et les réglages.
+const bankOptions = cur => Object.entries(BANKS).sort(([a, x], [b, y]) => (a === 'autre') - (b === 'autre') || x.name.localeCompare(y.name, 'fr'))
+  .map(([k, b]) => `<option value="${k}" ${cur === k ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
 
 /* ---------- Mise à jour express : les opérations récentes, sans attendre le relevé du mois ---------- */
 const lastRealDate = () => S.tx.filter(t => !S.accounts[t.acc]?.hist && !t.pending).reduce((a, t) => (t.date > a ? t.date : a), '');
@@ -981,7 +1001,7 @@ function ritualCard() {
     const mo = monthOnly(prevM);
     ritualCard.big = true;
     return `<section class="card span ritual"><h2>📥 Le rendez-vous du mois · 5 min</h2>
-      ${stp(1, full, full ? `Relevés de ${mo} importés` : `Importer ${mo}`, full ? '' : bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) : 'Export CSV ou OFX de ' + bank().site, full ? '' : '<button class="btn sm" data-a="import">Importer</button>')}
+      ${stp(1, full, full ? `Relevés de ${mo} importés` : `Importer ${mo}`, full ? '' : bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) : 'Export CSV, OFX ou QIF de ' + bank().site, full ? '' : '<button class="btn sm" data-a="import">Importer</button>')}
       ${stp(2, false, `Bilan de ${mo}`, full ? `${eur(st.spent)} dépensés${hab ? `, ${st.spent <= hab ? `<b class="pos">${eur(hab - st.spent)} de moins</b>` : `${eur(st.spent - hab)} de plus`} que d'habitude` : ''}` : 'dès que le mois sera complet', full ? `<button class="btn sm ghost" data-a="ritBilan" data-m="${prevM}">Détail</button>` : '')}
       ${gain >= 5 ? stp(3, false, `Mettre ${eur(gain)} de côté`, 'économisés sur vos engagements', '<button class="btn sm" data-a="tab" data-t="save">Y aller</button>') : ''}
       <div class="chips" style="margin-top:8px"><button class="btn sm ${full ? '' : 'ghost'}" data-a="ritDone" data-k="month">${full ? 'Terminé 👍' : 'Plus tard'}</button></div></section>`;
@@ -1687,7 +1707,7 @@ function settings() {
       <span class="sm mute" style="width:100%">n° ${esc(id)} · ${S.tx.filter(t => t.acc === id).length} op.${a.balance ? ` · solde connu au ${frDate(a.balance.date)}` : ''}
       <button class="btn sm ghost" style="margin-left:6px" data-a="accDel" data-id="${esc(id)}">Retirer</button></span></div>`).join('');
   return `<section class="card span"><h2>Mode d'emploi</h2>
-      <div class="act"><span class="em" style="--c:var(--acc)">📥</span><div class="grow"><b>Chaque mois (le 5)</b><div class="sm mute">${bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) + ' → enregistrer les PDF' : 'Sur ' + bank().site + ' : export des opérations en CSV ou OFX'}. Puis ＋ Importer, depuis votre profil.</div></div></div>
+      <div class="act"><span class="em" style="--c:var(--acc)">📥</span><div class="grow"><b>Chaque mois (le 5)</b><div class="sm mute">${bank().pdf ? bank().pdf.charAt(0).toUpperCase() + bank().pdf.slice(1) + ' → enregistrer les PDF' : 'Sur ' + bank().site + ' : export des opérations en CSV, OFX ou QIF'}. Puis ＋ Importer, depuis votre profil.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">✅</span><div class="grow"><b>Ensuite</b><div class="sm mute">Suivez « Vos actions » sur l'accueil : ranger, s'engager, mettre de côté. Tout le reste se calcule seul.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">🥧</span><div class="grow"><b>Voir où part l'argent</b><div class="sm mute">Le camembert sous le grand chiffre : 7 pôles. Touchez une part pour ses familles, puis une famille pour ses opérations. Tendances › « Par pôle » pour les 12 derniers mois. 🎯 « Fixer une enveloppe » : un seul budget pour toute la vie courante, suivi au jour le jour.</div></div></div>
       <div class="act"><span class="em" style="--c:var(--acc)">🙂</span><div class="grow"><b>Ouvrir d'un regard ou d'un doigt</b><div class="sm mute">Réglages › Sécurité › ${BIO_LABEL} (iPhone : iOS 18 ou plus récent ; Android : Chrome à jour). Le code reste toujours accepté.</div></div></div>
@@ -1722,7 +1742,7 @@ function settings() {
       <div class="chips"><button class="btn sm" data-a="remind">🔔 ${myRit().ics ? 'Refaire mes rappels' : 'Choisir mes rappels'}</button></div></section>
     <section class="card span"><h2>Nous</h2><div class="grid2">${S.people.map((p, i) => `<input class="f" value="${esc(p.name)}" data-c="person" data-i="${i}" aria-label="Prénom ${i + 1}">`).join('')}</div>
       ${S.people.length < 2 ? '<div class="chips"><button class="btn sm ghost" data-a="addPerson">＋ Ajouter mon conjoint</button></div>' : ''}
-      <label class="row" style="gap:10px"><span class="grow">Votre banque</span><select class="f" style="width:auto" data-c="bank">${Object.entries(BANKS).map(([k, b]) => `<option value="${k}" ${(S.bank || 'bp') === k ? 'selected' : ''}>${k === 'autre' ? 'Une autre banque' : esc(b.name)}</option>`).join('')}</select></label>
+      <label class="row" style="gap:10px"><span class="grow">Votre banque</span><select class="f" style="width:auto;max-width:60%" data-c="bank">${bankOptions(S.bank || 'bp')}</select></label>
       <p class="sm mute hint">Chacun voit ses comptes dans son profil ; « Foyer » réunit tout. Un virement entre vous compte comme « versé à l'autre » dans un profil, et disparaît dans le Foyer.</p></section>
     <section class="card span"><h2>Comptes & livrets</h2>${accs || '<p class="mute">Aucun compte : importez un relevé.</p>'}
       <p class="sm mute hint">Cochez « livret / épargne » pour chaque livret : les virements vers lui comptent comme « épargné ». Le solde se met à jour avec les relevés ; pour un livret sans relevé, saisissez-le ici.</p></section>
@@ -2083,6 +2103,13 @@ document.addEventListener('click', e => { if (e.target.id === 'sheet') closeShee
 document.addEventListener('submit', e => {
   e.preventDefault();
   const f = new FormData(e.target);
+  if (e.target.dataset.f === 'cols') {
+    const m = { d: colsPv.d, hi: colsPv.hi, ...Object.fromEntries(['iDate', 'iLabel', 'iAmount', 'iDebit', 'iCredit'].map(k => [k, +f.get(k)])) };
+    if (m.iDate < 0 || m.iLabel < 0) return toast('Choisissez la date et le libellé');
+    if (m.iAmount < 0 && m.iDebit < 0 && m.iCredit < 0) return toast('Choisissez le montant, ou le débit et le crédit');
+    if (m.iAmount >= 0) { m.iDebit = -1; m.iCredit = -1; }
+    const r = pickRes; pickRes = null; closeSheet(); if (r) r(m); return;
+  }
   if (e.target.dataset.f === 'flex') { const v = parseNumber(f.get('v') || ''); if (!(v >= 0)) return toast('Montant non compris'); return setFlex(v); }
   if (e.target.dataset.f === 'potMove') {
     const p = S.pots.find(x => x.id === e.target.dataset.id), v = Math.abs(parseNumber(f.get('amount'))), sign = +(e.submitter?.value || 1);
@@ -2175,8 +2202,22 @@ async function pdfPages(buf) {
     return pages;
   } finally { task.destroy().catch(() => {}); }
 }
+// CSV : colonnes reconnues d'office ; sinon (banque encore inconnue) le foyer les choisit une fois, et ce choix est retenu.
+async function readCSV(txt, name) {
+  const pv = csvPreview(txt), saved = S.csvMaps && S.csvMaps[pv.sig];
+  if (saved) return parseCSV(txt, name, saved);
+  try { const p = parseCSV(txt, name); if (p.some(x => x.rows.length) || !pv.rows.length) return p; } catch (e) { if (!e.columns || !pv.rows.length) throw e; }
+  const map = await pickColumns(name, pv);
+  if (!map) throw new Error('colonnes non choisies : fichier laissé de côté');
+  const p = parseCSV(txt, name, map);
+  if (!p.some(x => x.rows.length)) throw new Error('aucune opération lue avec ces colonnes');
+  (S.csvMaps ||= {})[pv.sig] = map;
+  return p;
+}
 async function readText(file) {
-  const buf = await file.arrayBuffer();
+  const buf = await file.arrayBuffer(), b = new Uint8Array(buf.slice(0, 2));
+  if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf);
+  if (b[0] === 0xFE && b[1] === 0xFF) return new TextDecoder('utf-16be').decode(buf);
   try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch { return new TextDecoder('windows-1252').decode(buf); }
 }
 $('#file').addEventListener('change', async e => { const files = [...e.target.files]; e.target.value = ''; await importFiles(files); });
@@ -2215,7 +2256,7 @@ async function importAll(files) {
           let n = 0; for (const r of parseJournal(txt)) if (addPending(S, { acc, ...r })) n++;
           notes.push(`📱 Journal de paiements : ${plural(n, 'paiement')} ajouté${n > 1 ? 's' : ''} sur ${accName(acc)} (déjà connus ignorés)`);
           parsed = [];
-        } else parsed = /OFXHEADER|<OFX>/i.test(txt) ? parseOFX(txt) : parseCSV(txt, f.name);
+        } else parsed = /OFXHEADER|<OFX>/i.test(txt) ? parseOFX(txt) : isQIF(txt) ? parseQIF(txt, f.name) : await readCSV(txt, f.name);
       }
       // Fichier sans numéro de compte : retrouvé par ses opérations déjà connues, sinon on demande (une fois)
       for (const p of parsed) if (p.weak && p.rows.length) {
@@ -2233,7 +2274,7 @@ async function importAll(files) {
       if (r.added) save(); // gardé tout de suite : si l'iPhone interrompt l'import, les relevés déjà lus restent
       added += r.added; dup += r.dup; created += r.created.filter(id => !S.accounts[id].hist).length;
       for (const p of parsed) if (p.check) notes.push(`⚠ ${S.accounts[p.account].name} : ${eur(p.check, 2)} d'écart entre les soldes du relevé et les opérations lues`);
-    } catch (err) { jlog(`fichier ${k || 1}/${files.length} : erreur ${err && err.message || err}`); errs.push(`✘ ${f.name} : ${err.message || err}` + (/\.pdf$/i.test(f.name) && !bank().bpce ? ' · Astuce : sur le site de votre banque, « Exporter les opérations » en CSV ou OFX fonctionne avec toutes les banques.' : '')); }
+    } catch (err) { jlog(`fichier ${k || 1}/${files.length} : erreur ${err && err.message || err}`); errs.push(`✘ ${f.name} : ${err.message || err}` + (/\.pdf$/i.test(f.name) && !bank().bpce ? ' · Astuce : sur le site de votre banque, « Exporter les opérations » en CSV, OFX ou QIF fonctionne avec toutes les banques (un CSV inconnu : vous montrez une fois ses colonnes).' : '')); }
   }
   if (added) S.lastImport = new Date().toISOString();
   autoRecurring(S, today());

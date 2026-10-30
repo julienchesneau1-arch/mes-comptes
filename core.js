@@ -296,8 +296,12 @@ function parseDate(s = '') {
   s = String(s).trim();
   let m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
   if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  m = s.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  m = s.match(/^(\d{4})-?(\d{2})-?(\d{2})/) || s.match(/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  // « 15 sept. 2026 », « 3 septembre 2026 » (exports en toutes lettres)
+  m = norm(s).match(/^(\d{1,2}) ([A-Z]+) (\d{4})\b/);
+  const mo = m && (MOIS[m[2]] || MOIS[m[2].slice(0, 4)] || MOIS[m[2].slice(0, 3)]);
+  return mo ? `${m[3]}-${String(mo).padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
 }
 
 function splitLine(line, d) {
@@ -343,24 +347,29 @@ function guessColumns(lines) {
   // Une seule colonne de montants (signés), ou deux qui se partagent les lignes : débit puis crédit
   return { d, iDate, iLabel, ...(money.length === 1 || nums[money[0]] > 0.9 ? { iAmount: money[0] } : { iDebit: money[0], iCredit: money[1] }) };
 }
-function parseCSV(text, filename = '') {
+const HEAD_DATE = /DATE|BOOKING/, HEAD_REST = /LIBELLE|MONTANT|DEBIT|AMOUNT|LABEL|DESCRIPTION|PAYEE|PARTNER NAME|NATURE|COUNTERPARTY|INTITULE/;
+const colsError = msg => Object.assign(new Error(msg), { columns: true }); // le foyer peut alors choisir les colonnes lui-même
+// map (facultatif) : colonnes choisies par le foyer pour un CSV inconnu { d, hi, iDate, iLabel, iAmount, iDebit, iCredit }.
+function parseCSV(text, filename = '', map = null) {
   const lines = csvRecords(text);
-  const hi = lines.findIndex(l => /DATE|BOOKING/.test(norm(l)) && /LIBELLE|MONTANT|DEBIT|AMOUNT|LABEL|DESCRIPTION|PAYEE|PARTNER NAME/.test(norm(l)));
+  const hi = map ? map.hi : lines.findIndex(l => HEAD_DATE.test(norm(l)) && HEAD_REST.test(norm(l)));
   let d, H = [];
-  if (hi >= 0) { d = [';', '\t', ','].find(x => lines[hi].includes(x)) || ';'; H = splitLine(lines[hi], d).map(norm); }
+  if (map) d = map.d;
+  else if (hi >= 0) { d = [';', '\t', ',', '|'].find(x => lines[hi].includes(x)) || ';'; H = splitLine(lines[hi], d).map(norm); }
   const col = (...res) => { for (const re of res) { const i = H.findIndex(h => re.test(h)); if (i >= 0) return i; } return -1; };
   // Titres des colonnes, banque par banque : BP/CE, Crédit Agricole, BNP, Société Générale, Crédit Mutuel, Banque Postale,
   // Fortuneo, Boursorama (dateOp, label, amount), Revolut (Started Date, Description, Amount, Fee, State), N26 (Payee, Partner Name).
-  let iDate = col(/^DATE OPERATION/, /^DATE DE L ?OPERATION/, /^DATEOP$/, /^STARTED DATE/, /^BOOKING DATE/, /^DATE DE COMPTABILISATION/, /^DATE$/, /^DATE/);
+  let iDate = col(/^DATE OPERATION/, /^DATE DE L ?OPERATION/, /^DATE D ?OPERATION/, /^DATEOP$/, /^STARTED DATE/, /^BOOKING DATE/, /^DATE DE COMPTABILISATION/, /^DATE$/, /^DATE/);
   const iSimple = col(/^LIBELLE SIMPLIFIE/);
-  let iLabel = col(/^LIBELLE OPERATION/, /^LIBELLE/, /^LABEL$/, /^DESCRIPTION/, /^PARTNER NAME/, /^PAYEE/, /^BENEFICIAIRE/, /^INTITULE/);
+  let iLabel = col(/^LIBELLE OPERATION/, /^LIBELLE/, /^LABEL$/, /^DESCRIPTION/, /^PARTNER NAME/, /^PAYEE/, /^COUNTERPARTY/, /^BENEFICIAIRE/, /^INTITULE/, /^NATURE/);
   let iAmount = col(/^MONTANT/, /^AMOUNT/), iDebit = col(/^DEBIT/), iCredit = col(/^CREDIT/);
   const iDetail = col(/^DETAIL DE L ?ECRITURE/, /^PAYMENT REFERENCE/), iFee = col(/^FEE$/), iState = col(/^STATE$/), iCur = col(/^CURRENCY$/, /^DEVISE$/);
   const iSub = col(/^SOUS CATEGORIE/), iCat = col(/^CATEGORIE/);
   const iBook = col(/^DATE DE COMPTABILISATION/, /^DATE COMPTA/, /^COMPLETED DATE/), iAcc = col(/^COMPTE$/, /^NUMERO DE COMPTE/, /^ACCOUNTNUM$/);
-  if (hi < 0 || iDate < 0 || iLabel < 0) {
+  if (map) ({ iDate, iLabel, iAmount, iDebit, iCredit } = map);
+  else if (hi < 0 || iDate < 0 || iLabel < 0) {
     const g = guessColumns(lines);
-    if (!g) throw new Error(hi < 0 ? 'fichier non reconnu (pas de colonnes Date / Libellé / Montant)' : 'colonnes non reconnues : ' + H.join(' | '));
+    if (!g) throw colsError(hi < 0 ? 'fichier non reconnu (pas de colonnes Date / Libellé / Montant)' : 'colonnes non reconnues : ' + H.join(' | '));
     ({ d, iDate, iLabel } = g); iAmount = g.iAmount ?? -1; iDebit = g.iDebit ?? -1; iCredit = g.iCredit ?? -1;
   }
   const rows = [], byAcc = {};
@@ -400,11 +409,68 @@ function parseCSV(text, filename = '') {
   if (Object.keys(byAcc).length) return Object.entries(byAcc).map(([account, rows]) => ({ account, rows }));
   const pre = lines.slice(0, Math.max(hi, 0)).join(' ').match(/(\d{8,})/);
   if (pre) return [{ account: pre[1], rows }];
-  // Sans numéro dans le fichier : le nom du fichier n'est qu'un indice (« weak ») ; l'app retrouve le compte par ses opérations.
+  return byFileName(rows, filename);
+}
+// Sans numéro dans le fichier : le nom du fichier n'est qu'un indice (« weak ») ; l'app retrouve le compte par ses opérations.
+function byFileName(rows, filename) {
   const fromName = filename.match(/\d{6,}/), base = filename.replace(/\.\w+$/, '').replace(/\s*\(\d+\)$/, '').trim();
   if (fromName) return [{ account: fromName[0], rows, weak: 'digits' }];
   return [{ account: base || 'Compte', name: base || 'Compte importé', rows, weak: 'name' }];
 }
+// Aperçu d'un CSV inconnu, pour en choisir les colonnes : séparateur le plus régulier, ligne de titres probable,
+// premières lignes découpées, colonnes devinées (pré-remplies) et signature (le choix est retenu pour cette banque).
+function csvPreview(text) {
+  const lines = csvRecords(text).slice(0, 60);
+  const isDate = v => !!parseDate(v || '');
+  const score = x => { const n = lines.map(l => splitLine(l, x).length).filter(k => k > 1); const k = n.sort((a, b) => n.filter(v => v === b).length - n.filter(v => v === a).length)[0]; return n.filter(v => v === k).length; };
+  const d = [';', '\t', ',', '|'].map(x => [x, score(x)]).sort((a, b) => b[1] - a[1])[0][0];
+  const R = lines.map(l => splitLine(l, d)), first = R.findIndex(r => r.some(isDate));
+  const hi = first > 0 && !R[first - 1].some(isDate) && R[first - 1].length === R[first].length ? first - 1 : -1;
+  const data = R.slice(hi + 1).filter(r => r.some(isDate)), cols = Math.max(0, ...data.map(r => r.length));
+  const dl = lines.slice(hi + 1).filter(l => splitLine(l, d).some(isDate)), g = (dl.length && guessColumns(dl)) || {};
+  const sig = hi >= 0 ? 'titres:' + R[hi].map(norm).join('|').slice(0, 280) : `sans-titres:${d}:${cols}`;
+  return { d, hi, head: hi >= 0 ? R[hi] : null, rows: data.slice(0, 5), cols, sig,
+    guess: { iDate: g.iDate ?? -1, iLabel: g.iLabel ?? -1, iAmount: g.iAmount ?? -1, iDebit: g.iDebit ?? -1, iCredit: g.iCredit ?? -1 } };
+}
+
+// QIF (« Quicken », proposé par beaucoup de banques) : D date, T ou U montant, P tiers, M mémo, ^ fin d'une opération.
+// Dates jour/mois comme en France, sauf si le fichier montre un deuxième nombre au-delà de 12 (format américain mois/jour).
+const isQIF = text => /^\s*!(Type|Account|Option)/im.test(text) || (/^\^\s*$/m.test(text) && /^D\s*\d/m.test(text) && /^[TU]\s*[-+]?\d/m.test(text));
+function parseQIF(text, filename = '') {
+  const recs = []; let cur = {};
+  for (const raw of String(text).replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const l = raw.trim();
+    if (!l || l[0] === '!') continue;
+    if (l[0] === '^') { if (cur.D) recs.push(cur); cur = {}; continue; }
+    if ('DTUPM'.includes(l[0]) && cur[l[0]] == null) cur[l[0]] = l.slice(1).trim();
+  }
+  if (cur.D) recs.push(cur);
+  const DMY3 = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-' ]+(\d{2,4})/;
+  const us = recs.some(r => { const m = r.D.match(DMY3); return m && +m[2] > 12; });
+  const day = s => {
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return parseDate(s);
+    const m = s.match(DMY3); if (!m) return null;
+    const y = m[3].length === 2 ? '20' + m[3] : m[3], [dd, mm] = us ? [m[2], m[1]] : [m[1], m[2]];
+    return parseDate(`${dd}/${mm}/${y}`);
+  };
+  const rows = recs.map(r => ({ date: day(r.D), amount: round2(parseNumber(r.T ?? r.U)), label: (r.P || r.M || '—').replace(/\s+/g, ' '),
+    detail: r.M && r.M !== r.P ? r.M.replace(/\s+/g, ' ') : '' })).filter(r => r.date && r.amount);
+  if (!rows.length) throw new Error('aucune opération lue dans ce fichier QIF');
+  return byFileName(rows, filename);
+}
+
+// Banques au choix. csv : colonnes de son export reconnues d'office (fichiers fictifs au format publié, test.js) ; pdf : relevés lus.
+// Pour toutes : OFX et QIF (formats standards) ; un CSV encore inconnu se lit en choisissant ses colonnes une fois.
+const BANKS = {
+  bp: { name: 'Banque Populaire', csv: true, pdf: true }, ce: { name: 'Caisse d\'Épargne', csv: true, pdf: true },
+  ca: { name: 'Crédit Agricole', csv: true }, lcl: { name: 'LCL', csv: true }, sg: { name: 'Société Générale', csv: true },
+  bnp: { name: 'BNP Paribas', csv: true }, hello: { name: 'Hello bank!' }, cm: { name: 'Crédit Mutuel', csv: true }, cic: { name: 'CIC', csv: true },
+  lbp: { name: 'La Banque Postale', csv: true }, bourso: { name: 'BoursoBank (Boursorama)', csv: true }, fortuneo: { name: 'Fortuneo', csv: true },
+  monabanq: { name: 'Monabanq' }, bforbank: { name: 'BforBank' }, ccf: { name: 'CCF (ex-HSBC)' }, arkea: { name: 'Crédit Mutuel de Bretagne / Sud-Ouest (Arkéa)' },
+  coop: { name: 'Crédit Coopératif' }, revolut: { name: 'Revolut', csv: true }, n26: { name: 'N26', csv: true }, nickel: { name: 'Nickel' },
+  sumeria: { name: 'Sumeria (ex-Lydia)' }, trade: { name: 'Trade Republic' }, qonto: { name: 'Qonto' }, shine: { name: 'Shine' },
+  autre: { name: 'Une autre banque' },
+};
 
 // Fichier sans numéro de compte : à quel compte connu appartient-il ? Les exports se chevauchent toujours de quelques jours ;
 // on compte ses opérations (date + montant, ce qui fait l'identité d'une opération) déjà présentes dans chaque compte.
@@ -1168,7 +1234,8 @@ function mergeStates(local, other) {
   out.histBal ||= o.histBal || null;
   out.reconciled = [...new Set([...(out.reconciled || []), ...(o.reconciled || [])])];
   out.tx = out.tx.filter(t => !(t.pending && out.reconciled.includes(t.id))); // saisie déjà remplacée sur l'autre téléphone
-  out.flex = { ...(o.flex || {}), ...(out.flex || {}) }; // enveloppe vie courante : celle de ce téléphone l'emporte (0 = désactivée)
+  out.flex = { ...(o.flex || {}), ...(out.flex || {}) };
+  out.csvMaps = { ...(o.csvMaps || {}), ...(out.csvMaps || {}) }; // colonnes choisies pour un CSV inconnu, sur l'un ou l'autre téléphone // enveloppe vie courante : celle de ce téléphone l'emporte (0 = désactivée)
   for (const k of ['budgets', 'challenges', 'checkins', 'noSpend', 'rit']) {
     out[k] ||= {};
     for (const [w, v] of Object.entries(o[k] || {})) out[k][w] = { ...v, ...(out[k][w] || {}) };
@@ -1356,10 +1423,13 @@ function sanitizeState(d) {
   const levers = obj(o.levers), lv = l => (LEVERS[l] ? l : 'essentiel');
   return {
     people: people.length ? people : [{ id: 'p1', name: 'Moi' }],
-    ...(o.setup ? { setup: true } : {}), ...(['bp', 'ce', 'autre'].includes(o.bank) ? { bank: o.bank } : {}),
+    ...(o.setup ? { setup: true } : {}), ...(BANKS[o.bank] ? { bank: o.bank } : {}),
     accounts, tx,
     rules: Object.fromEntries(Object.entries(obj(o.rules)).map(([k, c]) => [str(k, 120), okCat(c)])),
     flex: byWho(o.flex, v => Math.max(0, Math.round(num(v)))),
+    csvMaps: Object.fromEntries(Object.entries(obj(o.csvMaps)).slice(0, 30).filter(([, m]) => m && [';', ',', '\t', '|'].includes(m.d))
+      .map(([k, m]) => [str(k, 300), { d: m.d, ...Object.fromEntries(['hi', 'iDate', 'iLabel', 'iAmount', 'iDebit', 'iCredit'].map(c => [c, Math.max(-1, Math.min(60, Math.round(num(m[c]))))])) }])
+      .filter(([, m]) => m.iDate >= 0 && m.iLabel >= 0 && (m.iAmount >= 0 || m.iDebit >= 0 || m.iCredit >= 0))),
     budgets: byWho(o.budgets, v => Object.fromEntries(Object.entries(obj(v)).filter(([c]) => CAT[c]).map(([c, x]) => [c, Math.max(0, num(x))]))),
     pots: things(o.pots, p => ({ owner: owner(p.owner) || 'foyer', name: str(p.name, 60) || 'Objectif', emoji: str(p.emoji, 8) || '🎯', target: Math.max(1, num(p.target)),
       moves: arr(p.moves).filter(m => m && date(m.date)).map(m => ({ date: m.date, amount: round2(num(m.amount)), note: str(m.note, 40) })), ...(typeof p.acc === 'string' && accounts[safeKey(p.acc)] ? { acc: safeKey(p.acc) } : {}) })),
@@ -1562,6 +1632,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  searchMatch, merchantHistory, cached, forecastPath, flexStatus, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  searchMatch, merchantHistory, cached, forecastPath, flexStatus, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX, csvPreview, parseQIF, isQIF, BANKS,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

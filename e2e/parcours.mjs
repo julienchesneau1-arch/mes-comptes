@@ -31,6 +31,8 @@ const CSV = ['Date de comptabilisation;Libelle simplifie;Libelle operation;Refer
   '16/09/2026;SALAIRE;VIR SEPA SOCIETE XYZ SALAIRE;2;;Virement;Revenus;Salaire;;+2 100,00;16/09/2026;16/09/2026;0',
   '18/09/2026;RESTAURANT;CB RESTAURANT LE ZINC 17/09;3;;Carte;Loisirs;Restaurant;-38,50;;17/09/2026;18/09/2026;0'].join('\n');
 const FILE = { name: "Relevé d'août (1).csv", mimeType: 'text/csv', buffer: Buffer.from(CSV) };
+// Banque encore inconnue de l'app (fictive) : dates en toutes lettres, titres inhabituels → le foyer choisit les colonnes.
+const ODD = (rows) => ({ name: "Opérations d'une autre banque (2).csv", mimeType: 'text/csv', buffer: Buffer.from(['Quand;Quoi;Combien', ...rows].join('\n')) });
 const PIN = '482915';
 
 const fails = [];
@@ -199,6 +201,7 @@ async function newVault(page) {
   await page.click('#lock form button');
   await page.waitForSelector('form[data-f="setup"]', { timeout: 20000 });
   await page.fill('[name="p1"]', 'Alex'); await page.fill('[name="p2"]', 'Sam');
+  await page.selectOption('form[data-f="setup"] [name="bank"]', 'bp');                     // liste de toutes les banques, choix obligatoire
   await page.click('form[data-f="setup"] button:not([type="button"])');
   await page.locator('#file').setInputFiles(FILE);
   await page.waitForFunction(() => S.tx.length >= 3, null, { timeout: 20000 }).catch(() => {});
@@ -223,6 +226,23 @@ async function real(engine, device) {
   await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
   ok(await page.evaluate(() => S.tx.length) === n, 'après rechargement et bon code : les opérations sont là');
   ok(await page.locator('#where').count() === 1 && await noOverflow(page), 'accueil réel : camembert, rien ne dépasse');
+  ok(await page.evaluate(() => S.bank) === 'bp', 'banque choisie à l\'accueil gardée');
+  // Fichier d'une banque inconnue : aperçu, colonnes choisies une fois, puis retenues pour le fichier suivant.
+  await page.locator('#file').setInputFiles(ODD(['20 sept. 2026;Boulangerie du coin;-4,20', '21 sept. 2026;Remboursement ami;15,00', '22 sept. 2026;Cinéma;-11,50']));
+  await page.waitForSelector('form[data-f="cols"]', { timeout: 10000 }).catch(() => {});
+  ok(await page.locator('form[data-f="cols"]').count() === 1, 'banque inconnue : « Quelles colonnes ? » avec un aperçu');
+  await a11y(page, 'choix des colonnes');
+  await page.selectOption('form[data-f="cols"] [name="iDate"]', '0'); await page.selectOption('form[data-f="cols"] [name="iLabel"]', '1'); await page.selectOption('form[data-f="cols"] [name="iAmount"]', '2');
+  await page.click('form[data-f="cols"] button:not([type])');
+  await page.waitForSelector('[data-a="pickAcc"][data-id=""]', { timeout: 10000 }).catch(() => {});
+  if (await page.locator('[data-a="pickAcc"][data-id=""]').count()) await page.click('[data-a="pickAcc"][data-id=""]'); // nouveau compte
+  await page.waitForFunction(n => S.tx.length >= n + 3, n, { timeout: 15000 }).catch(() => {});
+  ok(await page.evaluate(() => S.tx.filter(t => /Boulangerie du coin|Remboursement ami|Cinéma/.test(t.label)).length) === 3, 'colonnes choisies : 3 opérations lues (dates en toutes lettres)');
+  await page.locator('#file').setInputFiles(ODD(['22 sept. 2026;Cinéma;-11,50', '23 sept. 2026;Pharmacie;-8,90']));
+  await page.waitForFunction(() => S.tx.some(t => t.label === 'Pharmacie'), null, { timeout: 15000 }).catch(() => {});
+  ok(await page.locator('form[data-f="cols"]').count() === 0 && await page.evaluate(() => S.tx.some(t => t.label === 'Pharmacie') && S.tx.filter(t => t.label === 'Cinéma').length === 1), 'même banque ensuite : colonnes retenues, rien à redemander, aucun doublon');
+  await page.evaluate(() => saving);
+  const nAll = await page.evaluate(() => S.tx.length);
   await page.screenshot({ path: join(SHOTS, `${tag}-reel.png`) });
   // Hors ligne : l'app s'ouvre, le code ouvre le coffre, les opérations sont là.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
@@ -234,7 +254,7 @@ async function real(engine, device) {
     else {
       await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
       await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
-      ok(await page.evaluate(() => S.tx.length) === n, 'hors ligne : l\'app s\'ouvre, opérations intactes');
+      ok(await page.evaluate(() => S.tx.length) === nAll, 'hors ligne : l\'app s\'ouvre, opérations intactes');
     }
   } finally { OFF = false; } // toujours rétabli : les scénarios suivants ont besoin du serveur
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);

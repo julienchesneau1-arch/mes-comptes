@@ -498,6 +498,51 @@ console.log('OK — rituels (série, rappels agenda, fusion)');
   console.log('OK — CSV de 10 banques (Crédit Agricole, BNP, SG, Crédit Mutuel, Banque Postale, Fortuneo, Boursorama, Revolut, N26, LCL)');
 }
 
+// Toutes les banques : QIF, OFX 2 (XML), dates en toutes lettres, CSV inconnu lu avec des colonnes choisies (et retenues), liste des banques.
+{
+  const qif = '!Type:Bank\nD15/09/2026\nT-54,20\nPCARREFOUR MARKET\nMCB 13/09\n^\nD16/09/2026\nT2100.00\nPSALAIRE ACME\n^\n';
+  assert.ok(C.isQIF(qif) && !C.isQIF('Date;Libellé;Montant\n15/09/2026;X;-1,00'));
+  const q = C.parseQIF(qif, "Relevé d'opérations (1).qif");
+  assert.deepStrictEqual(q[0].rows.map(r => [r.date, r.amount, r.label, r.detail]), [['2026-09-15', -54.2, 'CARREFOUR MARKET', 'CB 13/09'], ['2026-09-16', 2100, 'SALAIRE ACME', '']]);
+  assert.deepStrictEqual([q[0].account, q[0].weak], ["Relevé d'opérations", 'name']);       // nom de fichier : accent, apostrophe, « (1) »
+  const us = C.parseQIF("!Type:Bank\nD9/15'26\nT-12.50\nPCAFE\n^\nD9/2'26\nT-3.00\nPBUS\n^\n", 'export.qif');
+  assert.deepStrictEqual(us[0].rows.map(r => r.date), ['2026-09-15', '2026-09-02']);        // mois/jour reconnu (15 ne peut être un mois)
+  assert.throws(() => C.parseQIF('!Type:Bank\n^\n', 'vide.qif'));
+
+  const ofx2 = '<?xml version="1.0"?><?OFX OFXHEADER="200" VERSION="211"?><OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS><CCSTMTRS><CCACCTFROM><ACCTID>4970000000001234</ACCTID></CCACCTFROM>'
+    + '<BANKTRANLIST><STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260915120000[+2:CEST]</DTPOSTED><TRNAMT>-23.45</TRNAMT><NAME>BOULANGERIE</NAME></STMTTRN></BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>';
+  const o2 = C.parseOFX(ofx2);
+  assert.deepStrictEqual([o2[0].account, o2[0].rows[0].date, o2[0].rows[0].amount, o2[0].rows[0].label], ['4970000000001234', '2026-09-15', -23.45, 'BOULANGERIE']);
+
+  assert.deepStrictEqual(['15 sept. 2026', '3 septembre 2026', '2026/9/5', '1 déc. 2025'].map(C.parseDate), ['2026-09-15', '2026-09-03', '2026-09-05', '2025-12-01']);
+  assert.strictEqual(C.parseDate('15,00'), null);
+
+  // Banque encore inconnue : rien deviné ; aperçu, puis colonnes choisies par le foyer.
+  const odd = 'Quand;Quoi;Combien\n20 sept. 2026;Boulangerie du coin;-4,20\n21 sept. 2026;Remboursement ami;15,00\n22 sept. 2026;Cinéma;-11,50\n';
+  assert.throws(() => C.parseCSV(odd, 'Export compte (2).csv'), e => e.columns === true);
+  const pv = C.csvPreview(odd);
+  assert.deepStrictEqual([pv.d, pv.hi, pv.cols, pv.sig, pv.rows.length], [';', 0, 3, 'titres:QUAND|QUOI|COMBIEN', 3]);
+  const map = { d: pv.d, hi: pv.hi, iDate: 0, iLabel: 1, iAmount: 2, iDebit: -1, iCredit: -1 };
+  const got = C.parseCSV(odd, 'Export compte (2).csv', map);
+  assert.deepStrictEqual(got[0].rows.map(r => [r.date, r.amount, r.label]), [['2026-09-20', -4.2, 'Boulangerie du coin'], ['2026-09-21', 15, 'Remboursement ami'], ['2026-09-22', -11.5, 'Cinéma']]);
+  const dc = 'Jour|Libellé|Sortie|Entrée\n2026.09.20|BOULANGERIE|4,20|\n2026.09.21|REMBOURSEMENT||15,00\n', pd = C.csvPreview(dc);
+  assert.deepStrictEqual([pd.d, pd.hi, pd.cols], ['|', 0, 4]);
+  assert.deepStrictEqual(C.parseCSV(dc, 'Opérations.csv', { d: '|', hi: 0, iDate: 0, iLabel: 1, iAmount: -1, iDebit: 2, iCredit: 3 })[0].rows.map(r => r.amount), [-4.2, 15]);
+
+  // Choix retenu dans le coffre (validé), et gardé à la fusion de deux téléphones ; banques de la liste seulement.
+  const san = C.sanitizeState({ bank: 'bourso', csvMaps: { [pv.sig]: map, mauvais: { d: 'x', iDate: 0, iLabel: 1, iAmount: 2 }, 'sans date': { d: ';', hi: 0, iDate: -1, iLabel: 1, iAmount: 2 } } });
+  assert.deepStrictEqual([san.bank, Object.keys(san.csvMaps)], ['bourso', [pv.sig]]);
+  assert.deepStrictEqual(san.csvMaps[pv.sig], map);
+  assert.strictEqual(C.sanitizeState({ bank: 'inconnue' }).bank, undefined);
+  const mg2 = C.mergeStates({ accounts: {}, tx: [], rules: {} }, { accounts: {}, tx: [], csvMaps: san.csvMaps });
+  assert.deepStrictEqual(Object.keys(mg2.csvMaps), [pv.sig]);
+  const ids = Object.keys(C.BANKS), names = Object.values(C.BANKS).map(b => b.name);
+  assert.ok(ids.length >= 24 && ids.includes('autre') && new Set(names).size === names.length);
+  // « csv » = colonnes reconnues d'office : chacune a son fichier d'essai ci-dessus (ou celui de la Banque Populaire).
+  assert.deepStrictEqual(ids.filter(k => C.BANKS[k].csv).sort(), ['bnp', 'bourso', 'bp', 'ca', 'ce', 'cic', 'cm', 'fortuneo', 'lbp', 'lcl', 'n26', 'revolut', 'sg']);
+  console.log(`OK — toutes les banques : ${ids.length - 1} au choix, OFX 1 et 2, QIF, dates en lettres, CSV inconnu lu par colonnes choisies et retenues`);
+}
+
 // Même compte exporté deux fois sous des noms différents : rattaché au même compte, aucun doublon
 {
   const head = 'Date;Libellé;Montant\n', sept = ['01/09/2026;CB BOULANGERIE;-4,20', '15/09/2026;VIR SALAIRE;1500,00', '28/09/2026;CB CARREFOUR;-54,10'];

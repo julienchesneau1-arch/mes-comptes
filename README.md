@@ -1,6 +1,8 @@
 # Mes Comptes
 
-Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populaire), l'app range les dépenses par famille, suit les limites et aide à mettre de côté.
+Suivi de budget perso : on dépose ses relevés, l'app range les dépenses par famille, suit les limites et aide à mettre de côté.
+
+**Toutes les banques** : la banque se choisit dans une liste (24 banques et « Une autre banque ») et l'app dit quoi télécharger. Formats lus : OFX et QIF (standards, toutes banques), CSV (colonnes reconnues d'office pour Banque Populaire, Caisse d'Épargne, Crédit Agricole, LCL, Société Générale, BNP Paribas, Crédit Mutuel, CIC, La Banque Postale, BoursoBank, Fortuneo, Revolut, N26 ; pour une autre banque, on montre une fois où sont la date, le libellé et le montant, et ce choix est retenu), relevés PDF (Banque Populaire, Caisse d'Épargne).
 
 - **100 % local** : les données restent sur l'appareil (localStorage). Aucun serveur, aucune IA, aucune connexion bancaire. La page interdit toute connexion sortante (CSP `connect-src 'self'`).
 - **Zéro dépendance externe** : JavaScript sans framework ; pdf.js (Apache 2.0) est embarqué dans `vendor/`.
