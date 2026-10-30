@@ -137,7 +137,8 @@ async function run(engine, device) {
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
   try {
     OFF = true; phase = 'hors ligne';
-    await page.reload();
+    await page.reload().catch(async e => { // WebKit sous Linux : « internal error » parfois sur une navigation hors ligne ; une seule relance, annoncée
+      if (!/internal error/i.test(e.message)) throw e; console.log('  · rechargement hors ligne relancé une fois (erreur interne de WebKit)'); await page.reload(); });
     if (!(await page.locator('main').waitFor().then(() => true, () => false))) ok(false, `hors ligne : app absente (${await page.evaluate(async () => `${location.href} · contrôlée=${!!navigator.serviceWorker?.controller} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')} · « ${(document.body?.innerText || '').slice(0, 120).replace(/\s+/g, ' ')} »`).catch(e => e.message)})`);
     else {
       const went = await tab(page, 'Courses').then(() => true, async e => { ok(false, `hors ligne : onglet Courses inaccessible (${e.message.split('\n')[0]} · dialogue ouvert=${await page.locator('dialog[open]').count()} · « ${(await page.locator('body').innerText()).slice(0, 160).replace(/\s+/g, ' ')} »)`); return false; });
