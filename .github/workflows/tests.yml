@@ -23,3 +23,16 @@ jobs:
         run: git diff --exit-code -- js sw.js
       - run: npm run typecheck
       - run: npm test
+  # Mes Comptes sur téléphone : iPhone (WebKit, le moteur de Safari) et Android (Chromium). Gratuit (dépôt public).
+  # Playwright n'est qu'un outil de test, installé ici seulement : l'app reste sans aucune dépendance.
+  telephones:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm i --no-save --no-package-lock playwright@1.63.0 && npx playwright install --with-deps chromium webkit
+      - run: STRICT=1 node e2e/parcours.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: captures-telephones, path: captures/, retention-days: 7 }
