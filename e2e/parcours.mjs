@@ -76,12 +76,13 @@ async function bio(engine, device) {
 const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 // Toucher du doigt. Partout : le doigt doit tomber sur le bon élément (même calcul que sur l'iPhone, WebKit).
 // Chromium (Android) fait suivre un clic, comme l'iPhone ; WebKit sous Linux, non (c'est propre à l'iPhone) : on y déclenche alors le clic.
-async function fingerTap(page, x, y, want) {
+async function fingerTap(page, loc, want) {
+  await loc.scrollIntoViewIfNeeded();                                         // le doigt ne touche que ce qui est à l'écran
+  const box = await loc.boundingBox();
   await page.evaluate(() => { window.__up = null; document.addEventListener('pointerup', e => { window.__up = e.target; }, { capture: true, once: true }); });
-  await page.touchscreen.tap(x, y);
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(150);
-  const onTarget = await page.evaluate(sel => !!(window.__up && window.__up.closest(sel)), want);
-  return onTarget;
+  return page.evaluate(sel => (window.__up && window.__up.closest(sel) ? '' : (window.__up ? window.__up.tagName + '.' + (window.__up.getAttribute('class') || '') : 'rien')), want);
 }
 // Toucher le milieu d'une part du camembert, sur l'anneau (là où le doigt se pose vraiment).
 const slicePoint = (page, id) => page.evaluate(id => {
@@ -117,8 +118,8 @@ async function demo(engine, device) {
   ok(Math.abs(Math.round(Math.abs(parseFloat(listTotal.replace(/[^\d,-]/g, '').replace(',', '.')))) - parseInt(center.replace(/\D/g, ''), 10)) <= 1, `opérations du pôle : même total que le camembert (${center} / ${listTotal.trim()})`);
 
   // Au doigt aussi : une ligne d'opération (div) sous le doigt, puis sa fiche.
-  const row = await page.locator('#list .op').first().boundingBox();
-  ok(await fingerTap(page, row.x + row.width / 2, row.y + row.height / 2, '.op'), 'ligne d\'opération : le doigt tombe dessus');
+  const miss1 = await fingerTap(page, page.locator('#list .op').first(), '.op');
+  ok(!miss1, `ligne d'opération : le doigt tombe dessus${miss1 ? ' (touché : ' + miss1 + ')' : ''}`);
   if (!(await page.locator('#sheet:not([hidden])').count())) await page.locator('#list .op').first().click(); // WebKit Linux : pas de clic après un toucher
   await page.waitForSelector('#sheet:not([hidden])', { timeout: 2000 }).catch(() => {});
   ok(await page.locator('#sheet:not([hidden])').count() === 1, 'ligne d\'opération : sa fiche s\'ouvre');
@@ -136,8 +137,8 @@ async function demo(engine, device) {
 
   await page.click('#tabs [data-t="accounts"]');
   ok(await page.locator('svg.fcc').count() >= 1, 'comptes : courbe du solde prévu');
-  const hit = await page.locator('svg.fcc .hit').first().boundingBox();
-  ok(await fingerTap(page, hit.x + hit.width / 2, hit.y + hit.height / 2, '.hit'), 'point de la courbe : le doigt tombe dessus');
+  const miss2 = await fingerTap(page, page.locator('svg.fcc .hit').first(), '.hit');
+  ok(!miss2, `point de la courbe : le doigt tombe dessus${miss2 ? ' (touché : ' + miss2 + ')' : ''}`);
   await page.waitForFunction(() => /solde/.test(document.querySelector('.fcd').textContent), null, { timeout: 2000 }).catch(() => {});
   ok(/solde/.test(await page.locator('.fcd').first().innerText()), 'point de la courbe touché du doigt : détail du jour');
   // Un seul toucher = une seule action (pas de double bascule si un clic suit le doigt levé).
