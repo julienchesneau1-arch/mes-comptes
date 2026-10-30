@@ -15,9 +15,9 @@ const server = createServer(async (req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^(\.\.[/\\])+/, '');
   try { const body = await readFile(join(ROOT, path.endsWith('/') ? path + 'index.html' : path)); res.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(body); }
   catch { res.writeHead(404); res.end(); }
-}).listen(0, '127.0.0.1');
+}).listen(0); // localhost (une clé d'accès refuse une adresse IP)
 await new Promise(r => server.once('listening', r));
-const URL0 = `http://127.0.0.1:${server.address().port}/index.html`;
+const URL0 = `http://localhost:${server.address().port}/index.html`;
 await mkdir(SHOTS, { recursive: true });
 
 // Relevé fictif au format Banque Populaire, sous un nom de fichier réaliste (accent, apostrophe, « (1) »).
@@ -40,6 +40,35 @@ async function phone(engine, device) {
   page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource/i.test(m.text())) errs.push(m.text()); });
   await page.clock.setFixedTime(NOW);
   return { ctx, page, errs };
+}
+// Face ID / empreinte (Chromium : authentificateur virtuel avec clé d'accès et PRF ; sur iPhone, seule la vraie biométrie peut le faire).
+async function bio(engine, device) {
+  const { ctx, page, errs } = await phone(engine, device);
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true } });
+  const n = await newVault(page);
+  await page.click('.gear');
+  await page.click('[data-a="bioSheet"]');
+  await page.fill('form[data-f="bioOn"] [name="pin"]', PIN);
+  await page.click('form[data-f="bioOn"] button:not([type])');
+  await page.waitForFunction(() => !!localStorage.getItem('mescomptes-bio'), null, { timeout: 20000 }).catch(() => {});
+  const stored = await page.evaluate(() => localStorage.getItem('mescomptes-bio') || '');
+  ok(!!stored && !stored.includes(PIN), 'activée : code gardé chiffré, jamais en clair');
+  await page.click('[data-a="lockNow"]');
+  await page.waitForSelector('#lock [data-a="bioUnlock"]', { timeout: 10000 }).catch(() => {});
+  ok(await page.locator('#lock [data-a="bioUnlock"]').count() === 1, 'écran verrouillé : bouton biométrie');
+  await page.click('#lock [data-a="bioUnlock"]');
+  await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
+  ok(await page.evaluate(() => S.tx.length) === n, 'ouverte par la biométrie, sans taper le code : données intactes');
+  await page.click('.gear');
+  await page.click('[data-a="pinChange"]');
+  await page.fill('[name="cur"]', PIN); await page.fill('#sheet [name="pin"]', '739264'); await page.fill('#sheet [name="pin2"]', '739264');
+  await page.click('form[data-f="changepin"] button:not([type])');
+  await page.waitForFunction(() => !localStorage.getItem('mescomptes-bio'), null, { timeout: 20000 }).catch(() => {});
+  ok(await page.evaluate(() => !localStorage.getItem('mescomptes-bio')), 'code changé : biométrie désactivée (elle gardait l\'ancien)');
+  ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
+  await ctx.close();
 }
 // Rien ne dépasse en largeur : pas de défilement horizontal sur un téléphone.
 const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
@@ -66,8 +95,10 @@ async function demo(engine, device) {
   ok(/Courses & restos/.test(await page.locator('.dn-c').innerText()), 'ligne touchée : le centre montre le pôle');
   const center = await page.locator('.dn-c b').innerText();
   const pt = await slicePoint(page, 'logement');
+  await page.evaluate(() => { window.__ev = []; for (const t of ['touchend', 'pointerup', 'click']) document.addEventListener(t, e => __ev.push(`${t}:${e.target.tagName}`), true); });
   await page.touchscreen.tap(pt.x, pt.y);
-  ok(/Logement/.test(await page.locator('.dn-c').innerText()), 'part du camembert touchée du doigt : le centre suit');
+  await page.waitForFunction(() => /Logement/.test(document.querySelector('.dn-c').textContent), null, { timeout: 2000 }).catch(() => {});
+  ok(/Logement/.test(await page.locator('.dn-c').innerText()), `part du camembert touchée du doigt : le centre suit (${(await page.evaluate(() => __ev)).join(', ')})`);
   await page.click('[data-a="pole"][data-p=""]'); // ‹ Tous les pôles
   await page.click('.pl[data-p="manger"]');
   await page.click('[data-a="goCat"][data-c="pole:manger"]');
@@ -105,9 +136,8 @@ async function demo(engine, device) {
   await ctx.close();
 }
 
-// Le vrai parcours : code d'entrée, prénoms, import d'un relevé, rechargement, mauvais code, bon code, données intactes.
-async function real(engine, device) {
-  const { ctx, page, errs } = await phone(engine, device);
+// Un téléphone neuf : code d'entrée, prénoms, import du relevé fictif.
+async function newVault(page) {
   await page.goto(URL0);
   if (await page.locator('[data-a="lockHere"]').count()) await page.click('[data-a="lockHere"]'); // iPhone dans Safari : l'app propose l'icône d'abord
   await page.fill('#lock [name="pin"]', PIN); await page.fill('#lock [name="pin2"]', PIN);
@@ -117,7 +147,13 @@ async function real(engine, device) {
   await page.click('form[data-f="setup"] button:not([type="button"])');
   await page.locator('#file').setInputFiles(FILE);
   await page.waitForFunction(() => S.tx.length >= 3, null, { timeout: 20000 }).catch(() => {});
-  const n = await page.evaluate(() => S.tx.length);
+  await page.evaluate(() => saving);
+  return page.evaluate(() => S.tx.length);
+}
+// Le vrai parcours : code d'entrée, prénoms, import d'un relevé, rechargement, mauvais code, bon code, données intactes.
+async function real(engine, device) {
+  const { ctx, page, errs } = await phone(engine, device);
+  const n = await newVault(page);
   ok(n === 3, `import de « ${FILE.name} » : ${n} opérations lues`);
   await page.evaluate(() => saving);
   ok(await page.evaluate(() => !!localStorage.getItem('mescomptes-coffre') && !/CARREFOUR/.test(localStorage.getItem('mescomptes-coffre'))), 'coffre enregistré, chiffré (aucun libellé en clair)');
@@ -141,8 +177,8 @@ for (const [name, type, device] of RUNS) {
   let browser;
   try { browser = await type.launch(name === 'chromium' && !process.env.CI ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {}); }
   catch (e) { console.log(`— ${name} absent ici${process.env.STRICT ? '' : ' : ignoré'} (${e.message.split('\n')[0]})`); if (process.env.STRICT) fails.push(`${name} : navigateur absent`); continue; }
-  for (const [label, run] of [['exemple', demo], ['parcours réel', real]]) {
-    tag = `${name === 'webkit' ? 'iphone' : 'android'}-${label === 'exemple' ? 'exemple' : 'reel'}`;
+  for (const [label, run] of [['exemple', demo], ['parcours réel', real], ...(name === 'chromium' ? [['Face ID / empreinte', bio]] : [])]) {
+    tag = `${name === 'webkit' ? 'iphone' : 'android'}-${{ exemple: 'exemple', 'parcours réel': 'reel' }[label] || 'biometrie'}`;
     console.log(`\n${device} (${name}) · ${label}`);
     try { await run(browser, device); } catch (e) { ok(false, `arrêt inattendu : ${e.message.split('\n')[0]}`); }
   }

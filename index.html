@@ -385,7 +385,7 @@ function showLock(mode = lockMode()) {
   const pin = (n, ph) => `<input class="f pin" name="${n}" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="12" placeholder="${ph}" aria-label="${ph}">`;
   const L = $('#lock'); L.hidden = false;
   L.innerHTML = `<div class="box"><div style="font-size:44px">🔐</div><h1 style="font-family:var(--num);font-size:26px;margin:6px 0 4px">Mes Comptes</h1>
-    ${mode === 'unlock' ? `<p class="mute" style="margin:0 0 16px">Entrez votre code</p>
+    ${mode === 'unlock' ? `${bioMeta() ? `<button class="btn" style="width:100%;margin:0 0 14px" data-a="bioUnlock">${BIO_LABEL}</button>` : ''}<p class="mute" style="margin:0 0 16px">${bioMeta() ? 'ou entrez votre code' : 'Entrez votre code'}</p>
       <form data-f="unlock">${pin('pin', 'Code')}<button class="btn" style="width:100%;margin-top:12px">Entrer</button></form>
       <p id="lockMsg" class="sm mute"></p><button class="btn sm ghost" data-a="forgot">Code oublié ?</button>`
     : mode === 'icon' ? `<p style="margin:0 0 8px"><b>Sur iPhone, Mes Comptes s'ouvre depuis son icône</b></p>
@@ -405,7 +405,7 @@ function showLock(mode = lockMode()) {
     <p class="sm mute" style="margin-top:18px">Vos données restent sur ce téléphone, chiffrées. Personne d'autre ne les voit.</p></div>`;
   setTimeout(() => L.querySelector('input')?.focus(), 120);
 }
-async function unlock(pin) {
+async function unlock(pin, viaBio = false) {
   const st = triesState();
   if (Date.now() < st.until) return lockMsg(`Trop d'essais : réessayez dans ${Math.ceil((st.until - Date.now()) / 1000)} s.`);
   const m = vaultMeta();
@@ -415,6 +415,7 @@ async function unlock(pin) {
   try { key = await vaultKey(pin, m.salt, m.iter || VAULT_ITER); json = await vaultOpen(m.data, key); }
   catch (e) {
     if (!e.badCode) return lockMsg('Ouverture impossible : ' + e.message);
+    if (viaBio) { bioOff(); jlog('Face ID : code gardé périmé, désactivé'); return lockMsg('Face ID / empreinte à réactiver (Réglages › Sécurité) : entrez votre code.'); }
     const n = st.n + 1, wait = n >= 10 ? 1800 : n >= 8 ? 300 : n >= 5 ? 30 : 0; jlog('code refusé');
     try { localStorage.setItem(TRIES, JSON.stringify({ n, until: Date.now() + wait * 1000 })); } catch {}
     const f = $('#lock input'); if (f) f.value = '';
@@ -497,7 +498,61 @@ async function changePin(cur, pin, pin2) {
   VKEY = key; VSALT = salt;
   await writeVault(JSON.stringify(S), S.tx.length);
   try { for (const x of await idb.all()) await idb.put({ ...x, enc: 1, data: await vaultSeal(x.enc ? await vaultOpen(x.data, oldKey) : x.data, key) }); } catch {}
-  rememberUi(); closeSheet(); toast('🔐 Nouveau code enregistré');
+  const hadBio = !!bioMeta(); bioOff();
+  rememberUi(); closeSheet(); render(); toast(hadBio ? '🔐 Nouveau code enregistré\nFace ID / empreinte : à réactiver dans Réglages › Sécurité.' : '🔐 Nouveau code enregistré');
+}
+
+/* ---------- Face ID / empreinte ----------
+   Une clé d'accès (passkey) du téléphone, avec l'extension PRF, rend 32 octets secrets seulement après la biométrie.
+   On en tire une clé AES qui chiffre le code d'entrée ; le coffre, lui, reste chiffré par le code, et le code reste accepté.
+   Aucun serveur : la clé d'accès vit dans le trousseau du téléphone. Code changé ou téléphone effacé : la biométrie est désactivée. */
+const BIO = 'mescomptes-bio', BIO_LABEL = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? '🙂 Face ID / Touch ID' : '👆 Empreinte / visage';
+const bioMeta = () => { try { const b = JSON.parse(localStorage.getItem(BIO)); return b && b.v === 1 && b.id && b.salt && b.data ? b : null; } catch { return null; } };
+const bioOff = () => { try { localStorage.removeItem(BIO); } catch {} };
+const bioCan = () => !!(window.isSecureContext && window.PublicKeyCredential && navigator.credentials && navigator.credentials.create) && !/^[\d.]+$|:/.test(location.hostname); // une clé d'accès exige un nom de domaine
+async function bioKey(prf) {
+  const base = await crypto.subtle.importKey('raw', prf, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('mescomptes-bio-v1') }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function bioPrf(id, salt) {
+  const a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: location.hostname, allowCredentials: [{ type: 'public-key', id }],
+    userVerification: 'required', timeout: 60000, extensions: { prf: { eval: { first: salt } } } } });
+  const r = a && a.getClientExtensionResults().prf;
+  return r && r.results && r.results.first ? new Uint8Array(r.results.first) : null;
+}
+const BIO_NO = 'Ce téléphone ne permet pas encore Face ID / empreinte pour une app web : le code reste l\'entrée. (iPhone : iOS 18 ou plus récent ; Android : Chrome à jour.)';
+async function bioOn(pin) {
+  const m = vaultMeta();
+  if (!m) return;
+  try { await vaultOpen(m.data, await vaultKey(pin, m.salt, m.iter || VAULT_ITER)); } catch { return toast('Code incorrect'); }
+  try { const caps = await PublicKeyCredential.getClientCapabilities?.(); if (caps && caps['extension:prf'] === false) return toast(BIO_NO); } catch {}
+  const salt = crypto.getRandomValues(new Uint8Array(32));
+  let cred;
+  try {
+    cred = await navigator.credentials.create({ publicKey: { rp: { name: 'Mes Comptes', id: location.hostname }, user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'Mes Comptes', displayName: 'Mes Comptes' },
+      challenge: crypto.getRandomValues(new Uint8Array(32)), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], timeout: 60000,
+      authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', userVerification: 'required' }, extensions: { prf: { eval: { first: salt } } } } });
+  } catch (e) { jlog('Face ID : création refusée (' + (e && e.name) + ')'); return toast(e && e.name === 'NotAllowedError' ? 'Annulé.' : BIO_NO); }
+  const ext = (cred && cred.getClientExtensionResults().prf) || {};
+  if (!ext.enabled && !ext.results) return toast(BIO_NO);
+  let prf = ext.results && ext.results.first ? new Uint8Array(ext.results.first) : null;
+  if (!prf) try { prf = await bioPrf(new Uint8Array(cred.rawId), salt); } catch { prf = null; } // certains téléphones ne la rendent qu'au premier usage
+  if (!prf) return toast(BIO_NO);
+  try { localStorage.setItem(BIO, JSON.stringify({ v: 1, id: b64u.enc(new Uint8Array(cred.rawId)), salt: b64u.enc(salt), data: await vaultSeal(pin, await bioKey(prf)) })); }
+  catch (e) { return toast('Impossible : ' + e.message); }
+  jlog('Face ID : activé'); closeSheet(); render(); toast(`✔ ${BIO_LABEL} activé : au prochain verrouillage, un regard ou un doigt suffit.`);
+}
+async function bioUnlock() {
+  const b = bioMeta(); if (!b) return showLock();
+  lockMsg('…', true);
+  let prf = null;
+  try { prf = await bioPrf(b64u.dec(b.id), b64u.dec(b.salt)); }
+  catch (e) { return lockMsg(e && e.name === 'NotAllowedError' ? 'Annulé : entrez votre code.' : 'Indisponible : entrez votre code.'); }
+  if (!prf) return lockMsg('Indisponible : entrez votre code.');
+  let pin;
+  try { pin = await vaultOpen(b.data, await bioKey(prf)); } catch { bioOff(); return lockMsg('À réactiver (Réglages › Sécurité) : entrez votre code.'); }
+  jlog('Face ID : déverrouillage');
+  return unlock(pin, true);
 }
 
 /* ---------- Outils ---------- */
@@ -1629,6 +1684,8 @@ function settings() {
       <p class="sm" style="margin-top:0"><b>Sur ce téléphone</b>, vos données sont chiffrées par votre <b>code d'entrée</b> ; l'app se verrouille seule après 5 minutes en arrière-plan.
         <b>Ce qui en sort</b> (synchro, sauvegardes) est chiffré par le <b>code du foyer</b>. L'app n'envoie rien ailleurs : personne d'autre ne voit vos chiffres.</p>
       <div class="chips"><button class="btn sm" data-a="lockNow">🔒 Verrouiller maintenant</button><button class="btn sm ghost" data-a="pinChange">Changer mon code d'entrée</button></div>
+      ${bioMeta() ? `<div class="chips"><span>✔ ${BIO_LABEL} activé</span><button class="btn sm ghost" data-a="bioOffAsk">Désactiver</button></div>`
+        : bioCan() ? `<div class="chips"><button class="btn sm ghost" data-a="bioSheet">${BIO_LABEL} : l'activer</button></div>` : ''}
       <div class="chips"><button class="btn sm ghost" data-a="codeShow">🔐 Voir mon code du foyer</button><button class="btn sm ghost" data-a="codeNew">Changer le code du foyer</button></div>
       <p class="sm mute hint">Le code est le même sur vos deux téléphones (l'autre le tape une fois). Gardez-le dans un endroit sûr : sans lui, une sauvegarde chiffrée ne peut pas être relue. Les données sur ce téléphone restent protégées par son code de verrouillage.</p></section>
     <section class="card span"><h2>Rappels</h2><p class="sm">Un rappel le soir, le dimanche et le 6 du mois, dans l'agenda du téléphone. En ouvrant l'app, la bonne carte vous attend en haut de l'accueil.</p>
@@ -1802,6 +1859,12 @@ const A = {
   copyLink: () => navigator.clipboard.writeText(location.href).then(() => toast('Copié ✔ Ouvrez maintenant Mes Comptes depuis son icône'), () => toast('Copie impossible : appui long sur l\'adresse, puis Copier')),
   lockBack: () => showLock(),
   lockNow: () => lockNow(),
+  bioUnlock: () => bioUnlock(),
+  bioSheet: () => openSheet(`<h2 style="margin-top:0">${BIO_LABEL}</h2>
+    <p class="sm">Ouvrir l'app d'un regard ou d'un doigt. Le téléphone garde votre code d'entrée, chiffré par une clé qu'il ne rend qu'après ${OS === 'ios' ? 'Face ID ou Touch ID' : 'votre empreinte ou votre visage'}. Rien ne quitte le téléphone ; le code reste toujours accepté.</p>
+    <form data-f="bioOn" style="display:grid;gap:10px"><input class="f" name="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Votre code d'entrée, pour confirmer">
+    <div class="chips"><button class="btn" style="flex:1">Activer</button><button type="button" class="btn ghost" data-a="closeSheet">Annuler</button></div></form>`),
+  bioOffAsk: () => { bioOff(); render(); toast(`${BIO_LABEL} désactivé : le code d'entrée seul ouvre l'app.${OS === 'ios' ? '\nLa clé « Mes Comptes » peut être supprimée dans l\'app Mots de passe.' : ''}`); },
   pinChange: () => openSheet(`<h2 style="margin-top:0">🔐 Changer mon code d'entrée</h2><form data-f="changepin" style="display:grid;gap:10px">
     <input class="f" name="cur" type="password" inputmode="numeric" autocomplete="off" placeholder="Code actuel">
     <input class="f" name="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="Nouveau code (6 chiffres ou plus)">
@@ -1986,11 +2049,12 @@ document.addEventListener('submit', e => {
   if (e.target.dataset.f === 'newpin') return createPin(String(f.get('pin') || ''), String(f.get('pin2') || ''), e.target.dataset.mode).catch(err => lockMsg('Impossible : ' + err.message));
   if (e.target.dataset.f === 'forgot') {
     if (String(f.get('ok') || '').trim().toUpperCase() !== 'EFFACER') return lockMsg('Tapez EFFACER pour confirmer.');
-    for (const k of [VAULT, VAULT + '-secours', UIKEY, TRIES, KEY, KEY + '-secours']) try { localStorage.removeItem(k); } catch {}
+    for (const k of [VAULT, VAULT + '-secours', UIKEY, TRIES, KEY, KEY + '-secours', BIO]) try { localStorage.removeItem(k); } catch {}
     jlog('téléphone effacé (code oublié)');
     idb.all().then(xs => Promise.all(xs.map(x => idb.del(x.id)))).catch(() => {}).finally(() => { showLock('create'); toast('Téléphone effacé : choisissez un nouveau code'); });
     return;
   }
+  if (e.target.dataset.f === 'bioOn') return bioOn(String(f.get('pin') || ''));
   if (e.target.dataset.f === 'changepin') return changePin(String(f.get('cur') || ''), String(f.get('pin') || ''), String(f.get('pin2') || ''));
   if (e.target.dataset.f === 'paste') return receiveSync(f.get('t'));
   if (e.target.dataset.f === 'code') {
