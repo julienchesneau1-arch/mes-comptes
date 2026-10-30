@@ -1,6 +1,6 @@
 // Hors-ligne : réseau d'abord, sans cache HTTP intermédiaire (une mise à jour est vue tout de suite), cache si pas de connexion.
 // Android : reçoit aussi les fichiers « partagés » vers l'app (relevés depuis l'app de la banque, journal…).
-const C = 'mescomptes-v49', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
+const C = 'mescomptes-v50', SHARE = 'mescomptes-partage', ETAT = 'mescomptes-etat';
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(['./', 'index.html', 'core.js', 'manifest.json', 'icon.svg', 'icon.png', 'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs', 'vendor/pdfjs/polyfill-safari.mjs', 'vendor/pdfjs/worker-safari.mjs']))); });
 // Seulement nos propres caches : Foyer (dans foyer/) partage le même site et garde les siens.
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('mescomptes') && k !== C && k !== SHARE && k !== ETAT).map(k => caches.delete(k)))).then(() => self.clients.claim())));
@@ -18,9 +18,13 @@ self.addEventListener('fetch', e => {
   }
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
   // Réseau d'abord ; une page d'erreur du site (404 pendant une mise à jour) ne remplace jamais la copie qui marche.
-  e.respondWith(fetch(e.request.url, { cache: 'no-cache' })
-    .then(r => { if (!r.ok) return caches.match(e.request).then(c => c || r); const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => caches.match(e.request).then(c => c || caches.match(e.request, { ignoreSearch: true })))); // « core.js?v=… » : la copie mise de côté à l'installation
+  // 3 s au plus (réseau faible) : ensuite la copie gardée ; sans copie, on attend le réseau. « core.js?v=… » : la copie de l'installation.
+  const kept = () => caches.match(e.request).then(c => c || caches.match(e.request, { ignoreSearch: true }));
+  const net = fetch(e.request.url, { cache: 'no-cache' })
+    .then(r => { if (!r.ok) return kept().then(c => c || r); const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; })
+    .catch(() => kept());
+  const slow = new Promise(res => setTimeout(res, 3000)).then(kept).then(c => c || net);
+  e.respondWith(Promise.race([net, slow]));
 });
 
 // Android (app installée) : notifications qui connaissent vos chiffres, calculées sur le téléphone à partir d'un petit résumé.

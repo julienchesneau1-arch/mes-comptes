@@ -112,11 +112,17 @@ self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.o
 self.addEventListener('activate', e => e.waitUntil(caches.keys()
   .then(ks => Promise.all(ks.filter(k => k.startsWith('foyer-') && k !== CACHE).map(k => caches.delete(k))))
   .then(() => self.clients.claim())));
+// Réseau d'abord, mais 3 s au plus (réseau faible au supermarché) : ensuite la copie gardée ; sans copie, on attend le réseau.
+// Sans cette limite, un fichier en attente sur un réseau qui ne répond pas laissait l'app sur « Chargement de Foyer… ».
+const WAIT = 3000;
+const kept = req => caches.match(req, { ignoreSearch: true });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.registration.scope)) return;
-  e.respondWith(fetch(e.request.url, { cache: 'no-cache' })
-    .then(r => { if (!r.ok) return caches.match(e.request, { ignoreSearch: true }).then(c => c || r); const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => caches.match(e.request, { ignoreSearch: true }).then(c => c || caches.match('index.html'))));
+  const net = fetch(e.request.url, { cache: 'no-cache' })
+    .then(r => { if (!r.ok) return kept(e.request).then(c => c || r); const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
+    .catch(() => kept(e.request).then(c => c || caches.match('index.html')));
+  const slow = new Promise(res => setTimeout(res, WAIT)).then(() => kept(e.request)).then(c => c || net);
+  e.respondWith(Promise.race([net, slow]));
 });
 
 // Rappels : la notification arrive VIDE ; on relit les rappels chiffrés du foyer, on les déchiffre ici et on les affiche.
