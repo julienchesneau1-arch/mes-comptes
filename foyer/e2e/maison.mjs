@@ -205,7 +205,7 @@ await step('desserts, fruits, boissons, goûter au choix ; pommes dues → budge
   await fruits.getByText('Pommes').waitFor();
   const after = await cents(), pomme = Math.round(Number(price[1].replace(',', '.')) * 100);
   if (after !== before + pomme) throw new Error(`budget : ${before} + ${pomme} attendus, ${after} affichés`);
-  await page.getByRole('button', { name: '🛒 Commander au drive' }).click();
+  await page.getByRole('button', { name: /Commander au drive/ }).click();
   for (let i = 0; i < 20 && !(await dlg.getByRole('heading', { name: 'Pommes', exact: true }).count()); i++) await dlg.getByRole('button', { name: 'Passer' }).click();
   const card = await text(dlg);
   if (!/Besoin : 1 kg \(≈ 6\)/.test(card) || !/prix moyen Insee pommes/.test(card)) throw new Error('article pommes : ' + card.slice(0, 400));

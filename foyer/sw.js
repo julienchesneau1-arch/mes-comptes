@@ -77,6 +77,7 @@ const FILES = [
   'js/ui/demo.js',
   'js/ui/dom.js',
   'js/ui/drag.js',
+  'js/ui/icons.js',
   'js/ui/live.js',
   'js/ui/main.js',
   'js/ui/modules.js',

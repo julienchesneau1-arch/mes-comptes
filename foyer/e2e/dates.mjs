@@ -66,7 +66,7 @@ await step('foyer neuf ; Curry de poulet prévu samedi soir', async () => {
 });
 await step('Courses : bouton en haut ; poulet coché → rappel « 📷 Scanner » (nom repris) ; « Plus tard » ; zone de scan en premier', async () => {
   await tab('Courses');
-  const top = page.getByRole('button', { name: '📷 Scanner une date limite' });
+  const top = page.getByRole('button', { name: /Scanner une date limite/ });
   const y = await top.evaluate(el => el.getBoundingClientRect().top);
   if (y > 844 * 0.5) throw new Error(`bouton trop bas : ${Math.round(y)} px`);
   await page.getByRole('checkbox', { name: 'Poulet : pris' }).click();                     // poulet acheté
@@ -87,7 +87,7 @@ await step('Courses : bouton en haut ; poulet coché → rappel « 📷 Scanner 
   if (await page.locator('.banner', { hasText: 'Poulet : acheté' }).count()) throw new Error('rappel encore affiché après « Plus tard »');
 });
 await step('scanner une date : le poulet de la liste en un toucher, date lue (DLC mer. 7 oct.), suggestion annoncée', async () => {
-  await page.getByRole('button', { name: '📷 Scanner une date limite' }).click();
+  await page.getByRole('button', { name: /Scanner une date limite/ }).click();
   await dlg.getByRole('heading', { name: /Scanner une date limite/ }).waitFor();
   await dlg.getByRole('button', { name: 'Poulet', exact: true }).click();                  // produit frais de la liste
   if (await dlg.getByLabel('Produit', { exact: true }).inputValue() !== 'Poulet') throw new Error('nom non repris');
@@ -115,7 +115,7 @@ await step('Aujourd\'hui : « Avancer » le curry avant la DLC, un toucher ; la 
 });
 await step('en-tête d\'Aujourd\'hui ; texte sans date : rien deviné ; année absente : déduite et signalée ; enregistrer et scanner un autre', async () => {
   await tab('Aujourd\'hui');
-  await page.locator('.top').getByRole('button', { name: '📷 Scanner une date' }).click();       // en-tête collant, sans défiler
+  await page.locator('.top').getByRole('button', { name: /^Scanner une date$/ }).click();       // en-tête collant, sans défiler
   if (await dlg.getByRole('button', { name: 'Poulet', exact: true }).count()) throw new Error('poulet déjà surveillé encore proposé');
   await dlg.getByLabel('Produit', { exact: true }).fill('Crème fraîche');
   await dlg.getByLabel('Date imprimée').fill('Lot 12345');

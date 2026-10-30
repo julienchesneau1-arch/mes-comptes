@@ -38,7 +38,7 @@ button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:10px}
 header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:920px;margin:0 auto}
 header h1{font-family:var(--num);font-size:20px;margin:0 auto 0 0;letter-spacing:-.02em;font-weight:700}
-.who,.month{display:flex;gap:2px;background:var(--soft);border-radius:14px;padding:3px;overflow-x:auto;max-width:100%}
+.who,.month{display:flex;gap:2px;background:var(--soft);border-radius:14px;padding:3px;overflow-x:auto;max-width:100%} .month{background:none}
 .who button{border:0;background:none;border-radius:11px;padding:6px 12px;cursor:pointer;white-space:nowrap;font-size:14px;color:var(--mute);transition:.2s}
 .who button[aria-pressed=true]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .month{align-items:center}
@@ -51,7 +51,7 @@ main{max-width:920px;margin:0 auto;padding:6px 16px 24px;display:grid;gap:14px;g
 @media(min-width:820px){main.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 .span{grid-column:1/-1}
 .card{background:var(--card);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
-.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:0 0 14px;font-weight:600}
+.card h2{font-size:17px;letter-spacing:-.01em;color:var(--ink);margin:0 0 14px;font-weight:700}
 .hero{position:relative;overflow:hidden;color:var(--hero-ink);background:radial-gradient(110% 130% at 100% 0%,color-mix(in srgb,var(--acc) 38%,transparent) 0%,transparent 55%),linear-gradient(160deg,var(--hero1),var(--hero2));box-shadow:0 18px 40px -18px rgba(14,60,44,.55)}
 .hero .mute{color:var(--hero-mute)} .hero .pos{color:var(--hero-pos)}
 .hero .chips span{background:rgba(255,255,255,.09);color:var(--hero-ink)}
@@ -80,6 +80,7 @@ main{max-width:920px;margin:0 auto;padding:6px 16px 24px;display:grid;gap:14px;g
 .btn:active{transform:scale(.97)} .btn:hover{filter:brightness(1.05)}
 .btn.ghost{background:var(--soft);color:var(--ink)}
 .btn.sm{padding:7px 12px;font-size:13px;border-radius:11px}
+.btn.sm:not(.ghost):not(.warnbtn){background:var(--accs);color:var(--acc)}
 input.f,select.f{background:var(--soft);border:1px solid transparent;border-radius:12px;padding:10px 12px;width:100%}
 input.f:focus,select.f:focus{border-color:var(--acc);outline:0;background:var(--card)}
 .op{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
@@ -94,9 +95,9 @@ select.pill{border:0;background:var(--soft);border-radius:99px;padding:5px 8px;f
 .empty ol{text-align:left;max-width:520px;margin:16px auto;line-height:1.7}
 nav#tabs{position:fixed;z-index:6;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;display:flex;justify-content:space-around;align-items:center;padding:6px;border-radius:26px;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);box-shadow:0 10px 40px -10px rgba(0,0,0,.25),0 0 0 1px var(--line)}
 nav#tabs button{flex:1;border:0;background:none;padding:6px 0;border-radius:18px;cursor:pointer;font-size:10.5px;color:var(--mute);display:grid;justify-items:center;gap:2px;transition:.2s}
-nav#tabs button span{font-size:19px;line-height:1.2}
-nav#tabs button[aria-current]{color:var(--acc);font-weight:600;background:var(--accs)}
-nav#tabs .add span{background:var(--acc);color:var(--acc-ink);width:44px;height:44px;border-radius:16px;display:grid;place-content:center;font-size:22px;box-shadow:0 8px 20px -6px color-mix(in srgb,var(--acc) 70%,transparent)}
+nav#tabs button>svg{width:24px;height:24px;margin-bottom:1px}
+nav#tabs button[aria-current]{color:var(--acc);font-weight:700;background:none} nav#tabs button[aria-current]>svg{stroke-width:2.4}
+nav#tabs .add span{background:var(--acc);color:var(--acc-ink);width:44px;height:44px;border-radius:16px;display:grid;place-content:center;font-size:22px;} nav#tabs .add span svg{width:24px;height:24px} nav#tabs .add span{box-shadow:0 8px 20px -6px color-mix(in srgb,var(--acc) 70%,transparent)}
 nav#tabs .add{font-size:0}
 #toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:color-mix(in srgb,var(--ink) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--bg);padding:12px 18px;border-radius:18px;max-width:min(92vw,460px);opacity:0;pointer-events:none;transition:.3s cubic-bezier(.2,.8,.2,1);white-space:pre-line;z-index:9;font-size:14px}
 #toast.on{opacity:1;transform:translate(-50%,0)}
@@ -190,7 +191,7 @@ section.hints .info{background:var(--acc);color:#fff}
 .ring .tr{stroke:var(--soft)} .ring .pg{stroke:var(--acc);transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)}
 /* Téléphone d'abord : texte 16 px (et pas de zoom iOS dans les champs), secondaire 14 px, tout ce qui se touche ≥ 44 px. */
 body{font-size:16px}
-.sm,.chips span,.day{font-size:14px} .tag{font-size:12px} .card h2{font-size:14px;letter-spacing:.06em} .tbl{font-size:14px}
+.sm,.chips span,.day{font-size:14px} .tag{font-size:12px} .card h2{font-size:17px} .tbl{font-size:14px}
 .gain small{font-size:13px} .step{width:24px;height:24px;font-size:14px} .cal i{font-size:13px} .trend .col span{font-size:13px}
 input[type=checkbox]{width:22px;height:22px;vertical-align:-5px;accent-color:var(--acc)}
 label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:8px;min-height:44px}
@@ -270,11 +271,11 @@ nav#tabs button{font-size:12px;min-height:54px}
 </header>
 <main id="view"></main>
 <nav id="tabs">
-  <button data-a="tab" data-t="home"><span>◐</span>Accueil</button>
-  <button data-a="tab" data-t="ops"><span>☰</span>Opérations</button>
-  <button class="add" data-a="plus" aria-label="Ajouter"><span>＋</span>Ajouter</button>
-  <button data-a="tab" data-t="save"><span>🎯</span>Épargner</button>
-  <button data-a="tab" data-t="accounts"><span>🏦</span>Comptes</button>
+  <button data-a="tab" data-t="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg>Accueil</button>
+  <button data-a="tab" data-t="ops"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/></svg>Opérations</button>
+  <button class="add" data-a="plus" aria-label="Ajouter"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5.5v13M5.5 12h13"/></svg></span>Ajouter</button>
+  <button data-a="tab" data-t="save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12h.01" stroke-width="2.8"/></svg>Épargner</button>
+  <button data-a="tab" data-t="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3.5 9.5 12 4.5l8.5 5"/><path d="M5.5 10.5v7M10 10.5v7M14 10.5v7M18.5 10.5v7"/><path d="M3.5 20h17"/></svg>Comptes</button>
 </nav>
 <input type="file" id="file" accept=".csv,.ofx,.qfx,.qif,.pdf,.txt" multiple hidden>
 <input type="file" id="backup" accept=".json,application/json" hidden>
@@ -282,7 +283,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 <div id="toast" role="status"></div>
 <script src="core.js?v=46"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 49;
+const KEY = 'mescomptes-v1', VERSION = 50;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });

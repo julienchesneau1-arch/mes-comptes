@@ -1,4 +1,5 @@
 // Les quatre écrans : Aujourd'hui, Semaine, Courses, Maison. HTML calculé depuis l'état ; tout texte est échappé.
+import { icon } from './icons.ts';
 import { type LocalDate, type SlotKey, addDays, fmtDay, fmtDayShort, dayShort, dayNumber, slotKey, SLOTS, fmtSlot, paris } from '../core/dates.ts';
 import { current } from '../core/model.ts';
 import { deriveToday } from '../core/today.ts';
@@ -130,13 +131,13 @@ export function todayView(): string {
     ? `<div class="banner info"><p class="grow">${esc(otherNames())} n'a pas encore Foyer : envoyez-lui le lien, puis donnez-lui une fois le code du foyer (Maison › Réglages › Synchro).</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer le lien</button></div>`
     : `<div class="banner info"><p class="grow">${plural(n, 'changement', 'changements')} pas encore envoyé${n > 1 ? 's' : ''} à ${esc(otherNames())}.</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer</button></div>`;
   const guide = guideCard(!!sync); // le bandeau du code remplace l'étape « installer sur l'autre téléphone »
-  const install = needsInstall() && !guide ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil » (vos données y sont gardées).</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
+  const install = needsInstall() && !guide ? `<div class="banner info compact"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil » (vos données y sont gardées).</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
   const decide = toDecide();
   const agenda = decide && !A.demo ? `<div class="banner info"><p class="grow"><strong>L'agenda change ${plural(decide, 'repas', 'repas')}.</strong> Une décision par événement ; ensuite, Foyer fait pareil tout seul.</p><button class="btn small-btn" data-a="agendaOpen">Voir</button></div>` : '';
   const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
   const who = s.members.find(m => m.id === A.device.me)?.name;
   const hello = `${t.hour < 5 || t.hour >= 18 ? 'Bonsoir' : 'Bonjour'}${who ? ` ${who}` : ''} 👋`;
-  return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button><button class="btn small-btn ghost" data-a="watchNew">📷 Scanner une date</button></div>
+  return `<div class="top"><h1><span class="hello">${esc(hello)}</span>${esc(capital(fmtDay(t.date)))}</h1><button class="btn small-btn ghost${autoSync.status === 'offline' || autoSync.status === 'error' ? ' warn' : ''}" data-a="sync">${esc(syncBtn)}</button><button class="btn small-btn ghost icon-only" data-a="watchNew" aria-label="Scanner une date" title="Scanner une date">${icon('camera')}</button></div>
   <main id="main" tabindex="-1">${A.saveError ? `<p class="warn-save" role="alert">${esc(A.saveError)}</p>` : ''}${install}${sync}${agenda}${shortcutsHtml()}
     <div class="cols"><div class="stack">${ritualHtml}${cards}${ideas}</div><div class="stack">${cartTodo}${regler}${tasks}${toBuy}${guide}${guide || !on('batch') ? '' : ritualPromo()}</div></div></main>`;
 }
@@ -163,10 +164,11 @@ export function weekView(): string {
   if (A.ui.day < 0 || A.ui.day > 6) A.ui.day = Math.max(0, days.indexOf(c.date));
   const wide = matchMedia('(min-width: 820px)').matches;
   const count = (d: LocalDate) => SLOTS.filter(sl => s.slots[slotKey(d, sl)]?.dish).length;
-  const head = `<div class="weeknav"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
-    <h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
+  const head = `<div class="soft-card"><button class="icon-btn" data-a="wk" data-d="-7" aria-label="Semaine précédente">‹</button>
+    <span class="grow"><b>Semaine du ${esc(fmtDayShort(week))}</b><small>${week === thisWeek() ? 'cette semaine' : week > thisWeek() ? 'à venir' : 'passée'}</small></span><button class="icon-btn" data-a="wk" data-d="7" aria-label="Semaine suivante">›</button>
     </div>${week !== thisWeek() ? `<button class="btn small-btn quiet" data-a="wk" data-d="0">${week > thisWeek() && week === addDays(thisWeek(), 7) ? 'Revenir à la semaine en cours' : 'Cette semaine'}</button>` : ''}
-    <div class="actions"><button class="btn" data-a="propose" data-week="${week}">✨ Proposer le menu</button>${on('batch') ? weekBatchButton(week) : ''}
+    <button class="cta" data-a="propose" data-week="${week}">${icon('sparkle')}<span class="sep" aria-hidden="true"></span><span class="grow"><b>Proposer le menu</b><small>la semaine prête, à approuver</small></span>${icon('chevron', 'ic chev')}</button>
+    <div class="actions">${on('batch') ? weekBatchButton(week) : ''}
       <details class="more"><summary class="btn ghost">Plus d'options</summary><div class="actions"><button class="btn ghost small-btn" data-a="copyWeek" data-week="${week}">Reprendre une semaine</button><button class="btn ghost small-btn" data-a="ahead" data-week="${week}">Préparer en avance</button><button class="btn ghost small-btn" data-a="agenda" data-week="${week}">Exporter vers mon agenda</button></div></details></div>`;
   let body: string;
   if (wide) {
@@ -182,7 +184,7 @@ export function weekView(): string {
       <h3 class="section-title">${esc(capital(fmtDay(sel)))}</h3>
       <div class="stack">${slotButton(slotKey(sel, 'midi'), 'Midi')}${slotButton(slotKey(sel, 'soir'), 'Soir')}</div>`;
   }
-  return `<div class="top"><h1>Semaine</h1>${wide ? '' : `<button class="btn small-btn ghost" data-a="weekList" aria-pressed="${A.ui.weekList}">${A.ui.weekList ? 'Vue jour' : 'Toute la semaine'}</button>`}</div>
+  return `<div class="top"><span class="badge-ic" aria-hidden="true">${icon('calendar')}</span><h1>Semaine</h1>${wide ? '' : `<button class="btn small-btn ghost" data-a="weekList" aria-pressed="${A.ui.weekList}">${A.ui.weekList ? 'Vue jour' : 'Toute la semaine'}</button>`}</div>
   <main id="main" tabindex="-1">${head}${coverageCard(week)}${body}${balanceCard(week)}</main>`;
 }
 // Repères de la semaine (Santé publique France) : seulement quand des repas sont prévus. Toujours un texte, jamais la couleur seule.
@@ -248,7 +250,7 @@ export function shopView(): string {
   const list = deriveShopping(s, week), { todo: rTodo, done: rDone, byLine } = restockView(week, list), row = (l: ShopLine) => lineRow(l, week, byLine.get(l.key));
   // Liste d'abord : avant elle, seulement ce qui change la liste (plat sans quantités, panier à mettre à jour), le drive et la saisie.
   const banner = list.meals && list.incomplete.length
-    ? `<div class="banner partial"><p class="grow"><strong>${esc(list.incomplete.map(x => x.name).join(', '))}</strong> : sans quantités</p><button class="btn small-btn ghost" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
+    ? `<div class="alert-card"><span class="emo" aria-hidden="true">🥕</span><span class="grow"><b>${esc(list.incomplete.map(x => x.name).join(', '))}</b><small>sans quantités</small></span><button class="btn small-btn soft" data-a="recipeEdit" data-id="${list.incomplete[0]?.recipe}">Compléter</button></div>`
     : '';
   // Lignes sans aucune quantité (« sel », « 1 boîte de ? ») : rangées à part, en bas, pour ne pas relire toute la liste.
   const vague = (l: ShopLine) => !l.need && l.unknown.length > 0;
@@ -269,19 +271,21 @@ export function shopView(): string {
   const fresh = A.ui.store ? [] : boughtFresh(week);
   const scanTop = A.ui.store ? '' : fresh.length && A.device.scanOff !== week
     ? `<div class="banner info"><p class="grow"><strong>${esc(fresh.slice(0, 3).join(', '))}${fresh.length > 3 ? '…' : ''}</strong> : ${fresh.length > 1 ? 'achetés' : 'acheté'}. Scannez la date limite : Foyer vous dira quand l'utiliser.</p><button class="btn small-btn" data-a="watchNew" data-name="${esc(fresh[0] ?? '')}">📷 Scanner</button><button class="btn small-btn quiet" data-a="scanHintOff" data-week="${week}">Plus tard</button></div>`
-    : '<button class="btn ghost block" data-a="watchNew">📷 Scanner une date limite</button>';
+    : `<button class="row-link" data-a="watchNew">${icon('camera')}<span class="grow"><b>Scanner une date limite</b><small>Foyer vous dit quand l'utiliser</small></span>${icon('chevron', 'ic chev')}</button>`;
   const known = [...new Set([...Object.values(s.staples).map(x => x.name), ...Object.values(s.shop).flatMap(w => Object.values(w.items).map(x => x.name)),
     ...Object.values(s.recipes).flatMap(r => current(r).ingredients.map(l => l.name))])].sort((x, y) => x.localeCompare(y, 'fr')).slice(0, 300);
-  return `<div class="top"><h1>Courses</h1><button class="btn small-btn ${A.ui.store ? '' : 'ghost'}" data-a="storeMode" aria-pressed="${A.ui.store}">Mode magasin</button><button class="btn small-btn ghost" data-a="shareList" data-week="${week}">Partager</button></div>
+  // Niveau 1 : « Commander au drive » (seule action pleine) ; niveau 2 : tuiles et semaine ; niveau 3 : lignes.
+  return `<div class="top"><span class="badge-ic" aria-hidden="true">${icon('cart')}</span><h1>Courses<span class="sub">${toBuy ? `${plural(toBuy, 'article', 'articles')} à acheter` : `Semaine du ${esc(fmtDayShort(week))}`}</span></h1></div>
   <main id="main" tabindex="-1">
-    <div class="weeknav"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><h2>Semaine du ${esc(fmtDayShort(week))}</h2><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
-    ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner}
-    ${A.ui.store ? '' : cartChangesCard(week)}
+    <div class="tiles"><button class="tile" data-a="storeMode" aria-pressed="${A.ui.store}">${icon('store')}<span><b>Mode magasin</b><small>écran allumé</small></span></button><button class="tile" data-a="shareList" data-week="${week}">${icon('share')}<span><b>Partager</b><small>la liste</small></span></button></div>
     ${toBuy && !A.ui.store ? (s.shop[week]?.spent
       ? `<div class="banner ok"><p class="grow"><strong>Courses payées.</strong> Tout est arrivé du drive ?</p><button class="btn small-btn" data-a="allBought" data-week="${week}">Oui, tout cocher</button></div>`
-      : `<button class="btn block" data-a="drive" data-week="${week}">🛒 Commander au drive · ${plural(toBuy, 'article', 'articles')}</button>`) : ''}
+      : `<button class="cta" data-a="drive" data-week="${week}">${icon('cart')}<span class="sep" aria-hidden="true"></span><span class="grow"><b>Commander au drive</b><small>${plural(toBuy, 'article', 'articles')}</small></span>${icon('chevron', 'ic chev')}</button>`) : ''}
+    <div class="soft-card"><button class="icon-btn" data-a="shopWk" data-d="-7" data-w="${week}" aria-label="Semaine précédente">‹</button><span class="grow"><b>Semaine du ${esc(fmtDayShort(week))}</b><small>${week === thisWeek() ? 'cette semaine' : week > thisWeek() ? 'à venir' : 'passée'}</small></span><button class="icon-btn" data-a="shopWk" data-d="7" data-w="${week}" aria-label="Semaine suivante">›</button></div>
+    ${A.ui.store ? '<p class="banner info">Mode magasin : écran allumé, seulement ce qui reste à prendre.</p>' : banner}
+    ${A.ui.store ? '' : cartChangesCard(week)}
     ${scanTop}
-    <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn">Ajouter</button></form>
+    <form data-f="addItem" data-week="${week}" class="addbar" role="search"><label class="sr-only" for="add-item">Ajouter un article</label><input id="add-item" type="text" name="text" placeholder="Ajouter : café, 2 paquets de pâtes…" autocomplete="off" maxlength="80" list="known-items"><button class="btn soft">Ajouter</button></form>
     <datalist id="known-items">${known.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
     ${staples.length ? `<div class="chips" aria-label="Habituels">${staples.map(([k, st]) => `<button class="tag" data-a="addStaple" data-key="${esc(k)}" data-week="${week}">+ ${esc(st.name)}</button>`).join('')}</div>` : ''}
     ${toBuy && !A.ui.store && !s.shop[week]?.spent ? '' : `<p class="muted">${toBuy ? `${plural(toBuy, 'article', 'articles')} à acheter` : list.meals ? 'Tout est acheté pour ces courses.' : 'Aucun plat prévu cette semaine : la liste se remplit dès qu\'un plat avec ingrédients est posé dans la semaine.'}</p>`}
@@ -319,7 +323,7 @@ export function homeView(): string {
   const tabs = ([['plats', 'Nos plats'], ['portions', 'Restes'], ['surveiller', 'À surveiller'], ['bilan', 'Bilan'], ['reglages', 'Réglages']] as const)
     .filter(([id]) => id !== 'bilan' || on('budget')).map(([id, label]) => `<button class="tag" data-a="homeSec" data-s="${id}" aria-pressed="${sec === id}">${label}</button>`).join('');
   const body = sec === 'plats' ? platsView() : sec === 'portions' ? portionsView() : sec === 'surveiller' ? watchListView() : sec === 'bilan' ? reportView() : settingsView();
-  return `<div class="top"><h1>Maison</h1></div><main id="main" tabindex="-1"><div class="chips" role="group" aria-label="Sections">${tabs}</div>${body}</main>`;
+  return `<div class="top"><span class="badge-ic" aria-hidden="true">${icon('home')}</span><h1>Maison</h1></div><main id="main" tabindex="-1"><div class="chips" role="group" aria-label="Sections">${tabs}</div>${body}</main>`;
 }
 CLICK['homeSec'] = d => { A.ui.home = (d['s'] ?? 'plats') as typeof A.ui.home; A.render(); };
 INPUT['homeQ'] = (_d, el) => { A.ui.q = (el as HTMLInputElement).value; const list = document.getElementById('plats-list'); if (list) list.innerHTML = platsList(); };

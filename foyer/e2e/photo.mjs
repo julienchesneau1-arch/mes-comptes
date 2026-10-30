@@ -65,7 +65,7 @@ const photo = (lines, opts = {}) => page.evaluate(([lines, opts]) => {
 }, [lines, opts]).then(b64 => ({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(b64, 'base64') }));
 const openScan = async () => {
   await page.getByRole('link', { name: 'Courses', exact: true }).click();
-  await page.getByRole('button', { name: '📷 Scanner une date limite' }).click();
+  await page.getByRole('button', { name: /Scanner une date limite/ }).click();
 };
 const ocrFiles = [];
 page.on('request', r => { if (r.url().includes('/vendor/tesseract/')) ocrFiles.push(r.url().split('/').pop()); });

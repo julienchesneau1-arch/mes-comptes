@@ -93,7 +93,7 @@ await step('prix retenus et montant payé noté en un geste', async () => {
   await page.getByRole('button', { name: 'Effacer' }).click(); // montant effacé : la commande guidée revient
 });
 await step('commande guidée : recherche Auchan sur le produit déjà acheté', async () => {
-  await page.getByRole('button', { name: '🛒 Commander au drive' }).click();
+  await page.getByRole('button', { name: /Commander au drive/ }).click();
   let found = '';
   const seen = [];
   for (let i = 0; i < 40 && !found; i++) {

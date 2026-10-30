@@ -71,8 +71,8 @@ async function a11y(page, where) {
   phase = was;
   ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
-// Nombre d'articles du panier (« 🛒 Commander au drive · N articles »).
-const basket = async page => +((await page.getByText(/Commander au drive · \d+ articles?/).first().innerText()).match(/(\d+) article/)?.[1] ?? 0);
+// Nombre d'articles du panier (action principale « Commander au drive », N articles).
+const basket = async page => +((await page.getByRole('button', { name: /Commander au drive/ }).first().innerText()).match(/(\d+) article/)?.[1] ?? 0);
 const tab = async (page, name) => { await page.getByRole('link', { name, exact: true }).click(); await page.locator('main').waitFor(); };
 
 async function run(engine, device) {
