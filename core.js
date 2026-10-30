@@ -64,6 +64,27 @@ const inFilter = (f, c) => !f || (f.startsWith('pole:') ? (cat(c).kind === 'var'
 // Une opération répartie (« splits ») est retenue si l'une de ses parts l'est, et ne compte alors que pour ces parts.
 const opMatches = (t, f) => !f || (t.splits ? t.splits.some(p => inFilter(f, p.cat)) : inFilter(f, t.cat));
 const filterAmount = (t, f) => (f && t.splits ? round2(t.splits.filter(p => inFilter(f, p.cat)).reduce((a, p) => a + p.amount, 0)) : t.amount);
+// Recherche : le texte dans le libellé ou le détail, ou un montant (« 54 » trouve 54,20 € ; « 54,20 » seulement 54,20 €).
+function searchMatch(t, q) {
+  const raw = String(q || '').trim(); if (!raw) return true;
+  if (norm(t.label + ' ' + t.detail).includes(norm(raw))) return true;
+  if (!/^\d+([.,]\d{1,2})?$/.test(raw)) return false;
+  const v = Math.abs(t.amount), n = parseNumber(raw);
+  return /[.,]/.test(raw) ? Math.abs(v - n) < 0.005 : Math.floor(v) === n;
+}
+// Historique chez un marchand (même clé que les règles de rangement) sur les 12 mois jusqu'à `month` :
+// passages, total, montants mois par mois (du plus ancien au plus récent), moyenne des mois où l'on y est allé.
+function merchantHistory(state, t, month, acc = 'all') {
+  const k = ruleKey(t), ms = Array.from({ length: 12 }, (_, i) => shiftMonth(month, i - 11)), by = Object.fromEntries(ms.map(m => [m, 0]));
+  let n = 0, total = 0, all = 0;
+  for (const x of state.tx) {
+    if (x.auto || !inAcc(acc, x.acc) || x.date.slice(0, 7) > month || ruleKey(x) !== k) continue;
+    all++; const m = x.date.slice(0, 7);
+    if (m in by) { by[m] = round2(by[m] + x.amount); n++; total = round2(total + x.amount); }
+  }
+  const active = ms.filter(m => by[m]).length;
+  return { key: k, n, all, total, months: ms.map(m => by[m]), active, perMonth: active ? round2(total / active) : 0 };
+}
 // Écart à l'habitude par pôle, sur les seules dépenses variables (une charge fixe change de date, pas de montant) : { pôle: { d, usual } }.
 function poleDelta(now, usual) {
   const out = {};
@@ -204,7 +225,10 @@ const keyOf = (t, mk) => {
   const full = (' ' + norm(t.label) + ' ').replace(NOISE, ' ').trim();
   return (t.amount > 0 ? '+' : '-') + (GENERIC_LABEL.test(full) || (mk === merchantKey && isPerson(norm(cleanLabel(t.label)))) ? full : mk(t.label));
 };
-const ruleKey = t => keyOf(t, merchantKey), legacyKey = t => keyOf(t, legacyMerchantKey);
+// La clé d'un marchand ne dépend que du libellé et du signe : gardée par opération (recalculée si l'un des deux change).
+const RK = new WeakMap();
+const ruleKey = t => { const sg = t.amount > 0, c = RK.get(t); if (c && c.l === t.label && c.s === sg) return c.k; const k = keyOf(t, merchantKey); RK.set(t, { l: t.label, s: sg, k }); return k; };
+const legacyKey = t => keyOf(t, legacyMerchantKey);
 const learnable = t => !/^[+-](CHEQUE|REMISE CHEQUE)$/.test(ruleKey(t));
 
 // Virement entre particuliers (« VIR M PAUL… », « ENVOI WERO NINA », « VIR INST WERO MLLE … ») : pas de nom de commerce,
@@ -610,12 +634,21 @@ function merchantLever(state, t) {
 // Mois complet = tous les comptes suivis ont leurs relevés du 1er au dernier jour. Un mois à moitié importé
 // (début de l'historique, relevé pas encore arrivé, mois en cours) n'est JAMAIS pris pour une habitude :
 // il ferait croire à une baisse des dépenses qui n'existe pas.
-function coverage(state, id) {
+// Mémo d'un affichage : pendant un rendu, rien ne change ; les mêmes calculs (opérations actives, statistiques d'un mois,
+// couverture des relevés) ne sont faits qu'une fois. Hors de cached(), rien n'est gardé : tests, imports et actions lisent l'état réel.
+// La clé est l'objet état lui-même : un état recomposé (ex. paceCompare) a sa propre mémoire.
+let MEMO = null;
+function cached(fn) { const outer = MEMO; MEMO = outer || new WeakMap(); try { return fn(); } finally { MEMO = outer; } }
+const memo = (state, key, f) => { if (!MEMO) return f(); let m = MEMO.get(state); if (!m) MEMO.set(state, (m = new Map())); if (!m.has(key)) m.set(key, f()); return m.get(key); };
+const accKey = acc => (Array.isArray(acc) ? acc.join(',') : String(acc));
+function coverage(state, id) { return memo(state, 'cov|' + id, () => coverage0(state, id)); }
+function coverage0(state, id) {
   let first = '', end = (state.accounts[id].balance || {}).date || '';
   for (const t of state.tx) if (t.acc === id && !t.pending) { if (!first || t.date < first) first = t.date; if (t.date > end) end = t.date; }
   return first ? { first, end } : null;
 }
-function fullMonth(state, m, acc = 'all') {
+function fullMonth(state, m, acc = 'all') { return memo(state, `fm|${m}|${accKey(acc)}`, () => fullMonth0(state, m, acc)); }
+function fullMonth0(state, m, acc) {
   const a = `${m}-01`, z = `${m}-${String(new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 0)).getUTCDate()).padStart(2, '0')}`;
   const ids = Object.keys(state.accounts).filter(id => inAcc(acc, id) && !state.accounts[id].savings);
   const cov = Object.fromEntries(ids.filter(id => !isHist(state, id)).map(id => [id, coverage(state, id)]).filter(x => x[1]));
@@ -658,7 +691,8 @@ function savingsPlan(state, month, acc = 'all') {
 const median = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 
 // Ce qui tombe chaque mois : même marchand, ≥ 3 des 4 derniers mois, montant et jour stables.
-function recurring(state, acc = 'all', opts = {}) {
+function recurring(state, acc = 'all', opts = {}) { return memo(state, `rec|${accKey(acc)}|${JSON.stringify(opts)}`, () => recurring0(state, acc, opts)); }
+function recurring0(state, acc = 'all', opts = {}) {
   const months = [...new Set(state.tx.filter(t => !t.pending).map(t => t.date.slice(0, 7)))].sort().slice(-4);
   if (months.length < 3) return [];
   const g = {};
@@ -1056,13 +1090,15 @@ function importParsed(state, parsed, owner = null) {
 }
 
 const isHist = (state, id) => !!(state.accounts[id] && state.accounts[id].hist);
-function activeTx(state) {
+function activeTx(state) { return memo(state, 'atx', () => activeTx0(state)); }
+function activeTx0(state) {
   const key = t => ((state.accounts[t.acc] || {}).owner || '') + '|' + t.date.slice(0, 7);
   const real = new Set(state.tx.filter(t => !isHist(state, t.acc)).map(key));
   return state.tx.filter(t => !isHist(state, t.acc) || !real.has(key(t)));
 }
 
-function monthStats(state, month, acc = 'all') {
+function monthStats(state, month, acc = 'all') { return memo(state, `ms|${month}|${accKey(acc)}`, () => monthStats0(state, month, acc)); }
+function monthStats0(state, month, acc) {
   const tx = activeTx(state).filter(t => t.date.startsWith(month) && inAcc(acc, t.acc));
   const by = {}; let income = 0, saved = 0;
   // Une opération découpée (« splits ») compte pour chacune de ses parts.
@@ -1235,7 +1271,8 @@ function dailyBalances(state, id, from, to) {
 // Frais Banque Populaire : libellés « F … » (F Cotis Pack, F AGIOS, F Frais…), commissions, agios. « GRAND FRAIS » est un magasin.
 const FEE = /^F |\bAGIOS\b|COMMISSION D ?INTERVENTION|\bCOTIS(ATION)? (CARTE|PACK|CONVENTION|OFFRE)|FRAIS (DE )?TENUE|INTERETS DEBITEURS|FRAIS BANCAIRES/;
 const isFee = t => t.amount < 0 && !/GRAND FRAIS/.test(norm(t.label)) && FEE.test(norm(t.label));
-function insights(state, acc = 'all') {
+function insights(state, acc = 'all') { return memo(state, `ins|${accKey(acc)}`, () => insights0(state, acc)); }
+function insights0(state, acc = 'all') {
   const ids = Object.keys(state.accounts).filter(id => inAcc(acc, id) && !isHist(state, id)), out = [];
   const real = state.tx.filter(t => ids.includes(t.acc) && !t.pending), last = real.reduce((a, t) => (t.date > a ? t.date : a), '');
   if (!last) return out;
@@ -1354,13 +1391,15 @@ function sanitizeState(d) {
 // « Dépensé depuis le 1er, comparé à d'habitude à la même date » : uniquement des opérations réelles.
 // Le mois en cours doit être couvert par un relevé jusqu'au jour J (sinon des paiements manqueraient → fausse « baisse »),
 // et la comparaison se fait sur les mêmes J premiers jours des derniers mois complets (médiane).
-function paceCompare(state, month, acc = 'all') {
+function paceCompare(state, month, acc = 'all') { return memo(state, `pc|${month}|${accKey(acc)}`, () => paceCompare0(state, month, acc)); }
+function paceCompare0(state, month, acc = 'all') {
   const real = state.tx.filter(t => inAcc(acc, t.acc) && !t.pending && !isHist(state, t.acc) && t.date.startsWith(month));
   const lastDay = real.reduce((a, t) => (t.date > a ? t.date : a), '');
   if (!lastDay) return null;
   const D = +lastDay.slice(8), ms = lastFull(state, month, acc);
   if (D < 3 || !ms.length) return null;
-  const upTo = m => monthStats({ ...state, tx: state.tx.filter(t => !t.auto && (t.date.slice(0, 7) !== m || +t.date.slice(8) <= D)) }, m, acc);
+  // Seul le mois m compte pour ses statistiques (l'arbitrage relevés / tableur se fait mois par mois) : on ne recopie que lui.
+  const upTo = m => monthStats({ ...state, tx: state.tx.filter(t => !t.auto && t.date.slice(0, 7) === m && +t.date.slice(8) <= D) }, m, acc);
   const now = upTo(month), past = ms.map(upTo), usualBy = {};
   for (const c of new Set(past.flatMap(p => Object.keys(p.by)))) usualBy[c] = Math.round(typical(past.map(p => Math.max(0, p.by[c] || 0))));
   return { day: D, spent: Math.round(now.spent), usual: Math.round(typical(past.map(p => p.spent))), months: ms.length, by: now.by, usualBy };
@@ -1523,6 +1562,6 @@ function demoState(todayStr, people = [{ id: 'p1', name: 'Alex' }, { id: 'p2', n
 
 if (typeof module !== 'undefined') module.exports = {
   streak, demoState, goodPin, vaultKey, vaultSeal, vaultOpen, zip, unzip, safeKey, matchAccount, csvRecords, newSalt, VAULT_ITER, ritualsIcs, googleCalLinks, RITUALS, paceCompare, sanitizeState, insights, dailyBalances, isFee, syncEncode, syncDecode, sealBackup, openBackup, newCode, fmtCode, validCode,
-  forecastPath, flexStatus, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
+  searchMatch, merchantHistory, cached, forecastPath, flexStatus, CATS, cat, POLES, poleOf, poleSplit, poleDelta, inFilter, opMatches, filterAmount, norm, merchantKey, ruleKey, legacyKey, cardParts, cleanLabel, classify, householdTransfers, tripSpending, categorize, parseNumber, parseDate, parseCSV, parseOFX,
   parsePDF, learnable, addPending, autoRecurring, reconcilePending, overduePending, personalShared, sharedDue, SMALL_EXPENSE, isJournal, parseJournal, forecast, linkRefunds, parseTreso, isTreso, activeTx, LEVERS, leverOf, merchantLever, savingsPlan, balanceOf, balanceAt, mergeStates, jointSplit, annualCharges, inAcc, fullMonth, lastFull, recurring, upcoming, engagementResults, habitBy, pairTransfers, recompute, importParsed, monthStats, avgBy, dayGrid, shiftMonth,
 };

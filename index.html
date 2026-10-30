@@ -276,9 +276,9 @@ nav#tabs button{font-size:12px;min-height:54px}
 <input type="file" id="backup" accept=".json,application/json" hidden>
 <div id="sheet" class="sheet" hidden></div>
 <div id="toast" role="status"></div>
-<script src="core.js?v=42"></script>
+<script src="core.js?v=43"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 42;
+const KEY = 'mescomptes-v1', VERSION = 43;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
@@ -286,7 +286,7 @@ const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
 let S = blank();
 const VAULT = 'mescomptes-coffre', TRIES = 'mescomptes-essais';
 let VKEY = null, VSALT = null, booted = false, vaultHasTx = false, resume = null, hiddenAt = 0, importing = false, lockLater = false;
-const ui = { tab: 'home', month: null, acc: 'all', q: '', cat: '', showInt: false, sort: false, pole: '', who: lsGet('mescomptes-who') || 'foyer' };
+const ui = { tab: 'home', month: null, acc: 'all', q: '', cat: '', showInt: false, sort: false, pole: '', all: false, mk: '', lim: 0, who: lsGet('mescomptes-who') || 'foyer' };
 // La dernière session : onglet, mois, compte, recherche, filtres, position dans la page, dépense en cours de saisie (chiffrée elle aussi).
 const UIKEY = 'mescomptes-ui', TABS = ['home', 'ops', 'save', 'accounts', 'trends', 'set'];
 const $ = s => document.querySelector(s);
@@ -674,6 +674,16 @@ function quickRest(accs, recent) {
 </form>`;
 }
 
+// Chez ce marchand : 12 mois en barres (le mois de l'opération en plein), passages, total, moyenne des mois où l'on y est allé.
+function merchantBlock(t) {
+  if (!learnable(t) || t.pending || t.auto) return '';
+  const h = merchantHistory(S, t, t.date.slice(0, 7), V());
+  if (h.all < 2) return '';
+  const sign = h.total < 0 ? -1 : 1;
+  return `<h2 style="margin:16px 0 6px">Chez ce marchand</h2>
+    <div class="row" style="padding:0;gap:14px">${spark(h.months.map(v => v * sign), cat(t.cat).color)}<span class="grow sm"><b>${plural(h.n, 'fois')}</b> en 12 mois · <b>${eur(Math.abs(h.total))}</b>${h.active > 1 ? `<span class="mute" style="display:block">~${eur(Math.abs(h.perMonth))} par mois, sur les ${h.active} mois où vous y êtes passés</span>` : ''}</span></div>
+    <div class="chips" style="margin-top:8px"><button class="btn sm ghost" data-a="merchantOps" data-id="${esc(t.id)}">Toutes ses opérations (${h.all}) ›</button></div>`;
+}
 function opSheetHtml(t, splitting) {
   const cur = t.splits ? null : t.cat, guess = classify({ ...t, manual: false }, {}).cat;
   const used = Object.entries(S.tx.reduce((a, x) => ((a[x.cat] = (a[x.cat] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1]).map(([c]) => c);
@@ -688,6 +698,7 @@ function opSheetHtml(t, splitting) {
     ${splitting ? `<div class="note" style="margin-top:10px">Mettre une partie des ${eur(-t.amount, 2)} dans une autre famille, le reste reste en ${esc(cat(t.cat).name)} :
       <div class="chips"><input class="f" style="width:130px" id="spAmt" inputmode="decimal" placeholder="Montant €"><select class="f" id="spCat">${catOpts('maison')}</select></div>
       <div class="chips"><button class="btn sm" data-a="doSplit" data-id="${esc(t.id)}">Répartir</button><button class="btn sm ghost" data-a="opSheet" data-id="${esc(t.id)}">Annuler</button></div></div>` : ''}
+    ${merchantBlock(t)}
     <h2 style="margin:16px 0 0">Famille</h2>
     <div class="tiles">${order.map(c => `<button data-a="pickCat" data-id="${esc(t.id)}" data-c="${c}" aria-pressed="${c === cur}"><span>${cat(c).emoji}</span>${cat(c).name}</button>`).join('')}</div>
     <div class="chips">${t.amount < 0 && !t.splits && !splitting ? `<button class="btn sm ghost" data-a="splitSheet" data-id="${esc(t.id)}">✂︎ Répartir sur 2 familles</button>` : ''}
@@ -1256,7 +1267,7 @@ function ops() {
       <span class="grow">✨ <b>${auto} %</b> rangé tout seul. Reste <b>${plural(shops, 'commerce')}</b> à vous demander (${plural(n, 'opération')}) : un choix vaut pour toutes leurs opérations.</span>
       <button class="btn sm ${ui.sort ? 'ghost' : ''}" data-a="toggleSort">${ui.sort ? 'Revenir à la liste' : 'Les ranger par marchand'}</button></section>` : ''}
     <section class="card span">
-    <input class="f" id="q" type="search" placeholder="🔎 Rechercher (ex : amazon)" value="${esc(ui.q)}">
+    <input class="f" id="q" type="search" placeholder="🔎 Rechercher (ex : amazon, 54,20)" value="${esc(ui.q)}">
     <div class="filters"><select class="f" data-c="cat" aria-label="Famille ou pôle">${filterOpts(ui.cat)}</select>
       ${accs.length > 1 ? `<select class="f" data-c="acc" aria-label="Compte"><option value="all">Tous les comptes</option>${accs.map(id => `<option value="${esc(id)}" ${ui.acc === id ? 'selected' : ''}>${esc(accName(id))}</option>`).join('')}</select>` : ''}
       <button class="btn sm ${ui.showInt ? '' : 'ghost'}" data-a="toggleInt">🔁 Virements internes</button></div>
@@ -1276,25 +1287,39 @@ function renderList() {
       || '<p class="pos">Tout est rangé 👌</p>');
     return;
   }
-  const q = norm(ui.q), multi = viewIds().length > 1;
-  const list = S.tx.filter(t => t.date.startsWith(ui.month) && inAcc(V(), t.acc)
-      && opMatches(t, ui.cat) && (ui.showInt || ui.cat === 'interne' || t.cat !== 'interne')
-      && (!q || norm(t.label + ' ' + t.detail).includes(q)))
-    .sort((a, b) => b.date.localeCompare(a.date) || a.amount - b.amount);
+  const multi = viewIds().length > 1;
+  // Recherche (texte ou montant), famille ou pôle, marchand : dans le mois affiché, ou dans tout l'historique d'un toucher.
+  const hit = t => inAcc(V(), t.acc) && opMatches(t, ui.cat) && (ui.showInt || ui.cat === 'interne' || t.cat !== 'interne')
+    && (!ui.mk || ruleKey(t) === ui.mk) && searchMatch(t, ui.q);
+  const filtered = !!(ui.q.trim() || ui.cat || ui.mk), all = filtered && ui.all;
+  const found = S.tx.filter(t => (all || t.date.startsWith(ui.month)) && hit(t)).sort((a, b) => b.date.localeCompare(a.date) || a.amount - b.amount);
+  const lim = ui.lim || 200, list = found.slice(0, lim);
   // Le total suit le filtre (une opération répartie ne compte que pour ses parts concernées) ; dépensé et reçu à part quand il y a les deux.
-  const amts = list.map(t => filterAmount(t, ui.cat)), total = amts.reduce((a, v) => a + v, 0);
+  const amts = found.map(t => filterAmount(t, ui.cat)), total = amts.reduce((a, v) => a + v, 0);
   const out = -amts.filter(v => v < 0).reduce((a, v) => a + v, 0), inn = amts.filter(v => v > 0).reduce((a, v) => a + v, 0);
-  let html = `<div class="row"><span class="grow mute sm">${plural(list.length, 'opération')}${out && inn ? ` · −${eur(out, 2)} dépensés, +${eur(inn, 2)} reçus` : ''}</span><b>${eur(total, 2)}</b></div>`, day = '';
+  const mName = new Date(ui.month + '-15').toLocaleDateString('fr-FR', { month: 'long' });
+  let html = ui.mk ? `<div class="chips" style="margin:0 0 6px"><button class="btn sm" data-a="mkClear">🏪 ${esc(nice(ui.mk.slice(1)))} ✕</button></div>` : '', day = '';
+  if (all) {
+    const span = found.length ? Math.max(1, Math.round((dayNum(found[0].date.slice(0, 7) + '-15') - dayNum(found.at(-1).date.slice(0, 7) + '-15')) / 30.44) + 1) : 1;
+    html += `<div class="note" style="margin:0 0 6px"><b>${plural(found.length, 'opération')}</b> sur ${plural(span, 'mois')} · <b>${eur(total, 2)}</b>${span > 1 ? ` · ~${eur(Math.abs(total / span))}/mois` : ''}
+      <div class="chips" style="margin-top:8px"><button class="btn sm ghost" data-a="allOps" data-v="0">‹ Seulement ${mName}</button></div></div>`;
+  } else {
+    html += `<div class="row"><span class="grow mute sm">${plural(found.length, 'opération')}${out && inn ? ` · −${eur(out, 2)} dépensés, +${eur(inn, 2)} reçus` : ''}</span><b>${eur(total, 2)}</b></div>`;
+    if (filtered) { const other = S.tx.filter(t => !t.date.startsWith(ui.month) && hit(t)); if (other.length) html += `<button class="btn sm ghost" style="width:100%;margin:2px 0 6px" data-a="allOps" data-v="1">🔎 Chercher dans tout l'historique (${plural(other.length + found.length, 'opération')}) ›</button>`; }
+  }
+  let mon = '';
   for (const t of list) {
-    if (t.date !== day) { day = t.date; html += `<div class="day">${new Date(day + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>`; }
+    if (all && t.date.slice(0, 7) !== mon) { mon = t.date.slice(0, 7); const sub = found.filter(x => x.date.startsWith(mon)).reduce((a, x) => a + filterAmount(x, ui.cat), 0); html += `<div class="day">${monthName(mon)} · ${eur(sub, 2)}</div>`; }
+    if (!all && t.date !== day) { day = t.date; html += `<div class="day">${new Date(day + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>`; }
     const c = cat(t.splits ? t.splits[0].cat : t.cat);
     const extra = t.splits ? `✂︎ ${t.splits.map(p => `${cat(p.cat).name} ${eur(-p.amount)}`).join(' + ')}`
       : t.refunded ? `<span class="pos">↩ remboursé ${eur(t.refunded, 2)} · coût réel ${eur(-t.amount - t.refunded, 2)}</span>`
       : t.refundOf ? '↩ remboursement d\'une dépense' : t.auto ? '🔁 prévu · remplacé par le relevé' : t.pending ? '⏳ saisie · en attente du relevé' : esc(t.detail || c.name);
     html += `<div class="op" data-a="opSheet" data-id="${esc(t.id)}" role="button">${ico(c)}
-      <div class="grow"><div class="ell">${esc(t.label)}</div><div class="sm mute ell">${extra}${multi ? ' · ' + esc(accName(t.acc)) : ''}</div></div>
+      <div class="grow"><div class="ell">${esc(t.label)}</div><div class="sm mute ell">${all ? shortDate(t.date) + ' · ' : ''}${extra}${multi ? ' · ' + esc(accName(t.acc)) : ''}</div></div>
       <span class="amt ${t.amount > 0 ? 'pos' : ''}">${t.amount > 0 ? '+' : ''}${eur(t.amount, 2)}</span></div>`;
   }
+  if (found.length > lim) html += `<button class="btn sm ghost" style="width:100%;margin-top:10px" data-a="moreOps">Afficher ${Math.min(200, found.length - lim)} de plus (${found.length - lim} restantes)</button>`;
   $('#list').innerHTML = html;
 }
 
@@ -1642,7 +1667,9 @@ function settings() {
 }
 
 /* ---------- Rendu ---------- */
-function render() {
+// Tout l'affichage dans un seul cached() : chaque calcul de la logique n'est fait qu'une fois par rendu.
+function render() { return cached(render0); }
+function render0() {
   if (!booted && !ui.demo) return;
   try { drawHeader(); } catch (e) { console.error(e); } // en-tête et contenu sous filet de sécurité : jamais une page blanche
   const v = $('#view');
@@ -1831,7 +1858,11 @@ const A = {
   flexSheet: () => flexSheet(),
   flexSet: d => setFlex(+d.v),
   pole: d => { ui.pole = d.p && d.p !== ui.pole ? d.p : ''; paintWhere(); },
-  goCat: d => { ui.tab = 'ops'; ui.cat = d.c === 'couple' ? 'interne' : d.c; render(); scrollTo(0, 0); },
+  goCat: d => { ui.tab = 'ops'; ui.cat = d.c === 'couple' ? 'interne' : d.c; ui.mk = ''; ui.all = false; ui.lim = 0; render(); scrollTo(0, 0); },
+  allOps: d => { ui.all = d.v === '1'; ui.lim = 0; renderList(); },
+  moreOps: () => { ui.lim = (ui.lim || 200) + 200; renderList(); },
+  mkClear: () => { ui.mk = ''; ui.all = false; ui.lim = 0; renderList(); },
+  merchantOps: d => { const t = S.tx.find(x => x.id === d.id); if (!t) return; closeSheet(); Object.assign(ui, { tab: 'ops', mk: ruleKey(t), all: true, q: '', cat: '', sort: false, lim: 0 }); render(); scrollTo(0, 0); },
   own: d => { S.accounts[d.id].owner = d.o; save(); render(); toast(`${S.accounts[d.id].name} → ${whoName(d.o)}. Renommez-le dans Réglages si besoin.`); },
   sortAs: d => { learn(d.id, d.c); render(); },
   payer: d => {
@@ -1910,7 +1941,7 @@ function potMove(id, sign) {
 
 const C = {
   acc: v => { ui.acc = v; render(); },
-  cat: v => { ui.cat = v; renderList(); },
+  cat: v => { ui.cat = v; ui.lim = 0; renderList(); },
   accName: (v, el) => { S.accounts[el.dataset.id].name = v.trim() || el.dataset.id; save(); },
   accSav: (v, el) => { S.accounts[el.dataset.id].savings = el.checked; recompute(S); save(); },
   budget: (v, el) => { const n = parseNumber(v); if (n > 0) B()[el.dataset.id] = n; else delete B()[el.dataset.id]; save(); render(); },
@@ -1934,7 +1965,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el) C[el.dataset.c](el.value, el); });
 document.addEventListener('input', e => {
-  if (e.target.id === 'q') { ui.q = e.target.value; renderList(); }
+  if (e.target.id === 'q') { ui.q = e.target.value; ui.lim = 0; renderList(); }
   if (e.target.id === 'qLabel' && !$('#qCat').dataset.touched) $('#qCat').value = classify({ label: e.target.value, amount: -1 }).cat;
 });
 document.addEventListener('change', e => { if (e.target.id === 'qCat') e.target.dataset.touched = '1'; }, true);

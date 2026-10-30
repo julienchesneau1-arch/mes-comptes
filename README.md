@@ -13,6 +13,9 @@ Suivi de budget perso : on dépose ses relevés (PDF, CSV ou OFX Banque Populair
 - **Enveloppe « vie courante »** (budget flexible) : un seul montant par mois et par profil pour toutes les dépenses variables (les charges fixes n'y entrent pas), proposé d'après l'habitude. Jauge au-dessus du camembert : repère du jour, reste, ≈ € par jour jusqu'à la fin du mois ; dépassée, elle met la météo « à surveiller ».
 - **Solde prévu jour par jour** (Comptes › À venir) : une courbe en marches par compte, un pas par prélèvement fixe ou rentrée habituelle, zéro toujours visible, point le plus bas nommé ; toucher un point donne le détail du jour.
 - **Filtre par pôle** (Opérations) : un pôle entier ou une de ses familles ; une opération répartie ne compte que pour ses parts concernées ; total dépensé / reçu.
+- **Recherche dans tout l'historique** (Opérations) : un mot ou un montant (« 54 » trouve 54,20 €) ; dans le mois affiché, puis « Chercher dans tout l'historique » : regroupé par mois, total et moyenne par mois.
+- **Chez ce marchand** (fiche d'une opération) : 12 mois en barres, nombre de passages, total, moyenne des mois où l'on y est passé, « Toutes ses opérations ».
+- **Rapide avec un gros historique** : chaque calcul n'est fait qu'une fois par affichage (accueil ~2× plus rapide, Tendances ~6× sur 6 000 opérations).
 - **Accueil allégé** : le rendez-vous du mois tient en une ligne par étape ; quand il est affiché, « À faire » se replie en une ligne, sauf urgence (découvert, relevé manquant, sauvegarde…).
 - **Plan d'épargne** : ce que chaque levier libère par mois (−15 % / ~20 % / 100 %), relié aux objectifs et aux défis.
 - **Contrôle des relevés** : ancien solde + opérations lues = nouveau solde, sinon un écart est signalé.

@@ -879,3 +879,40 @@ console.log('OK — fichier de rappels publié');
   assert.deepStrictEqual(m.flex, { foyer: 0, p1: 300 });                                                   // désactivée ici : reste désactivée
   console.log('OK — enveloppe vie courante (budget flexible)');
 }
+
+{ // Mémo d'affichage : mêmes résultats avec et sans cached(), rien n'est gardé après.
+  const X = C.demoState('2026-10-28');
+  const plain = JSON.stringify([C.monthStats(X, '2026-09'), C.fullMonth(X, '2026-09'), C.paceCompare(X, '2026-10')]);
+  const memoed = C.cached(() => JSON.stringify([C.monthStats(X, '2026-09'), C.monthStats(X, '2026-09'), C.fullMonth(X, '2026-09'), C.paceCompare(X, '2026-10')].filter((_, i) => i !== 1)));
+  assert.strictEqual(memoed, plain);
+  const a = C.cached(() => C.monthStats(X, '2026-09')), b = C.cached(() => C.monthStats(X, '2026-09'));
+  assert.notStrictEqual(a, b);                                                            // un nouveau rendu recalcule
+  C.cached(() => { const s1 = C.monthStats(X, '2026-09'); assert.strictEqual(C.monthStats(X, '2026-09'), s1); }); // dans un rendu : une seule fois
+  X.tx.push({ ...X.tx.find(t => t.date.startsWith('2026-09') && t.cat === 'courses'), id: 'nouvelle', amount: -100 });
+  assert.strictEqual(Math.round(C.monthStats(X, '2026-09').by.courses - JSON.parse(plain)[0].by.courses), 100); // hors rendu : toujours l'état réel
+  console.log('OK — mémo d\'affichage (mêmes chiffres, recalculés à chaque rendu)');
+}
+
+{ // Recherche (texte ou montant) et historique chez un marchand.
+  const t = { label: 'CB CARREFOUR MARKET 12/09', detail: '', amount: -54.2 };
+  assert.ok(C.searchMatch(t, 'carrefour') && C.searchMatch(t, 'Carrefour market') && C.searchMatch(t, ''));
+  assert.ok(C.searchMatch(t, '54') && C.searchMatch(t, '54,20') && C.searchMatch(t, '54.2'));
+  assert.ok(!C.searchMatch(t, '55') && !C.searchMatch(t, '54,21') && !C.searchMatch(t, 'auchan'));
+  const X = { accounts: {}, tx: [], rules: {} };
+  C.importParsed(X, [{ account: 'A', rows: [
+    { date: '2026-08-03', amount: -40, label: 'CB CARREFOUR MARKET 01/08' }, { date: '2026-09-05', amount: -60, label: 'CB CARREFOUR CITY 03/09' },
+    { date: '2026-09-20', amount: -20, label: 'CB CARREFOUR MARKET 18/09' }, { date: '2025-08-01', amount: -99, label: 'CB CARREFOUR MARKET 30/07' },
+    { date: '2026-10-02', amount: -15, label: 'CB CARREFOUR MARKET 30/09' }, { date: '2026-09-07', amount: -12, label: 'CB AUCHAN 06/09' }] }]);
+  const h = C.merchantHistory(X, X.tx.find(x => x.label.includes('CITY')), '2026-09');
+  assert.deepStrictEqual([h.n, h.total, h.active, h.perMonth, h.all], [3, -120, 2, -60, 4]);    // août + septembre ; 2025 hors des 12 mois ; octobre après le mois vu
+  assert.deepStrictEqual(h.months.slice(-2), [-40, -80]);
+  console.log('OK — recherche (texte ou montant) et historique d\'un marchand');
+}
+
+{ // Clé de marchand gardée par opération : recalculée si le libellé ou le signe change.
+  const t = { label: 'CB CARREFOUR MARKET 12/09', amount: -10 };
+  assert.strictEqual(C.ruleKey(t), '-CARREFOUR');
+  t.label = 'PRLV SEPA FREE MOBILE XP123'; assert.strictEqual(C.ruleKey(t), '-FREE MOBILE');
+  t.amount = 5; assert.strictEqual(C.ruleKey(t), '+FREE MOBILE');
+  console.log('OK — clé de marchand gardée et recalculée');
+}
