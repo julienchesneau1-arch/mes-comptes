@@ -38,6 +38,7 @@ const ok = (cond, what) => { console.log(`  ${cond ? '✔' : '✘'} ${what}`); i
 const NOW = new Date('2026-10-28T18:00:00Z');
 
 async function phone(engine, device) {
+  OFF = false;
   const ctx = await engine.newContext({ ...devices[device], locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   const page = await ctx.newPage(), errs = [];
   page.on('pageerror', e => errs.push(e.message));
@@ -222,13 +223,16 @@ async function real(engine, device) {
   await page.screenshot({ path: join(SHOTS, `${tag}-reel.png`) });
   // Hors ligne : l'app s'ouvre, le code ouvre le coffre, les opérations sont là.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
-  OFF = true;
-  await page.reload();
-  await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).catch(() => {});
-  await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
-  await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
-  ok(await page.evaluate(() => S.tx.length) === n, 'hors ligne : l\'app s\'ouvre, opérations intactes');
-  OFF = false;
+  try {
+    OFF = true;
+    await page.reload();
+    if (!(await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).then(() => true, () => false))) ok(false, `hors ligne : écran du code absent (${await page.evaluate(async () => `${location.href} · contrôlée=${!!navigator.serviceWorker?.controller} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')} · « ${(document.body?.innerText || '').slice(0, 120).replace(/\s+/g, ' ')} »`).catch(e => e.message)})`);
+    else {
+      await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
+      await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
+      ok(await page.evaluate(() => S.tx.length) === n, 'hors ligne : l\'app s\'ouvre, opérations intactes');
+    }
+  } finally { OFF = false; } // toujours rétabli : les scénarios suivants ont besoin du serveur
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
   await ctx.close();
 }

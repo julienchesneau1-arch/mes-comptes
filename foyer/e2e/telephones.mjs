@@ -132,12 +132,12 @@ async function run(engine, device) {
 
   // Hors ligne (au supermarché sans réseau) : l'app s'ouvre et garde les courses.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
-  OFF = true; phase = 'hors ligne';
-  await page.reload();
-  await page.locator('main').waitFor();
-  await tab(page, 'Courses');
-  ok(await basket(page) === lines, 'hors ligne : l\'app s\'ouvre, courses intactes');
-  OFF = false;
+  try {
+    OFF = true; phase = 'hors ligne';
+    await page.reload();
+    if (!(await page.locator('main').waitFor().then(() => true, () => false))) ok(false, `hors ligne : app absente (${await page.evaluate(async () => `${location.href} · contrôlée=${!!navigator.serviceWorker?.controller} · caches=${(await Promise.all((await caches.keys()).map(async k => `${k}:${(await (await caches.open(k)).keys()).length}`))).join(',')} · « ${(document.body?.innerText || '').slice(0, 120).replace(/\s+/g, ' ')} »`).catch(e => e.message)})`);
+    else { await tab(page, 'Courses'); ok(await basket(page) === lines, 'hors ligne : l\'app s\'ouvre, courses intactes'); }
+  } finally { OFF = false; } // toujours rétabli
 
   ok(!outside.length, `aucun appel hors de l'app${outside.length ? ' : ' + outside.slice(0, 3).join(' | ') : ''}`);
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 6).join(' | ') : ''}`);
