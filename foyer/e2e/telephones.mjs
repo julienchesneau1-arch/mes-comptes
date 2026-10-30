@@ -26,7 +26,7 @@ const URL0 = `http://localhost:${server.address().port}/foyer/index.html`;
 await mkdir(SHOTS, { recursive: true });
 
 const fails = [];
-let tag = '';
+let tag = '', phase = 'début'; // étape en cours, jointe aux erreurs de la page
 const ok = (cond, what) => { console.log(`  ${cond ? '✔' : '✘'} ${what}`); if (!cond) fails.push(`${tag} : ${what}`); };
 const NOW = new Date('2026-10-05T10:00:00Z');
 const TABS = ['Aujourd\'hui', 'Semaine', 'Courses', 'Maison'];
@@ -44,8 +44,8 @@ async function phone(engine, device) {
   ctx.on('request', r => { const u = r.url(); if (!u.startsWith('http://localhost') && !/^(data|blob):/.test(u) && !/\.supabase\.co\//.test(u)) outside.push(u); });
   const page = await ctx.newPage(), errs = [];
   page.setDefaultTimeout(15000);
-  page.on('pageerror', e => errs.push(e.message));
-  page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) errs.push(m.text()); });
+  page.on('pageerror', e => errs.push(`[${phase}] ${e.message}`));
+  page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) errs.push(`[${phase}] ${m.text()}`); });
   // Violation de CSP : d'où vient-elle (extrait du style ou du script refusé, fichier, ligne) ?
   await page.addInitScript(() => document.addEventListener('securitypolicyviolation', e => console.error(`CSP ${e.violatedDirective} ${e.sourceFile || '-'}:${e.lineNumber} « ${e.sample} »`)));
   await page.clock.setFixedTime(NOW);
@@ -56,9 +56,11 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
 async function a11y(page, where) {
   if (!AxeBuilder) { if (process.env.STRICT) ok(false, `accessibilité (${where}) : @axe-core/playwright absent`); return; }
   await page.waitForTimeout(500);
+  const was = phase; phase = `axe ${where}`;
   await page.emulateMedia({ reducedMotion: 'reduce' }); // état final, sans animation en cours (WebKit mesurait une couleur à mi-fondu)
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  phase = was;
   ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
 // Nombre d'articles du panier (« 🛒 Commander au drive · N articles »).
@@ -102,17 +104,21 @@ async function run(engine, device) {
 
   // Chaque onglet, en clair puis en sombre : rien ne dépasse, accessibilité.
   for (const scheme of ['light', 'dark']) {
+    phase = `thème ${scheme}`;
     await page.emulateMedia({ colorScheme: scheme });
     for (const t of TABS) {
       await tab(page, t);
       ok(await noOverflow(page), `${t} (${scheme === 'light' ? 'clair' : 'sombre'}) : rien ne dépasse en largeur`);
       await a11y(page, `${t} (${scheme === 'light' ? 'clair' : 'sombre'})`);
     }
+    phase = `capture ${scheme}`;
     await page.screenshot({ path: join(SHOTS, `${tag}-${scheme}.png`), caret: 'initial' }); // sans style injecté (CSP stricte de Foyer)
+    phase = 'après capture';
   }
   await page.emulateMedia({ colorScheme: 'light' });
 
   // Rechargement : tout est là, sans refaire l'accueil.
+  phase = 'rechargement';
   await page.reload();
   await page.locator('main').waitFor();
   ok(await page.getByRole('button', { name: 'Créer notre foyer' }).count() === 0, 'rechargement : le foyer est retrouvé');
@@ -121,7 +127,7 @@ async function run(engine, device) {
 
   // Hors ligne (au supermarché sans réseau) : l'app s'ouvre et garde les courses.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
-  OFF = true;
+  OFF = true; phase = 'hors ligne';
   await page.reload();
   await page.locator('main').waitFor();
   await tab(page, 'Courses');
