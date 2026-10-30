@@ -81,7 +81,9 @@ async function a11y(page, where) {
   if (!AxeBuilder) { if (process.env.STRICT) ok(false, `accessibilité (${where}) : @axe-core/playwright absent`); return; }
   await page.evaluate(() => document.querySelector('#toast')?.classList.remove('on'));
   await page.waitForTimeout(1100);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); // état final, sans animation en cours (WebKit mesurait une couleur à mi-fondu)
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
 // Rien ne dépasse en largeur : pas de défilement horizontal sur un téléphone.

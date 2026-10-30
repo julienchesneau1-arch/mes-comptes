@@ -54,7 +54,9 @@ const noOverflow = page => page.evaluate(() => document.documentElement.scrollWi
 async function a11y(page, where) {
   if (!AxeBuilder) { if (process.env.STRICT) ok(false, `accessibilité (${where}) : @axe-core/playwright absent`); return; }
   await page.waitForTimeout(500);
+  await page.emulateMedia({ reducedMotion: 'reduce' }); // état final, sans animation en cours (WebKit mesurait une couleur à mi-fondu)
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
 // Nombre d'articles du panier (« 🛒 Commander au drive · N articles »).
@@ -104,7 +106,7 @@ async function run(engine, device) {
       ok(await noOverflow(page), `${t} (${scheme === 'light' ? 'clair' : 'sombre'}) : rien ne dépasse en largeur`);
       await a11y(page, `${t} (${scheme === 'light' ? 'clair' : 'sombre'})`);
     }
-    await page.screenshot({ path: join(SHOTS, `${tag}-${scheme}.png`) });
+    await page.screenshot({ path: join(SHOTS, `${tag}-${scheme}.png`), caret: 'initial' }); // sans style injecté (CSP stricte de Foyer)
   }
   await page.emulateMedia({ colorScheme: 'light' });
 
