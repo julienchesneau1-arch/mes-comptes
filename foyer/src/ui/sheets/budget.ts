@@ -46,7 +46,7 @@ function estimateNote(priced: number, paid: number, unpriced: number, seasonings
   if (unpriced) parts.push(`${plural(unpriced, 'article')} sans prix de référence${priced ? ' : le panier coûtera un peu plus' : ''}.`);
   if (seasonings) parts.push('Eau du robinet, sel, poivre et épices non comptés.');
   parts.push(calibrationText(calibration(S())));
-  return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
+  return `<details class="more"><summary>D'où viennent les prix</summary><p class="small muted">${parts.filter(Boolean).join(' ')}</p></details>`; // replié : la source et les limites, sur demande
 }
 SUBMIT['spentSet'] = (data, form) => {
   const week = form.dataset['week'] ?? '', c = parseEuros(String(data.get('eur') ?? ''));

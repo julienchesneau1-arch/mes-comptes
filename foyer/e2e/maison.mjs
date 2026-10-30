@@ -76,7 +76,7 @@ await step('« Il en faut maintenant » : dans Maison & hygiène ; coche = achat
   await page.keyboard.press('Escape');
   await maison.getByText('Dentifrice').waitFor();
   const row = await text(maison);
-  if (!/devrait manquer vers le lun\. 5 oct\./.test(row) || !/1 tube/.test(row)) throw new Error('ligne : ' + row);
+  if (!/à racheter vers le lun\. 5 oct\./.test(row) || !/1 tube/.test(row)) throw new Error('ligne : ' + row);
   await page.screenshot({ path: `${SHOTS}/maison-courses.png`, fullPage: true });
   await axe('maison-courses');
   await tick(maison, 'Dentifrice : pris'); // la ligne part aussitôt dans « Déjà traités »

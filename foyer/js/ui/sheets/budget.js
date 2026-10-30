@@ -48,7 +48,7 @@ function estimateNote(priced, paid, unpriced, seasonings, paidCents = 0) {
     if (seasonings)
         parts.push('Eau du robinet, sel, poivre et épices non comptés.');
     parts.push(calibrationText(calibration(S())));
-    return `<p class="small muted">${parts.filter(Boolean).join(' ')}</p>`;
+    return `<details class="more"><summary>D'où viennent les prix</summary><p class="small muted">${parts.filter(Boolean).join(' ')}</p></details>`; // replié : la source et les limites, sur demande
 }
 SUBMIT['spentSet'] = (data, form) => {
     const week = form.dataset['week'] ?? '', c = parseEuros(String(data.get('eur') ?? ''));

@@ -6,4 +6,4 @@ import type { RelayConf } from '../core/relay.ts';
 export const RELAY: RelayConf | null = { url: 'https://ogdglcoixadgixnjtwmf.supabase.co', key: 'sb_publishable_tS8ihMgW6X1y4H6EkD-cuA_4hWlw7Fu' };
 
 // Version affichée (Réglages) et jointe à la liste « Ça coince » : celle du PLAN (V3.7…).
-export const VERSION = '3.22';
+export const VERSION = '3.23';

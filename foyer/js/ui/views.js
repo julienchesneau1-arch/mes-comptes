@@ -75,7 +75,8 @@ function cardActions(v, primary = true) {
                 const rc = p ? S().recipes[p.recipe] : undefined;
                 const steps = rc ? current(rc).steps.length : 0;
                 const read = !steps && rc && current(rc).ingredients.length ? `<button class="btn ghost" data-a="recipe" data-id="${rc.id}">Recette</button>` : '';
-                return `<button class="${B}" data-a="eat" data-k="${k}">On a mangé</button>${p ? `<button class="btn soft" data-a="prepared" data-id="${p.id}" data-k="${k}">C'est préparé</button>` : ''}${p && steps ? `<button class="btn ghost" data-a="cook" data-id="${p.id}">Étapes</button>` : read}${more}`;
+                // 3 boutons au plus : les étapes et la recette s'ouvrent depuis « Voir ».
+                return `<button class="${B}" data-a="eat" data-k="${k}">On a mangé</button>${p ? `<button class="btn soft" data-a="prepared" data-id="${p.id}" data-k="${k}">C'est préparé</button>` : steps ? '' : read}${more}`;
             }
         case 'pret':
         case 'attend':
@@ -193,10 +194,10 @@ function balanceCard(week) {
         return '';
     const row = (ok, icon, label, text) => `<li><span class="chip ${ok ? 's-pret' : 'attention'}">${ok ? 'OK' : 'À voir'}</span><span aria-hidden="true">${icon}</span><span class="grow"><strong>${label}</strong> · ${esc(text)}</span></li>`;
     return `<section class="card stack" aria-labelledby="bal-h"><h2 id="bal-h">Équilibre de la semaine</h2><ul class="balance">
-    ${row(b.fish >= TARGET.fish && b.oily >= TARGET.oily, '🐟', 'Poisson', `${plural(b.fish, 'repas', 'repas')} dont ${b.oily} gras · repère : 2 par semaine, dont 1 gras`)}
-    ${row(b.legumes >= TARGET.legumes, '🫘', 'Légumes secs', `${plural(b.legumes, 'repas', 'repas')} · repère : au moins 2 par semaine`)}
-    ${row(b.meat.g <= TARGET.meatG, '🥩', 'Viande hors volaille', `${b.meat.meals ? `≈ ${b.meat.g} g par personne${b.meat.unknown ? ' (+ quantités non renseignées)' : ''}` : 'aucun repas'} · repère : 500 g maximum`)}
-    ${b.charc.meals ? row(b.charc.g <= TARGET.charcG, '🥓', 'Charcuterie', `≈ ${b.charc.g} g par personne${b.charc.unknown ? ' (+ quantités non renseignées)' : ''} · repère : 150 g maximum`) : ''}</ul>
+    ${row(b.fish >= TARGET.fish && b.oily >= TARGET.oily, '🐟', 'Poisson', `${b.fish} sur 2 · gras ${b.oily} sur 1`)}
+    ${row(b.legumes >= TARGET.legumes, '🫘', 'Légumes secs', `${b.legumes} sur 2 au moins`)}
+    ${row(b.meat.g <= TARGET.meatG, '🥩', 'Viande hors volaille', `${b.meat.meals ? `≈ ${b.meat.g} g${b.meat.unknown ? '+' : ''}` : '0 g'} sur 500 g max.`)}
+    ${b.charc.meals ? row(b.charc.g <= TARGET.charcG, '🥓', 'Charcuterie', `≈ ${b.charc.g} g${b.charc.unknown ? '+' : ''} sur 150 g max.`) : ''}</ul>
     <details class="more"><summary>Comment c'est compté</summary><p class="small muted">D'après les plats prévus, pour la personne qui en mange le moins (le plus, pour la viande). Les propositions suivent ces repères. Source : <a href="${SOURCES.essentiel}" target="_blank" rel="noopener noreferrer">Santé publique France, mangerbouger.fr</a>.</p></details></section>`;
 }
 // Le dernier jour de la semaine, on regarde surtout la suivante : c'est elle qu'on prépare.
@@ -243,10 +244,9 @@ function lineRow(l, week, r) {
     <span class="qty">${esc(reserve ? r.qty : l.done && !l.check?.delta ? '' : qty || (l.unknown.length ? '?' : ''))}</span></button></div></li>`;
 }
 // Produit de la maison dû (core/restock.ts) : dans le rayon Maison & hygiène, seulement les semaines où il devrait manquer.
-const every = (r) => `${r.rhythm.basis === 'choisi' ? '' : '≈ '}tous les ${r.rhythm.days} j${r.rhythm.basis === 'achats' ? ' (vos achats)' : r.rhythm.basis === 'estimation' ? ' (estimation)' : ''}`;
 function restockRow(r) {
     const sub = r.done && r.last ? `acheté le ${fmtDayShort(r.last)} · prochain vers le ${fmtDayShort(r.due)}`
-        : `${r.late ? 'devait manquer' : 'devrait manquer'} vers le ${fmtDayShort(r.due)} · ${every(r)}`;
+        : `${r.late ? 'à racheter depuis le' : 'à racheter vers le'} ${fmtDayShort(r.due)}`; // le rythme est sur la fiche du produit
     return `<li class="${r.done ? 'done-line' : ''}"><div class="item"><label class="check"><input type="checkbox" data-c="restockCheck" data-id="${esc(r.id)}" ${r.done ? 'checked' : ''} aria-label="${esc(r.name)} : pris"><span></span></label>
     <button class="item-btn grow" data-a="restockItem" data-id="${esc(r.id)}"><span class="grow"><span class="title">${esc(r.name)}</span><br><span class="sub">${esc(sub)}</span></span><span class="qty">${esc(r.done ? '' : r.qty)}</span></button></div></li>`;
 }
@@ -346,7 +346,7 @@ function platsList() {
 }
 function platsView() {
     const cat = catalogNow();
-    return `${cat ? `<section class="card stack ready-promo"><h2>📚 ${cat.count} recettes prêtes</h2><p class="small muted">Du Livre de cuisine de Wikilivres : à prévoir d'un toucher, sans rien saisir. Elles entrent dans vos plats quand vous les prévoyez.</p>
+    return `${cat ? `<section class="card stack ready-promo"><h2>📚 ${cat.count} recettes prêtes</h2><p class="small muted">Du Livre de cuisine de Wikilivres, à prévoir d'un toucher.</p>
     <button class="btn" data-a="discover">Parcourir les recettes prêtes</button></section>` : ''}
   <section class="card stack"><div class="actions"><button class="btn" data-a="newRecipe">Nouveau plat</button><button class="btn ghost" data-a="pasteRecipe">Coller une recette</button><button class="btn ghost" data-a="classics">Ajouter des classiques</button></div>
     <label class="field">Chercher<input type="search" data-i="homeQ" value="${esc(A.ui.q)}" placeholder="Nom du plat" autocomplete="off"></label>
