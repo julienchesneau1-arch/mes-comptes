@@ -73,6 +73,7 @@ await step('un plat posé lundi soir : le message dit ce qui manque encore ; 2 p
   await dlg.locator('output', { hasText: '2' }).waitFor();
   await page.keyboard.press('Escape');
   await card.getByText(/Il manque 13 plats à cuisiner pour finir la semaine, mais il y a du trop/).waitFor();
+  { const sum = card.locator('details.more:not([open]) > summary', { hasText: 'Le détail' }); if (await sum.count()) await sum.click(); } // le détail du bilan est replié
   if (!/En trop : Pâtes : 2 portions en plus\. De quoi couvrir 1 repas sans rien cuisiner de plus\./.test(await text(card))) throw new Error('détail : ' + await text(card));
   await axe('bilan-trop');
 });
@@ -89,6 +90,7 @@ await step('« 🥡 Oui : le midi = restes du dîner » : il manque 7 plats à c
   await card.getByText(/midis de moins à cuisiner cette semaine/).waitFor();
   await card.getByRole('button', { name: '🥡 Oui : le midi = restes du dîner' }).click();
   await card.getByText('Pas assez de plats : il manque 7 plats à cuisiner pour finir la semaine').waitFor();
+  { const sum = card.locator('details.more:not([open]) > summary', { hasText: 'Le détail' }); if (await sum.count()) await sum.click(); } // le détail du bilan est replié
   if (!/6 midis suivent le dîner de la veille/.test(await text(card))) throw new Error('détail : ' + await text(card));
   if (await card.getByRole('button', { name: '🥡 Oui : le midi = restes du dîner' }).count()) throw new Error('bandeau encore affiché');
   await page.screenshot({ path: `${SHOTS}/bilan-restes-midi.png` });

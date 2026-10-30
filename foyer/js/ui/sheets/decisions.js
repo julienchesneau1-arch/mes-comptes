@@ -19,14 +19,15 @@ const OPEN = {
 function card(x) {
     const [cls, tag] = CHIP[x.code];
     const acts = x.actions.map((a, i) => `<button class="btn small-btn${i ? ' ghost' : ''}" ${'drafts' in a ? `data-a="excDo" data-key="${esc(x.key)}" data-i="${i}"` : OPEN[a.open](a.arg)}>${esc(a.label)}</button>`).join('');
-    return `<li class="exc"><p class="exc-title"><span class="chip ${cls}">${tag}</span> ${esc(x.title)}</p>${x.sub ? `<p class="small muted">${esc(x.sub)}</p>` : ''}
+    return `<li class="exc"><p class="exc-title"><span class="chip ${cls}">${tag}</span> ${esc(x.title)}</p>${x.sub ? `<p class="small muted clamp2">${esc(x.sub)}</p>` : ''}
     ${acts ? `<div class="actions">${acts}</div>` : ''}<details class="exc-more"><summary aria-label="Plus tard ou règle : ${esc(x.title)}">Plus tard…</summary>
       <div class="actions"><button class="btn small-btn ghost" data-a="excSnooze" data-key="${esc(x.key)}">Plus tard (demain)</button>${x.rule ? '<button class="btn small-btn ghost" data-a="decisions">Décider une règle pour toujours</button>' : ''}</div></details></li>`;
 }
-// Section « À régler » : 5 cartes au plus, triées (échéance proche, blocage, repas) ; le reste replié.
+// Section « À régler » : les 2 cartes les plus pressantes (échéance proche, blocage, repas) ; le reste replié en une ligne.
 const visible = (t) => {
     const all = exceptions(A.r, t, me(), A.now()), keep = (x) => x.code !== 'placard' || on('placard');
-    return { shown: all.shown.filter(keep), hidden: all.hidden.filter(keep) };
+    const shown = all.shown.filter(keep);
+    return { shown: shown.slice(0, 2), hidden: [...shown.slice(2), ...all.hidden.filter(keep)] };
 };
 // Nombre de cartes « À régler » : la pastille sur l'icône de l'app (ui/badge.ts).
 export const reglerCount = (t) => { const v = visible(t); return v.shown.length + v.hidden.length; };
@@ -35,7 +36,7 @@ export function reglerSection(t) {
     if (!shown.length)
         return '';
     return `<section class="card stack" aria-labelledby="exc-h"><h2 id="exc-h">À régler</h2><ul class="exc-list">${shown.map(card).join('')}</ul>
-    ${hidden.length ? `<details><summary>+ ${hidden.length} autre${hidden.length > 1 ? 's' : ''}</summary><ul class="exc-list">${hidden.map(card).join('')}</ul></details>` : ''}</section>`;
+    ${hidden.length ? `<details class="more"><summary>+ ${hidden.length} autre${hidden.length > 1 ? 's' : ''} à régler</summary><ul class="exc-list">${hidden.map(card).join('')}</ul></details>` : ''}</section>`;
 }
 const live = () => { const t = deriveToday(A.r, A.now()), x = exceptions(A.r, t, me(), A.now()); return [...x.shown, ...x.hidden]; };
 CLICK['excDo'] = d => {

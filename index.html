@@ -157,6 +157,8 @@ body.locked>header,body.locked>main,body.locked>nav{display:none}
 .lg i{width:14px;height:14px;border-radius:50%;flex:none}
 .d{font-size:13px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px;white-space:nowrap}
 .d.up{background:var(--watchs);color:var(--watch)} .d.down{background:var(--goods);color:var(--good)}
+details.fold>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px} details.fold>summary::-webkit-details-marker{display:none} details.fold[open]>summary{margin-bottom:12px}
+details.more>summary{list-style:none;cursor:pointer;color:var(--acc);font-weight:600;font-size:14px;padding:10px 0;min-height:44px;display:flex;align-items:center} details.more>summary::-webkit-details-marker{display:none} details.more[open]>summary{display:none}
 .st-good{color:var(--good)} .st-watch{color:var(--watch)} .st-tight{color:var(--tight)} .st-unk{color:var(--unk)}
 .tip{display:flex;gap:10px;align-items:flex-start;background:var(--soft);border-radius:16px;padding:10px 12px;margin-top:10px;font-size:14px}
 .coach{background:var(--accs);border-radius:var(--r);padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
@@ -279,7 +281,7 @@ nav#tabs button{font-size:12px;min-height:54px}
 <div id="toast" role="status"></div>
 <script src="core.js?v=46"></script>
 <script>
-const KEY = 'mescomptes-v1', VERSION = 46;
+const KEY = 'mescomptes-v1', VERSION = 47;
 const blank = () => ({ people: [{ id: 'p1', name: 'Moi' }],
   accounts: {}, tx: [], rules: {}, budgets: {}, pots: [], claimed: {}, challenges: {}, payers: {}, annualHide: {}, loans: [],
   levers: { cat: {}, merchant: {} }, histBal: null, done: {}, snooze: {}, assets: [], quickAcc: {}, reconciled: [], checkins: {}, noSpend: {}, rit: {}, flex: {} });
@@ -600,6 +602,7 @@ const accName = a => (S.accounts[a] && S.accounts[a].name) || a;
 const nice = s => s.charAt(0) + s.slice(1).toLowerCase();
 const elide = w => (/^[aeiouyéèêh]/i.test(w) ? 'd\'' : 'de ') + w; // « d'alimentation », « de logement »
 const plural = (n, w) => `${n} ${w}${n > 1 && !/s$/.test(w) ? 's' : ''}`; // « mois » est invariable
+const others = (n, w) => `${n} autre${n > 1 ? 's' : ''} ${w}${n > 1 ? 's' : ''}`; // « + 2 autres pôles »
 const potSaved = p => { const b = p.acc ? balanceOf(S, p.acc) : null; return b !== null ? b : p.moves.reduce((a, m) => a + m.amount, 0); };
 const lastDay = m => shiftMonth(m, 1) + '-01' > today() ? today() : new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 0)).toISOString().slice(0, 10);
 const spark = (vals, color) => { const mx = Math.max(1, ...vals); return `<svg viewBox="0 0 ${vals.length * 8} 24" width="${vals.length * 8}" height="24" aria-hidden="true">${vals.map((v, i) => `<rect x="${i * 8 + 1}" y="${24 - Math.max(0, v) / mx * 24}" width="6" height="${Math.max(0, v) / mx * 24}" rx="1.5" fill="${color}" opacity="${i === vals.length - 1 ? 1 : .5}"/>`).join('')}</svg>`; };
@@ -1261,9 +1264,12 @@ function whereCenter() {
 }
 function whereLegend() {
   const { st, pc, ref, P, tot, delta } = WD, p = P.find(x => x.id === ui.pole);
-  if (!p) return [...P].filter(x => x.v > 0).sort((a, b) => b.v - a.v).map(x => `<button class="pl" data-a="pole" data-p="${x.id}"><i style="background:var(--pl-${x.id})"></i><span class="e" aria-hidden="true">${x.emoji}</span>
-    <span style="min-width:0"><b class="ell" style="display:block">${esc(x.name)}</b><span class="sm mute ell" style="display:block"><b>${pctTxt(x.v, tot)} %</b> · ${x.fam.slice(0, 3).map(([c]) => famName(c)).join(', ')}${x.fam.length > 3 ? '…' : ''}</span></span>
-    <span class="v"><b>${eur(x.v)}</b>${delta[x.id] ? dpill(delta[x.id].d, delta[x.id].usual) : ''}</span></button>`).join('');
+  if (!p) { // les 4 premiers pôles ; les autres, plus petits, d'un toucher
+    const rows = [...P].filter(x => x.v > 0).sort((a, b) => b.v - a.v).map(x => `<button class="pl" data-a="pole" data-p="${x.id}"><i style="background:var(--pl-${x.id})"></i><span class="e" aria-hidden="true">${x.emoji}</span>
+    <span style="min-width:0"><b class="ell" style="display:block">${esc(x.name)}</b><span class="sm mute" style="display:block">${pctTxt(x.v, tot)} %</span></span>
+    <span class="v"><b>${eur(x.v)}</b>${delta[x.id] ? dpill(delta[x.id].d, delta[x.id].usual) : ''}</span></button>`);
+    return rows.slice(0, 4).join('') + (rows.length > 4 ? `<details class="more"><summary>+ ${others(rows.length - 4, 'pôle')}</summary>${rows.slice(4).join('')}</details>` : '');
+  }
   // Le détail d'un pôle : ses familles, en barres de sa couleur ; une famille ouvre ses opérations.
   const mx = p.fam[0][1], arrow = c => { if (!ref || ref[c] == null || cat(c).kind !== 'var') return ''; return dpill((pc ? pc.by[c] || 0 : st.by[c] || 0) - ref[c], ref[c]); };
   // Une famille habituelle absente ce mois-ci reste listée à 0 € : sa baisse explique l'écart affiché pour le pôle.
@@ -1459,7 +1465,7 @@ function epargner() {
   };
   const act = pl.items.filter(i => i.lever !== 'essentiel'), ess = pl.items.filter(i => i.lever === 'essentiel');
   const step1 = `<section class="card span"><h2><span class="step">1</span>Ce qu'on peut changer</h2>
-    ${pl.months ? act.map(row).join('') + (ess.length ? `<details><summary>✅ Essentiels (${ess.length}) : aucune économie comptée</summary>${ess.map(row).join('')}</details>` : '')
+    ${pl.months ? act.slice(0, 3).map(row).join('') + (act.length > 3 ? `<details class="more"><summary>+ ${others(act.length - 3, 'poste')}</summary>${act.slice(3).map(row).join('')}</details>` : '') + (ess.length ? `<details><summary>✅ Essentiels (${ess.length}) : aucune économie comptée</summary>${ess.map(row).join('')}</details>` : '')
       : '<p class="mute">Il faut au moins un mois complet de relevés (du 1er au dernier jour) pour mesurer vos habitudes.</p>'}
     <p class="sm mute hint">Pour chaque poste, dites ce qu'on peut faire. Le gain est estimé prudemment sur vos 3 derniers mois complets (un mois à moitié importé ne compte jamais) : −15 % si ça peut baisser, ~20 % pour un contrat renégocié, 100 % si on peut s'en passer.</p></section>`;
 
@@ -1500,12 +1506,12 @@ function epargner() {
         <button class="btn sm ghost" data-a="potDel" data-id="${p.id}">Supprimer</button></div></div></div>`;
   }).join('');
   const step3 = `<section class="card span"><h2><span class="step">3</span>Nos objectifs</h2>${pots}
-    <form data-f="newPot" class="grid2" style="margin-top:12px">
+    ${pots ? '<details class="more"><summary>＋ Nouvel objectif</summary>' : ''}<form data-f="newPot" class="grid2" style="margin-top:12px">
       <input class="f" name="emoji" value="🏝️" maxlength="4" aria-label="Emoji">
       <input class="f" name="name" placeholder="Voyage, coussin de sécurité…" required>
       <input class="f" name="target" inputmode="numeric" placeholder="Montant visé (€)" required>
       <select class="f" name="acc" aria-label="Relier à un livret"><option value="">Je note à la main</option>${realIds().filter(id => S.accounts[id].savings).map(id => `<option value="${esc(id)}">🔗 Suivre ${esc(accName(id))}</option>`).join('')}</select>
-      <button class="btn">Créer l'objectif</button></form>
+      <button class="btn">Créer l'objectif</button></form>${pots ? '</details>' : ''}
     <p class="sm mute hint">L'app ne déplace pas votre argent. Relié à un livret, l'objectif avance tout seul avec les virements ; sinon, notez ce que vous mettez de côté.</p></section>`;
 
   let cal = '';
@@ -1557,8 +1563,9 @@ function accounts() {
   }
 
   const rec = recurring(S, V()).filter(r => r.sign < 0);
+  const recRow = r => { const ml = merchantLever(S, { label: r.name }); return `<div class="row">${ico(cat(r.cat))}<span class="grow ell">${esc(nice(r.name))}<div class="sm mute">vers le ${r.day}${ml && ml[1] !== 'essentiel' ? ` · ${LEVERS[ml[1]].emoji} ${LEVERS[ml[1]].label.toLowerCase()}` : ''}</div></span><b>${eur(r.amount, r.amount < 100 ? 2 : 0)}</b></div>`; };
   const recCard = rec.length ? `<section class="card span"><h2>Prélèvements réguliers · ${eur(rec.reduce((a, r) => a + r.amount, 0))}/mois</h2>
-    ${rec.map(r => { const ml = merchantLever(S, { label: r.name }); return `<div class="row">${ico(cat(r.cat))}<span class="grow ell">${esc(nice(r.name))}<div class="sm mute">vers le ${r.day}${ml && ml[1] !== 'essentiel' ? ` · ${LEVERS[ml[1]].emoji} ${LEVERS[ml[1]].label.toLowerCase()}` : ''}</div></span><b>${eur(r.amount, r.amount < 100 ? 2 : 0)}</b></div>`; }).join('')}
+    ${rec.slice(0, 5).map(recRow).join('')}${rec.length > 5 ? `<details class="more"><summary>+ ${others(rec.length - 5, 'prélèvement')}</summary>${rec.slice(5).map(recRow).join('')}</details>` : ''}
     <p class="sm mute hint">Repérés tout seuls : même montant, même période, au moins 3 mois. Un abonnement oublié se voit ici ; décidez quoi en faire dans Épargner.</p></section>` : '';
 
   const ann = annualCharges(S, ui.month, V());
@@ -1573,8 +1580,8 @@ function accounts() {
       ${f.need ? `<div class="note" style="background:var(--warms);margin:6px 0">⚠ ${f.start < 0 ? `Compte à ${eur(f.start)}` : `${eur(f.dueTotal)} de prélèvements`} avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'} : prévoir <b>~${eur(Math.ceil(f.need / 10) * 10)}</b>${f.start < 0 ? '' : ` avant le ${shortDate(f.short)}`}.</div>`
         : `<div class="sm pos" style="margin:4px 0 6px">✔ ${f.dueTotal ? `Les ${eur(f.dueTotal)} de prélèvements avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'} sont couverts.` : `Rien à couvrir avant ${f.nextIn ? `les rentrées du ${shortDate(f.nextIn.date)}` : 'la fin du mois'}.`}</div>`}
       ${fcChart(i)}
-      ${f.items.slice(0, 10).map(it => `<div class="row fc" style="padding:5px 0;border:0;gap:8px"><span class="sm mute" style="width:58px;flex:none;white-space:nowrap">${shortDate(it.date)}</span>${ico(cat(it.cat))}<span class="grow ell sm">${esc(nice(it.name))}</span>
-        <span class="sm ${it.amount > 0 ? 'pos' : ''}">${it.expected ? '≈ ' : ''}${signed(Math.round(it.amount))}</span></div>`).join('')}</div>`).join('')}
+      ${((it2 => f.items.slice(0, 10).map(it2).slice(0, 4).join('') + (Math.min(10, f.items.length) > 4 ? `<details class="more"><summary>+ ${others(Math.min(10, f.items.length) - 4, 'mouvement')}</summary>${f.items.slice(4, 10).map(it2).join('')}</details>` : ''))(it => `<div class="row fc" style="padding:5px 0;border:0;gap:8px"><span class="sm mute" style="width:58px;flex:none;white-space:nowrap">${shortDate(it.date)}</span>${ico(cat(it.cat))}<span class="grow ell sm">${esc(nice(it.name))}</span>
+        <span class="sm ${it.amount > 0 ? 'pos' : ''}">${it.expected ? '≈ ' : ''}${signed(Math.round(it.amount))}</span></div>`))}</div>`).join('')}
     <p class="sm mute hint">Prélèvements fixes repérés sur vos relevés, et rentrées habituelles (≈, montant moyen). Les dépenses du quotidien ne sont pas prévues : elles varient trop pour être fiables. La courbe : le solde jour par jour si seuls ces mouvements passent ; touchez un point pour son détail.</p></section>` : '';
   const toTrends = `<section class="card span click" data-a="tab" data-t="trends" style="display:flex;align-items:center;gap:12px"><span class="em" style="--c:var(--acc)">📈</span><span class="grow"><b>Tendances, tableau et bilan de l'année</b><div class="sm mute">évolution sur 12 mois, par famille, export Excel</div></span><span class="mute">›</span></section>`;
   return comptes + coming + joint + recCard + annCard + toTrends;
@@ -1597,7 +1604,7 @@ function trends() {
     .map(c => [c, (cur.by[c] || 0) - (prev[c] || 0)]).sort((a, b) => a[1] - b[1]);
   const down = deltas.filter(x => x[1] < -10).slice(0, 3), up = deltas.filter(x => x[1] > 10).reverse().slice(0, 3);
   const prevTot = Object.entries(prev).filter(([c]) => cat(c).kind !== 'in').reduce((a, [, v]) => a + v, 0);
-  const recap = !fullMonth(S, ui.month, V()) ? `<section class="card span"><h2>${monthName(ui.month)} en bref</h2><p class="mute" style="margin:0">Mois incomplet : la comparaison avec vos habitudes viendra avec le relevé de fin de mois (sinon, une baisse apparaîtrait qui n'existe pas).</p></section>`
+  const recap = !fullMonth(S, ui.month, V()) ? '' /* mois incomplet : l'accueil le dit déjà */ && `<section class="card span"><h2>${monthName(ui.month)} en bref</h2><p class="mute" style="margin:0">Mois incomplet : la comparaison avec vos habitudes viendra avec le relevé de fin de mois (sinon, une baisse apparaîtrait qui n'existe pas).</p></section>`
     : Object.keys(prev).length ? `<section class="card span"><h2>${monthName(ui.month)} en bref</h2>
     <p style="margin-top:0">Dépenses : <b class="${cur.spent <= prevTot ? 'pos' : ''}">${signed(Math.round(cur.spent - prevTot))}</b> par rapport aux 3 mois précédents (${eur(cur.spent)} contre ~${eur(prevTot)} d'habitude).</p>
     ${down.length ? `<div class="sm mute">En baisse</div>${down.map(([c, d]) => `<div class="row">${ico(cat(c))}<span class="grow">${cat(c).name}</span><b class="pos">${eur(d)}</b></div>`).join('')}` : ''}
@@ -1650,17 +1657,18 @@ function trends() {
     const avg = a3.reduce((x, v) => x + v, 0) / (a3.length || 1), before = b3.length ? b3.reduce((x, v) => x + v, 0) / b3.length : null;
     return { c, vals, avg, pct: before ? (avg - before) / before : null };
   }).filter(x => x.avg >= 5).sort((a, b) => b.avg - a.avg);
-  const famCard = `<section class="card span"><h2>Par famille · moyenne des 3 derniers mois</h2>
-    ${fam.map(x => `<div class="row click" data-a="goCat" data-c="${x.c.id}">${ico(x.c)}
+  const famRow = x => `<div class="row click" data-a="goCat" data-c="${x.c.id}">${ico(x.c)}
       <span class="grow ell">${x.c.name}<div class="sm mute">~${eur(x.avg)}/mois${x.c.hint ? ' · ' + x.c.hint : ''}</div></span>${spark(x.vals, x.c.color)}
-      <span class="sm" style="width:64px;text-align:right">${x.pct === null ? '' : Math.abs(x.pct) < 0.05 ? '<span class="mute">→ stable</span>' : x.pct < 0 ? `<span class="pos">↘ ${Math.round(x.pct * 100)} %</span>` : `<span class="mute">↗ +${Math.round(x.pct * 100)} %</span>`}</span></div>`).join('')}
+      <span class="sm" style="width:64px;text-align:right">${x.pct === null ? '' : Math.abs(x.pct) < 0.05 ? '<span class="mute">→ stable</span>' : x.pct < 0 ? `<span class="pos">↘ ${Math.round(x.pct * 100)} %</span>` : `<span class="mute">↗ +${Math.round(x.pct * 100)} %</span>`}</span></div>`;
+  const famCard = `<section class="card span"><h2>Par famille · moyenne des 3 derniers mois</h2>
+    ${fam.slice(0, 5).map(famRow).join('')}${fam.length > 5 ? `<details class="more"><summary>+ ${others(fam.length - 5, 'famille')}</summary>${fam.slice(5).map(famRow).join('')}</details>` : ''}
     <p class="sm mute hint">Barres : les 12 derniers mois. Flèche : les 3 derniers mois comparés aux 3 d'avant.</p></section>`;
 
   const tb = tableData(ms);
-  const table = `<section class="card span"><h2>Tableau mensuel</h2><div class="tblw" tabindex="0" role="region" aria-label="Tableau mensuel, défilant"><table class="tbl">
+  const table = `<section class="card span"><details class="fold"><summary><h2 style="margin:0">Tableau mensuel · 12 mois</h2><span class="sm mute">et export Excel ›</span></summary><div class="tblw" tabindex="0" role="region" aria-label="Tableau mensuel, défilant"><table class="tbl">
     <thead><tr>${tb.head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
     <tbody>${tb.rows.map(r => `<tr class="${r.sec ? 'sec' : ''}"><td title="${esc(r.label)}">${esc(r.label)}</td>${r.vals.map(v => `<td>${v ? NUM.format(Math.round(v)) : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    <div class="chips"><button class="btn sm" data-a="csv">Exporter pour Excel</button><span class="sm mute">moyenne et total sur 12 mois, comme le tableur</span></div></section>`;
+    <div class="chips"><button class="btn sm" data-a="csv">Exporter pour Excel</button><span class="sm mute">moyenne et total sur 12 mois, comme le tableur</span></div></details></section>`;
   // Bilan de l'année (celle du mois affiché) : en tête en décembre et janvier, sinon en fin d'écran.
   const yr = ui.month.slice(0, 4), yms = Array.from({ length: 12 }, (_, i) => `${yr}-${String(i + 1).padStart(2, '0')}`).filter(m => fullMonth(S, m, V()));
   let year = '';

@@ -13,6 +13,7 @@ Mesures du 30 octobre 2026 : Pixel 7 émulé, processeur ralenti ×4 (téléphon
 | Premier affichage | LCP ≤ 2,5 s ([web.dev](https://web.dev/articles/vitals)) | 0,64 à 0,86 s | 1,0 à 1,5 s | mesuré |
 | Réponse à un toucher | INP ≤ 200 ms ([web.dev](https://web.dev/articles/vitals)) ; 100 ms visé | changement d'onglet médian 109 à 128 ms (203 ms avant le 30 octobre) | médian 62 à 123 ms | mesuré |
 | Calcul le plus lourd | sous 100 ms visé | rendu d'un onglet : 19 à 62 ms au processeur ×4, HTML compris (le reste est la mise en page) | menu de la semaine (424 recettes) : 1,6 à 1,8 s → 0,10 à 0,36 s, sans ralentissement | sortie identique vérifiée |
+| Densité (mots visibles, exemple fictif) | une information principale par écran, le reste replié | Accueil 172 · Opérations 303 (liste) · Épargner 169 · Comptes 290 · Tendances 181 (avant : 187 · 303 · 196 · 349 · 514) | Aujourd'hui 161 · Semaine 180 · Courses 255 (liste) · Maison 90 (avant : 240 · 281 · 255 · 90) | mesuré |
 | Poids au premier chargement | aussi bas que possible, puis hors ligne | 346 Ko | 1 542 Ko (424 recettes et prix embarqués) | mesuré |
 | Hors ligne | l'app s'ouvre sans réseau, données intactes | ✔ coffre ouvert, opérations là | ✔ mêmes courses | ✔ |
 | Rechargement | aucune donnée perdue | ✔ coffre relu, mauvais code refusé | ✔ mêmes courses (défaut trouvé et corrigé, voir plus bas) | ✔ |

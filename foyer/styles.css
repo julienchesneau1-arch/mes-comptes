@@ -453,3 +453,10 @@ table.report th { color: var(--ink-2); font-size: .8125rem; font-weight: 800; }
 .photo-hero { margin: 0 0 .75rem; }
 .photo-hero img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r); background: var(--paper); }
 .photo-hero figcaption { margin-top: .375rem; }
+
+/* Hiérarchie : le secondaire replié en une ligne (« + 2 autres à régler », « Le détail »), le texte d'appoint tenu sur 2 lignes. */
+details.more > summary { list-style: none; color: var(--apricot); font-size: .9375rem; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more[open] > summary { display: none; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+a.row-link { display: flex; align-items: center; gap: .75rem; min-height: var(--tap); color: inherit; text-decoration: none; }

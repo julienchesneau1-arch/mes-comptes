@@ -15,11 +15,11 @@ export function coverageCard(week) {
     const agenda = pending ? `<div class="row"><p class="small grow">L'agenda change encore ${plural(pending, 'repas', 'repas')}, à décider : le bilan suivra.</p><button class="btn small-btn quiet" data-a="agendaOpen">Voir</button></div>`
         : `<p class="small muted">${cals ? 'Agenda compris (absences, invités).' : 'D\'après qui mange à chaque repas ; un agenda branché (Réglages › Agendas) règle les absences.'}</p>`;
     return `<section class="card stack cover" aria-labelledby="cov-h"><h2 id="cov-h" class="section-title">Bilan de la semaine <span class="chip ${t.level === 'ok' ? 's-pret' : 'attention'}">${t.level === 'ok' ? 'Complet' : t.level === 'manque' ? 'Il manque' : 'En trop'}</span></h2>
-    <p><strong>${esc(t.title)}</strong>${t.detail ? `<br><span class="small">${esc(t.detail)}</span>` : ''}</p>
+    <p><strong>${esc(t.title)}</strong></p>
     ${fixes.length || c.missing.length ? `<div class="actions">${fixes.map((f, i) => `<button class="btn small-btn ghost" data-a="coverFix" data-week="${week}" data-n="${i}">${esc(f.label)}</button>`).join('')}
       ${c.missing.length > fixes.filter(f => f.drafts.some(d => d.t === 'slot.from' || d.t === 'slot.move')).length ? `<button class="btn small-btn" data-a="propose" data-week="${week}">✨ Compléter la semaine</button>` : ''}</div>` : ''}
     ${t.hint ? `<div class="banner info"><p class="grow">Vous cuisinez le soir avec des portions en plus pour le midi du lendemain ? ${plural(t.hint, 'midi', 'midis')} de moins à cuisiner cette semaine.</p><button class="btn small-btn" data-a="lunchOn">🥡 Oui : le midi = restes du dîner</button></div>` : ''}
-    ${agenda}</section>`;
+    ${t.detail || agenda ? `<details class="more"><summary>Le détail</summary>${t.detail ? `<p class="small">${esc(t.detail)}</p>` : ''}${agenda}</details>` : ''}</section>`;
 }
 // Tous les midis : les restes du dîner de la veille (Réglages › Décisions automatiques pour revenir en arrière).
 CLICK['lunchOn'] = () => dispatch([{ t: 'settings.set', p: { lunchFromDinner: true } }], { toast: () => `Le midi = restes du dîner de la veille : chaque dîner se cuisine avec des portions en plus${coverNote(clock().date)}` });

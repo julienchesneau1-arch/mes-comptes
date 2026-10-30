@@ -118,8 +118,9 @@ export function todayView() {
       <label class="check"><input type="checkbox" data-c="task" data-key="${esc(x.key)}" ${x.done ? 'checked' : ''} aria-label="${esc(x.text)} : fait"><span></span></label>
       <span class="grow"><span class="title">${esc(x.text)}</span><br><span class="sub">${esc(x.hint)}</span></span></div></li>`).join('')}</ul>
       ${t.tasks.every(x => x.done) ? '<p class="small muted">Aucune autre tâche enregistrée aujourd\'hui.</p>' : ''}</section>` : '';
-    const toBuy = t.toBuy.length ? `<section class="card" aria-labelledby="buy-h"><h2 id="buy-h">Pas encore acheté</h2>${t.toBuy.map(x => `<p><strong>${esc(x.label)} :</strong> ${esc(x.names.join(', '))}</p>`).join('')}
-      <a class="btn ghost" href="#courses">Voir les courses</a></section>` : '';
+    // Ce qui manque pour les prochains repas : une ligne (le détail est dans Courses).
+    const nBuy = new Set(t.toBuy.flatMap(x => x.names)).size;
+    const toBuy = nBuy ? `<a class="card row-link" href="#courses"><span aria-hidden="true">🛒</span><span class="grow"><strong>Pas encore acheté</strong> · ${plural(nBuy, 'article', 'articles')} pour ${esc(t.toBuy.map(x => x.label.toLowerCase()).join(', '))}</span><span aria-hidden="true">›</span></a>` : '';
     // À régler : conflits, repas sans personne, cuisson à confirmer, restes, repas à décider — une seule file, un toucher par carte.
     const regler = reglerSection(t);
     const partnerJoined = A.log.some(e => e.dev !== A.device.dev);
@@ -129,7 +130,7 @@ export function todayView() {
             ? `<div class="banner info"><p class="grow">${esc(otherNames())} n'a pas encore Foyer : envoyez-lui le lien, puis donnez-lui une fois le code du foyer (Maison › Réglages › Synchro).</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer le lien</button></div>`
             : `<div class="banner info"><p class="grow">${plural(n, 'changement', 'changements')} pas encore envoyé${n > 1 ? 's' : ''} à ${esc(otherNames())}.</p><button class="btn small-btn ghost" data-a="sendSync">Envoyer</button></div>`;
     const guide = guideCard(!!sync); // le bandeau du code remplace l'étape « installer sur l'autre téléphone »
-    const install = needsInstall() && !guide ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil ». Sur iPhone, Safari peut effacer les données d'un site peu ouvert ; l'app installée les garde.</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
+    const install = needsInstall() && !guide ? `<div class="banner info"><p class="grow"><strong>Installez Foyer</strong> : Partager <span aria-hidden="true">⎋</span> → « Sur l'écran d'accueil » (vos données y sont gardées).</p><button class="btn small-btn ghost" data-a="installDone">C'est fait</button></div>` : '';
     const decide = toDecide();
     const agenda = decide && !A.demo ? `<div class="banner info"><p class="grow"><strong>L'agenda change ${plural(decide, 'repas', 'repas')}.</strong> Une décision par événement ; ensuite, Foyer fait pareil tout seul.</p><button class="btn small-btn" data-a="agendaOpen">Voir</button></div>` : '';
     const syncBtn = autoOn() ? `Synchro · ${statusLabel() || 'auto'}` : `Synchro${n ? ` · ${n}` : ''}`;
@@ -196,7 +197,7 @@ function balanceCard(week) {
     ${row(b.legumes >= TARGET.legumes, '🫘', 'Légumes secs', `${plural(b.legumes, 'repas', 'repas')} · repère : au moins 2 par semaine`)}
     ${row(b.meat.g <= TARGET.meatG, '🥩', 'Viande hors volaille', `${b.meat.meals ? `≈ ${b.meat.g} g par personne${b.meat.unknown ? ' (+ quantités non renseignées)' : ''}` : 'aucun repas'} · repère : 500 g maximum`)}
     ${b.charc.meals ? row(b.charc.g <= TARGET.charcG, '🥓', 'Charcuterie', `≈ ${b.charc.g} g par personne${b.charc.unknown ? ' (+ quantités non renseignées)' : ''} · repère : 150 g maximum`) : ''}</ul>
-    <p class="small muted">Comptés d'après les plats prévus, pour la personne qui en mange le moins (le plus, pour la viande). Les propositions suivent ces repères. Source : <a href="${SOURCES.essentiel}" target="_blank" rel="noopener noreferrer">Santé publique France, mangerbouger.fr</a>.</p></section>`;
+    <details class="more"><summary>Comment c'est compté</summary><p class="small muted">D'après les plats prévus, pour la personne qui en mange le moins (le plus, pour la viande). Les propositions suivent ces repères. Source : <a href="${SOURCES.essentiel}" target="_blank" rel="noopener noreferrer">Santé publique France, mangerbouger.fr</a>.</p></details></section>`;
 }
 // Le dernier jour de la semaine, on regarde surtout la suivante : c'est elle qu'on prépare.
 export function defaultWeek() {
