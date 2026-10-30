@@ -4,7 +4,8 @@
 // Le script sert lui-même l'app (aucun serveur à lancer) et fige l'heure : mercredi 28 octobre 2026, 19 h à Paris.
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 const require = createRequire(import.meta.url);
 const { chromium, webkit, devices } = require('playwright');
@@ -39,8 +40,10 @@ const NOW = new Date('2026-10-28T18:00:00Z');
 
 async function phone(engine, device) {
   OFF = false;
-  const ctx = await engine.newContext({ ...devices[device], locale: 'fr-FR', timezoneId: 'Europe/Paris' });
-  const page = await ctx.newPage(), errs = [];
+  // Profil sur disque, comme un vrai téléphone : un contexte privé garde le cache en mémoire, et WebKit le perdait à la coupure simulée.
+  const { defaultBrowserType, ...dev } = devices[device];
+  const ctx = await TYPE.launchPersistentContext(await mkdtemp(join(tmpdir(), 'tel-')), { ...LAUNCH, ...dev, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+  const page = ctx.pages()[0] || await ctx.newPage(), errs = [];
   page.on('pageerror', e => errs.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource/i.test(m.text())) errs.push(m.text()); });
   await page.clock.setFixedTime(NOW);
@@ -240,9 +243,11 @@ async function real(engine, device) {
 
 const WANT = (process.env.MOTEUR || 'webkit,chromium').split(',');
 const RUNS = [['webkit', webkit, 'iPhone 13'], ['chromium', chromium, 'Pixel 7']].filter(([n]) => WANT.includes(n));
+let TYPE, LAUNCH = {};
 for (const [name, type, device] of RUNS) {
   let browser;
-  try { browser = await type.launch(name === 'chromium' && !process.env.CI ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {}); }
+  TYPE = type; LAUNCH = name === 'chromium' && !process.env.CI ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {};
+  try { browser = await type.launch(LAUNCH); }
   catch (e) { console.log(`— ${name} absent ici${process.env.STRICT ? '' : ' : ignoré'} (${e.message.split('\n')[0]})`); if (process.env.STRICT) fails.push(`${name} : navigateur absent`); continue; }
   for (const [label, run] of [['exemple', demo], ['parcours réel', real], ...(name === 'chromium' ? [['Face ID / empreinte', bio]] : [])]) {
     tag = `${name === 'webkit' ? 'iphone' : 'android'}-${{ exemple: 'exemple', 'parcours réel': 'reel' }[label] || 'biometrie'}`;

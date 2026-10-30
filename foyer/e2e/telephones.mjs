@@ -5,7 +5,8 @@
 // et remplace le relais par un relais muet : aucun appel réseau sortant.
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 const require = createRequire(import.meta.url);
 const { chromium, webkit, devices } = require('playwright');
@@ -32,7 +33,9 @@ const NOW = new Date('2026-10-05T10:00:00Z');
 const TABS = ['Aujourd\'hui', 'Semaine', 'Courses', 'Maison'];
 
 async function phone(engine, device) {
-  const ctx = await engine.newContext({ ...devices[device], locale: 'fr-FR', timezoneId: 'Europe/Paris' });
+  // Profil sur disque, comme un vrai téléphone : un contexte privé garde le cache en mémoire, et WebKit le perdait à la coupure simulée.
+  const { defaultBrowserType, ...dev } = devices[device];
+  const ctx = await TYPE.launchPersistentContext(await mkdtemp(join(tmpdir(), 'tel-')), { ...LAUNCH, ...dev, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   // Relais réel configuré dans l'app : remplacé par un relais muet (REST et signal temps réel).
   await ctx.route(/^https:\/\/[a-z0-9]+\.supabase\.co\//, route => {
     const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS' };
@@ -42,7 +45,7 @@ async function phone(engine, device) {
   await ctx.routeWebSocket(/^wss:\/\/[a-z0-9]+\.supabase\.co\//, ws => ws.onMessage(m => { const d = JSON.parse(String(m)); if (d.event === 'phx_join' || d.event === 'heartbeat') ws.send(JSON.stringify({ topic: d.topic, event: 'phx_reply', payload: { status: 'ok', response: {} }, ref: d.ref })); }));
   const outside = [];
   ctx.on('request', r => { const u = r.url(); if (!u.startsWith('http://localhost') && !/^(data|blob):/.test(u) && !/\.supabase\.co\//.test(u)) outside.push(u); });
-  const page = await ctx.newPage(), errs = [];
+  const page = ctx.pages()[0] || await ctx.newPage(), errs = [];
   page.setDefaultTimeout(15000);
   page.on('pageerror', e => errs.push(`[${phase}] ${e.message}`));
   page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) {
@@ -146,9 +149,11 @@ async function run(engine, device) {
 
 const WANT = (process.env.MOTEUR || 'webkit,chromium').split(',');
 const RUNS = [['webkit', webkit, 'iPhone 13'], ['chromium', chromium, 'Pixel 7']].filter(([n]) => WANT.includes(n));
+let TYPE, LAUNCH = {};
 for (const [name, type, device] of RUNS) {
   let browser;
-  try { browser = await type.launch(name === 'chromium' && !process.env.CI ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {}); }
+  TYPE = type; LAUNCH = name === 'chromium' && !process.env.CI ? { executablePath: process.env.CHROMIUM_PATH || undefined } : {};
+  try { browser = await type.launch(LAUNCH); }
   catch (e) { console.log(`— ${name} absent ici${process.env.STRICT ? '' : ' : ignoré'} (${e.message.split('\n')[0]})`); if (process.env.STRICT) fails.push(`${name} : navigateur absent`); continue; }
   tag = `foyer-${name === 'webkit' ? 'iphone' : 'android'}`;
   console.log(`\nFoyer · ${device} (${name})`);
