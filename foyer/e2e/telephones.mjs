@@ -45,7 +45,12 @@ async function phone(engine, device) {
   const page = await ctx.newPage(), errs = [];
   page.setDefaultTimeout(15000);
   page.on('pageerror', e => errs.push(`[${phase}] ${e.message}`));
-  page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) errs.push(`[${phase}] ${m.text()}`); });
+  page.on('console', m => { if (m.type() === 'error' && !/favicon|service ?worker|Failed to load resource|ERR_INTERNET_DISCONNECTED/i.test(m.text())) {
+    // Capture d'écran sous WebKit : Playwright injecte un style que la CSP stricte de Foyer refuse (prouvé : seulement pendant
+    // les captures, sans fichier source). Ce cas seul est écarté ; toute autre erreur reste bloquante.
+    if (phase.startsWith('capture') && /style-src/.test(m.text())) return;
+    errs.push(`[${phase}] ${m.text()}`);
+  } });
   // Violation de CSP : d'où vient-elle (extrait du style ou du script refusé, fichier, ligne) ?
   await page.addInitScript(() => document.addEventListener('securitypolicyviolation', e => console.error(`CSP ${e.violatedDirective} ${e.sourceFile || '-'}:${e.lineNumber} « ${e.sample} »`)));
   await page.clock.setFixedTime(NOW);
