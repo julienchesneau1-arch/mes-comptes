@@ -15,6 +15,7 @@ Mesures du 30 octobre 2026 : Pixel 7 émulé, processeur ralenti ×4 (téléphon
 | Calcul le plus lourd | sous 100 ms visé | rendu d'un onglet : 19 à 62 ms au processeur ×4, HTML compris (le reste est la mise en page) | menu de la semaine (424 recettes) : 1,6 à 1,8 s → 0,10 à 0,36 s, sans ralentissement | sortie identique vérifiée |
 | Densité (mots visibles, exemple fictif) | une information principale par écran, le reste replié | Accueil 159 · Opérations 271 (liste) · Épargner 169 · Comptes 287 · Tendances 181 ; total 1 549 → 1 067 (−31 %) | Aujourd'hui 160 · Semaine 142 · Courses 210 (liste) · Maison 78 ; total 835 → 590 (−29 %) | mesuré |
 | Poids au premier chargement | aussi bas que possible, puis hors ligne | 346 Ko | 1 542 Ko (424 recettes et prix embarqués) | mesuré |
+| Réseau faible | réponse en 3 s au plus, sinon la copie gardée (service worker) | ✔ | ✔ | hors ligne ✔ |
 | Hors ligne | l'app s'ouvre sans réseau, données intactes | ✔ coffre ouvert, opérations là | ✔ mêmes courses | ✔ |
 | Rechargement | aucune donnée perdue | ✔ coffre relu, mauvais code refusé | ✔ mêmes courses (défaut trouvé et corrigé, voir plus bas) | ✔ |
 | Rien ne dépasse | aucun défilement horizontal sur téléphone | ✔ tous les onglets, 4 profils | ✔ 4 onglets, clair et sombre | ✔ |
