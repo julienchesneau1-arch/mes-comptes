@@ -107,6 +107,12 @@ async function demo(engine, device) {
   const listTotal = await page.locator('#list .row b').first().innerText();
   ok(Math.abs(Math.round(Math.abs(parseFloat(listTotal.replace(/[^\d,-]/g, '').replace(',', '.')))) - parseInt(center.replace(/\D/g, ''), 10)) <= 1, `opérations du pôle : même total que le camembert (${center} / ${listTotal.trim()})`);
 
+  // Au doigt aussi, pas seulement à la souris : une ligne d'opération (div) ouvre sa fiche.
+  const row = await page.locator('#list .op').first().boundingBox();
+  await page.touchscreen.tap(row.x + row.width / 2, row.y + row.height / 2);
+  await page.waitForSelector('#sheet:not([hidden])', { timeout: 2000 }).catch(() => {});
+  ok(await page.locator('#sheet:not([hidden])').count() === 1, 'ligne d\'opération touchée du doigt : sa fiche s\'ouvre');
+  await page.evaluate(() => closeSheet());
   await page.selectOption('select[data-c="cat"]', '');
   await page.fill('#q', 'carrefour');
   await page.click('[data-a="allOps"][data-v="1"]');
