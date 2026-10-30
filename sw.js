@@ -19,13 +19,17 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
   // Réseau d'abord ; une page d'erreur du site (404 pendant une mise à jour) ne remplace jamais la copie qui marche.
   // 3 s au plus (réseau faible) : ensuite la copie gardée ; sans copie, on attend le réseau. « core.js?v=… » : la copie de l'installation.
+  // Réseau absent ou trop lent une fois : pendant 15 s, la copie tout de suite ; le réseau la met à jour en arrière-plan.
   const kept = () => caches.match(e.request).then(c => c || caches.match(e.request, { ignoreSearch: true }));
   const net = fetch(e.request.url, { cache: 'no-cache' })
     .then(r => { if (!r.ok) return kept().then(c => c || r); const copy = r.clone(); caches.open(C).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => kept());
-  const slow = new Promise(res => setTimeout(res, 3000)).then(kept).then(c => c || net);
+    .catch(() => { badUntil = Date.now() + 15000; return kept(); });
+  let answered = false; net.then(() => { answered = true; }, () => { answered = true; });
+  const wait = self.navigator.onLine === false || Date.now() < badUntil ? 0 : 3000;
+  const slow = new Promise(res => setTimeout(res, wait)).then(kept).then(c => { if (c && wait && !answered) badUntil = Date.now() + 15000; return c || net; });
   e.respondWith(Promise.race([net, slow]));
 });
+let badUntil = 0;
 
 // Android (app installée) : notifications qui connaissent vos chiffres, calculées sur le téléphone à partir d'un petit résumé.
 // Le soir si la journée n'est pas notée, le dimanche pour la semaine, dès le 5 pour les relevés du mois. Une fois par jour et par sujet.

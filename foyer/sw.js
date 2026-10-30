@@ -113,15 +113,19 @@ self.addEventListener('activate', e => e.waitUntil(caches.keys()
   .then(ks => Promise.all(ks.filter(k => k.startsWith('foyer-') && k !== CACHE).map(k => caches.delete(k))))
   .then(() => self.clients.claim())));
 // Réseau d'abord, mais 3 s au plus (réseau faible au supermarché) : ensuite la copie gardée ; sans copie, on attend le réseau.
-// Sans cette limite, un fichier en attente sur un réseau qui ne répond pas laissait l'app sur « Chargement de Foyer… ».
-const WAIT = 3000;
+// Réseau absent ou trop lent une fois : pendant 15 s, la copie tout de suite (l'app charge des dizaines de fichiers imbriqués ;
+// 3 s par niveau la laissaient sur « Chargement de Foyer… »), et le réseau la met à jour en arrière-plan.
+const WAIT = 3000, BAD = 15000;
+let badUntil = 0;
 const kept = req => caches.match(req, { ignoreSearch: true });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.registration.scope)) return;
   const net = fetch(e.request.url, { cache: 'no-cache' })
     .then(r => { if (!r.ok) return kept(e.request).then(c => c || r); const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r; })
-    .catch(() => kept(e.request).then(c => c || caches.match('index.html')));
-  const slow = new Promise(res => setTimeout(res, WAIT)).then(() => kept(e.request)).then(c => c || net);
+    .catch(() => { badUntil = Date.now() + BAD; return kept(e.request).then(c => c || caches.match('index.html')); });
+  let answered = false; net.then(() => { answered = true; }, () => { answered = true; });
+  const wait = self.navigator.onLine === false || Date.now() < badUntil ? 0 : WAIT;
+  const slow = new Promise(res => setTimeout(res, wait)).then(() => kept(e.request)).then(c => { if (c && wait && !answered) badUntil = Date.now() + BAD; return c || net; });
   e.respondWith(Promise.race([net, slow]));
 });
 
