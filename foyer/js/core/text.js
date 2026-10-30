@@ -1,6 +1,15 @@
 // Normalisation des noms : « Pommes de terre » et « pomme de terre » sont la même ligne de courses.
-export const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/[’`]/g, "'").replace(/\s+/g, ' ').trim();
+const NORMS = new Map(); // mêmes titres et lignes du catalogue relus à chaque repas proposé : gardés
+export const norm = (s) => {
+    let n = NORMS.get(s);
+    if (n === undefined) {
+        n = s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/[’`]/g, "'").replace(/\s+/g, ' ').trim();
+        if (NORMS.size > 20000)
+            NORMS.clear();
+        NORMS.set(s, n);
+    }
+    return n;
+};
 // Mots dont le « s », le « x » ou le « z » final n'est pas une marque de pluriel.
 const INVARIANT = new Set(['riz', 'noix', 'pois', 'mais', 'anis', 'jus', 'radis', 'ananas', 'cassis', 'brebis', 'frais', 'gras',
     'paris', 'couscous', 'panais', 'salsifis', 'os', 'dos', 'chips', 'tapas', 'repas', 'bois', 'prix', 'tex-mex', 'lys', 'pastis',
@@ -17,8 +26,20 @@ export function singular(word) {
 }
 const ARTICLE = /^(?:de la |de l'|des |du |de |d'|la |le |les |l'|un |une )/;
 const LINK = new Set(['de', 'du', 'des', "d'", 'a', 'au', 'aux', 'en', 'la', 'le', 'et']);
-// Clé d'agrégation d'un ingrédient : sans article, sans accent, au singulier mot à mot.
+// Clé d'agrégation d'un ingrédient : sans article, sans accent, au singulier mot à mot. Gardée une fois calculée :
+// la semaine proposée la redemande des dizaines de milliers de fois pour les mêmes lignes du catalogue.
+const KEYS = new Map();
 export function nameKey(name) {
+    let k = KEYS.get(name);
+    if (k === undefined) {
+        if (KEYS.size > 20000)
+            KEYS.clear();
+        k = keyOf(name);
+        KEYS.set(name, k);
+    }
+    return k;
+}
+function keyOf(name) {
     let s = norm(name).replace(/[^a-z0-9' -]/g, ' ').replace(/\s+/g, ' ').trim();
     let prev = '';
     while (prev !== s) {

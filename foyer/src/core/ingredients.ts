@@ -140,6 +140,13 @@ export function aisleOf(name: string, form: string | null, overrides: Readonly<R
   const own = overrides[key];
   if (own && AISLE[own]) return own;
   if (form === 'surgelé') return 'surgeles';
+  let a = DICT_AISLE.get(key);
+  if (a === undefined) { if (DICT_AISLE.size > 20000) DICT_AISLE.clear(); a = dictAisle(key); DICT_AISLE.set(key, a); }
+  return a;
+}
+// Rayon du dictionnaire pour une clé (ne dépend que d'elle) : gardé une fois trouvé.
+const DICT_AISLE = new Map<string, string>();
+function dictAisle(key: string): string {
   const words = key.split(' ');
   for (const k of KEYWORDS) {
     for (let i = 0; i + k.words.length <= words.length; i++) {

@@ -139,6 +139,18 @@ export function aisleOf(name, form, overrides = {}) {
         return own;
     if (form === 'surgelé')
         return 'surgeles';
+    let a = DICT_AISLE.get(key);
+    if (a === undefined) {
+        if (DICT_AISLE.size > 20000)
+            DICT_AISLE.clear();
+        a = dictAisle(key);
+        DICT_AISLE.set(key, a);
+    }
+    return a;
+}
+// Rayon du dictionnaire pour une clé (ne dépend que d'elle) : gardé une fois trouvé.
+const DICT_AISLE = new Map();
+function dictAisle(key) {
     const words = key.split(' ');
     for (const k of KEYWORDS) {
         for (let i = 0; i + k.words.length <= words.length; i++) {

@@ -14,7 +14,9 @@ try { AxeBuilder = require('@axe-core/playwright').default; } catch { /* faculta
 
 const ROOT = new URL('../..', import.meta.url).pathname, SHOTS = process.env.SHOTS || join(ROOT, 'captures');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css', '.webmanifest': 'application/manifest+json' };
+let OFF = false; // hors ligne : toute connexion est coupée
 const server = createServer(async (req, res) => {
+  if (OFF) { req.socket.destroy(); return; }
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^(\.\.[/\\])+/, '');
   try { const body = await readFile(join(ROOT, path.endsWith('/') ? path + 'index.html' : path)); res.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(body); }
   catch { res.writeHead(404); res.end(); }
@@ -53,7 +55,7 @@ async function a11y(page, where) {
   if (!AxeBuilder) { if (process.env.STRICT) ok(false, `accessibilité (${where}) : @axe-core/playwright absent`); return; }
   await page.waitForTimeout(500);
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')}`).join(' | ') : ''}`);
+  ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
 // Nombre d'articles du panier (« 🛒 Commander au drive · N articles »).
 const basket = async page => +((await page.getByText(/Commander au drive · \d+ articles?/).first().innerText()).match(/(\d+) article/)?.[1] ?? 0);
@@ -115,12 +117,12 @@ async function run(engine, device) {
 
   // Hors ligne (au supermarché sans réseau) : l'app s'ouvre et garde les courses.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
-  await ctx.setOffline(true);
+  OFF = true;
   await page.reload();
   await page.locator('main').waitFor();
   await tab(page, 'Courses');
   ok(await basket(page) === lines, 'hors ligne : l\'app s\'ouvre, courses intactes');
-  await ctx.setOffline(false);
+  OFF = false;
 
   ok(!outside.length, `aucun appel hors de l'app${outside.length ? ' : ' + outside.slice(0, 3).join(' | ') : ''}`);
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);

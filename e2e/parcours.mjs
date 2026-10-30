@@ -13,7 +13,9 @@ try { AxeBuilder = require('@axe-core/playwright').default; } catch { /* faculta
 
 const ROOT = new URL('..', import.meta.url).pathname, SHOTS = process.env.SHOTS || join(ROOT, 'captures');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.css': 'text/css' };
+let OFF = false; // hors ligne : toute connexion est coupée
 const server = createServer(async (req, res) => {
+  if (OFF) { req.socket.destroy(); return; }
   const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^(\.\.[/\\])+/, '');
   try { const body = await readFile(join(ROOT, path.endsWith('/') ? path + 'index.html' : path)); res.writeHead(200, { 'Content-Type': TYPES[extname(path)] || 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(body); }
   catch { res.writeHead(404); res.end(); }
@@ -80,7 +82,7 @@ async function a11y(page, where) {
   await page.evaluate(() => document.querySelector('#toast')?.classList.remove('on'));
   await page.waitForTimeout(1100);
   const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')}`).join(' | ') : ''}`);
+  ok(!r.violations.length, `accessibilité WCAG 2.2 AA : ${where}${r.violations.length ? ' → ' + r.violations.slice(0, 3).map(v => `${v.id} ${v.nodes[0].target.join(' ')} (${(v.nodes[0].any[0]?.message || '').slice(0, 140)})`).join(' | ') : ''}`);
 }
 // Rien ne dépasse en largeur : pas de défilement horizontal sur un téléphone.
 const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
@@ -218,13 +220,13 @@ async function real(engine, device) {
   await page.screenshot({ path: join(SHOTS, `${tag}-reel.png`) });
   // Hors ligne : l'app s'ouvre, le code ouvre le coffre, les opérations sont là.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r => navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }))));
-  await ctx.setOffline(true);
+  OFF = true;
   await page.reload();
   await page.waitForSelector('#lock form[data-f="unlock"]', { timeout: 20000 }).catch(() => {});
   await page.fill('#lock [name="pin"]', PIN); await page.click('#lock form button');
   await page.waitForFunction(() => booted && S.tx.length > 0, null, { timeout: 20000 }).catch(() => {});
   ok(await page.evaluate(() => S.tx.length) === n, 'hors ligne : l\'app s\'ouvre, opérations intactes');
-  await ctx.setOffline(false);
+  OFF = false;
   ok(!errs.length, `aucune erreur dans la page${errs.length ? ' : ' + errs.slice(0, 3).join(' | ') : ''}`);
   await ctx.close();
 }
